@@ -439,9 +439,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.blue.shade900.withOpacity(0.85),
-                    Colors.deepOrange.shade400.withOpacity(0.55),
-                    Colors.black.withOpacity(0.8),
+                    Colors.blue.shade900.withValues(alpha :0.85),
+                    Colors.deepOrange.shade400.withValues(alpha :0.55),
+                    Colors.black.withValues(alpha :0.8),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -465,15 +465,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         constraints: BoxConstraints(maxWidth: 500),
                         padding: EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.13),
+                          color: Colors.white.withValues(alpha :0.13),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.22),
+                            color: Colors.white.withValues(alpha :0.22),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withOpacity(0.10),
+                              color: Colors.blue.withValues(alpha :0.10),
                               blurRadius: 24,
                               offset: Offset(0, 8),
                             ),
@@ -640,7 +640,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
+                                        fillColor: Colors.white.withValues(alpha :
                                           0.85,
                                         ),
                                       ),
@@ -659,7 +659,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withOpacity(0.85),
+                                            fillColor: Colors.white.withValues(alpha :0.85),
                                           ),
                                           items: provider.rankOptions
                                               .map((rank) => DropdownMenuItem(
@@ -728,7 +728,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
+                                        fillColor: Colors.white.withValues(alpha :
                                           0.85,
                                         ),
                                       ),
@@ -772,7 +772,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
+                                        fillColor: Colors.white.withValues(alpha :
                                           0.85,
                                         ),
                                       ),
@@ -809,7 +809,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
+                                        fillColor: Colors.white.withValues(alpha :
                                           0.85,
                                         ),
                                       ),
@@ -829,7 +829,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       title: Text("Chọn game"),
                                       selectedColor: Colors.deepOrange,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.85),
+                                        color: Colors.white.withValues(alpha :0.85),
                                         borderRadius: BorderRadius.all(
                                           Radius.circular(8),
                                         ),
@@ -903,9 +903,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha :0.85),
                                       ),
                                       keyboardType: TextInputType.number,
                                       onChanged: (value) => setState(() {
@@ -936,9 +934,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha :0.85),
                                       ),
                                       keyboardType: TextInputType.number,
                                       onChanged: (value) => setState(() {
@@ -984,9 +980,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withOpacity(
-                                              0.85,
-                                            ),
+                                            fillColor: Colors.white.withValues(alpha :0.85),
                                           ),
                                           items: provider.genderOptions
                                               .map((gender) => DropdownMenuItem(
@@ -1010,9 +1004,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha :0.85),
                                         suffixIcon: Icon(
                                           Icons.calendar_today,
                                           color: Colors.deepOrange,
@@ -1068,9 +1060,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha :0.85),
                                       ),
                                       keyboardType: TextInputType.number,
                                       validator: (value) {
@@ -1095,9 +1085,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha :0.85),
                                       ),
                                       maxLines: 3,
                                       maxLength: 200,
@@ -1113,7 +1101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           title: Text("Sở thích khác"),
                                           selectedColor: Colors.deepOrange,
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.85),
+                                            color: Colors.white.withValues(alpha :0.85),
                                             borderRadius: BorderRadius.circular(8),
                                             border: Border.all(
                                               color: Colors.deepOrange,
@@ -1147,9 +1135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withOpacity(
-                                              0.85,
-                                            ),
+                                            fillColor: Colors.white.withValues(alpha :0.85),
                                           ),
                                           items: provider.lookingForOptions
                                               .map((option) => DropdownMenuItem(
@@ -1175,9 +1161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withOpacity(
-                                              0.85,
-                                            ),
+                                            fillColor: Colors.white.withValues(alpha :0.85),
                                           ),
                                           items: provider.gameStyleOptions
                                               .map((style) => DropdownMenuItem(

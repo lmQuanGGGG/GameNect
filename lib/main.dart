@@ -12,6 +12,8 @@ import 'user/screens/home_profile_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/edit_profile_provider.dart'; 
+import 'core/providers/auth_provider.dart' as local;
+import 'user/screens/phone_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +32,7 @@ class GameNectApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
-        
+        ChangeNotifierProvider(create: (_) => local.AuthProvider()),
         ChangeNotifierProvider(create: (_) => EditProfileProvider()),
         // Thêm các providers khác nếu cần
       ],
@@ -43,6 +45,7 @@ class GameNectApp extends StatelessWidget {
           '/login': (context) => LoginScreen(),
           '/home': (context) => UserApp(),
           '/profile': (context) => ProfileScreen(),
+          '/phone-login': (context) => const PhoneLoginScreen(),
           '/home_profile': (context) => const HomeProfileScreen(),
         },
         onUnknownRoute: (settings) {

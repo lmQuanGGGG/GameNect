@@ -3,8 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class EditProfileProvider extends ChangeNotifier {
-  //final FirestoreService _firestoreService = FirestoreService();
-
   // State variables
   bool _isLoading = true;
   String? _error;

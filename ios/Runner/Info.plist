@@ -48,6 +48,7 @@
 
 	<key>CFBundleURLTypes</key>
 	<array>
+		<!-- Google Sign In -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
@@ -56,7 +57,26 @@
 				<string>com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3</string>
 			</array>
 		</dict>
+		<!-- Facebook Login -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb696308786784859</string>
+			</array>
+		</dict>
+		<!-- Phone Auth - Thêm CFBundleTypeRole -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-226979979166-ios-1bf27ecb5e4c297631408f</string>
+			</array>
+		</dict>
 	</array>
+	
 	<key>GIDClientID</key>
 	<string>226979979166-9mrboucg21mk4s24butbkcksm4g14sr3.apps.googleusercontent.com</string>
 
@@ -64,6 +84,27 @@
 	<array>
 		<string>google</string>
 		<string>com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3</string>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+		<!-- Phone Auth schemes -->
+        <string>tel</string>
+        <string>sms</string>
 	</array>
+
+	<!-- Thêm cấu hình Facebook -->
+	<key>FacebookAppID</key>
+	<string>696308786784859</string>
+	<key>FacebookClientToken</key>
+	<string>3db010a9809e1afbaf83fb334dc0f653</string>
+	<key>FacebookDisplayName</key>
+	<string>GameNect</string>
+
+	<!-- Quyền truy cập Camera và Photo Library -->
+    <key>NSCameraUsageDescription</key>
+    <string>Ứng dụng cần quyền truy cập camera để chụp ảnh đại diện</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh đại diện</string>
 </dict>
 </plist>
