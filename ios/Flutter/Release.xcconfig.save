@@ -1,0 +1,13 @@
+
+cd /Users/wang04/Downloads/gamenect_new
+
+# Clean
+flutter clean
+
+# Pub get (sẽ regenerate GeneratedPluginRegistrant)
+flutter pub get
+
+# Build
+flutter run#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"
+

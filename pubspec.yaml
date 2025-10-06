@@ -13,6 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   multi_select_flutter: ^4.1.3
   dropdown_search: ^6.0.2
+  intl: ^0.20.2
 
   # Firebase Core & Authentication
   
@@ -44,12 +45,15 @@ dependencies:
   permission_handler: ^11.3.0
   intl_phone_number_input: ^0.7.3
 
+  # Location
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+
 
   image_picker: ^1.1.2
   flutter_swiper_null_safety: ^1.0.2
   flutter_localizations:
     sdk: flutter
-  intl: ^0.20.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -60,3 +64,4 @@ flutter:
   assets:
     - .env
     - assets/images/gamenect_logo.png
+    - assets/images/google_logo.png

@@ -106,5 +106,11 @@
     <string>Ứng dụng cần quyền truy cập camera để chụp ảnh đại diện</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh đại diện</string>
+
+	<!-- Quyền truy cập vị trí -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
 </dict>
 </plist>
