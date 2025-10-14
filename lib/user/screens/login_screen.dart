@@ -52,7 +52,7 @@ class LoginScreen extends StatelessWidget {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: Colors.deepOrange.withOpacity(0.1),
+                        color: Colors.deepOrange.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -168,6 +168,21 @@ class LoginScreen extends StatelessWidget {
                       icon: const Icon(CupertinoIcons.phone_fill, color: Colors.white, size: 24),
                       label: 'Tiếp tục với số điện thoại',
                       backgroundColor: Colors.deepOrange,
+                      textColor: Colors.white,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Nút đăng nhập Email
+                    _buildLoginButton(
+                      context: context,
+                      onPressed: authProvider.isLoading
+                          ? null
+                          : () {
+                              Navigator.pushNamed(context, '/email-login');
+                            },
+                      icon: const Icon(CupertinoIcons.mail_solid, color: Colors.white, size: 24),
+                      label: 'Tiếp tục với Email',
+                      backgroundColor: Colors.teal,
                       textColor: Colors.white,
                     ),
 

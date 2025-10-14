@@ -17,3 +17,6 @@ android/.gradle/
 google-services.json
 GoogleService-Info.plist
 firebase_options.dart
+
+# ignore service account keys
+/service-account.json

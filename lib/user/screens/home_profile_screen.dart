@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 //import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/firestore_service.dart';
@@ -77,11 +78,15 @@ class _HomeProfileScreenState extends State<HomeProfileScreen> {
           controller: _pageController,
           itemCount: allPhotos.length,
           itemBuilder: (context, index) {
-            return Image.network(
-              allPhotos[index],
+            return CachedNetworkImage(
+              imageUrl: allPhotos[index],
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Center(child: Icon(Icons.error_outline, size: 50)),
+              placeholder: (context, url) => Container(
+                color: Colors.grey[200],
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) =>
+                const Center(child: Icon(Icons.error_outline, size: 50)),
             );
           },
           onPageChanged: (index) {
@@ -107,7 +112,7 @@ class _HomeProfileScreenState extends State<HomeProfileScreen> {
                 decoration: BoxDecoration(
                   color: _currentPage == index
                       ? Colors.deepOrange
-                      : Colors.white.withOpacity(0.5),
+                      : Colors.white.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -170,7 +175,7 @@ class _HomeProfileScreenState extends State<HomeProfileScreen> {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                             child: Container(
-                              color: Colors.white.withOpacity(0.5), //độ trong suốt
+                              color: Colors.white.withValues(alpha: 0.5), //độ trong suốt
                               child: SingleChildScrollView(
                                 controller: scrollController,
                                 padding: const EdgeInsets.all(24),
@@ -301,7 +306,7 @@ class _HomeProfileScreenState extends State<HomeProfileScreen> {
                                       children: _userData!.favoriteGames.map((game) {
                                         return Chip(
                                           label: Text(game),
-                                          backgroundColor: Colors.deepOrange.withOpacity(0.1),
+                                          backgroundColor: Colors.deepOrange.withValues(alpha: 0.1),
                                           labelStyle: TextStyle(
                                             color: Colors.deepOrange[700],
                                             fontWeight: FontWeight.w500,
@@ -328,7 +333,7 @@ class _HomeProfileScreenState extends State<HomeProfileScreen> {
                                         children: _userData!.interests.map((interest) {
                                           return Chip(
                                             label: Text(interest),
-                                            backgroundColor: Colors.blue.withOpacity(0.1),
+                                            backgroundColor: Colors.blue.withValues(alpha: 0.1),
                                             labelStyle: TextStyle(
                                               color: Colors.blue[700],
                                               fontWeight: FontWeight.w500,
@@ -367,7 +372,7 @@ class _HomeProfileScreenState extends State<HomeProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 10)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

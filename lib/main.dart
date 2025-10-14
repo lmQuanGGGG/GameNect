@@ -11,22 +11,25 @@ import 'package:provider/provider.dart';
 import 'user/screens/home_profile_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/providers/profile_provider.dart';
-import 'core/providers/edit_profile_provider.dart'; 
+import 'core/providers/edit_profile_provider.dart';
 import 'core/providers/auth_provider.dart' as local;
 import 'core/providers/location_provider.dart';
 import 'user/screens/phone_login_screen.dart';
+import 'user/screens/email_login_screen.dart';
+import 'user/screens/admin_test_users_screen.dart';
+import 'core/providers/match_provider.dart';
+import 'core/services/firestore_service.dart';
+import 'core/providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
+
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const GameNectApp());
 }
 
@@ -38,16 +41,12 @@ class GameNectApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // ===== SERVICES =====
-        Provider<AuthService>(
-          create: (_) => AuthService(),
-        ),
+        Provider<AuthService>(create: (_) => AuthService()),
 
         // ===== PROVIDERS =====
-        
+
         // 1. LocationProvider - Tạo đầu tiên (không phụ thuộc ai)
-        ChangeNotifierProvider(
-          create: (_) => LocationProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => LocationProvider()),
 
         // 2. AuthProvider - Inject LocationProvider
         ChangeNotifierProxyProvider<LocationProvider, local.AuthProvider>(
@@ -66,26 +65,29 @@ class GameNectApp extends StatelessWidget {
         ),
 
         // 3. ProfileProvider
-        ChangeNotifierProvider(
-          create: (_) => ProfileProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
 
         // 4. EditProfileProvider
-        ChangeNotifierProvider(
-          create: (_) => EditProfileProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => EditProfileProvider()),
+
+        // 5. MatchProvider
+        ChangeNotifierProvider(create: (_) => MatchProvider()),
+
+        // 6. ChatProvider
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+
+        // Firestore service
+        Provider(create: (_) => FirestoreService()),
       ],
       child: MaterialApp(
         title: 'GameNect',
         debugShowCheckedModeBanner: false,
-        
+
         // Theme
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepOrange,
-          ),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
           useMaterial3: true,
-          
+
           // AppBar theme
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.white,
@@ -93,7 +95,7 @@ class GameNectApp extends StatelessWidget {
             elevation: 0,
             centerTitle: true,
           ),
-          
+
           // Card theme
           cardTheme: CardThemeData(
             elevation: 2,
@@ -101,32 +103,27 @@ class GameNectApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          
+
           // Button theme
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepOrange,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-          
+
           // Input theme
           inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             filled: true,
             fillColor: Colors.grey[100],
           ),
         ),
-        
+
         // Routes
         initialRoute: '/',
         routes: {
@@ -136,42 +133,39 @@ class GameNectApp extends StatelessWidget {
           '/profile': (context) => ProfileScreen(),
           '/phone-login': (context) => const PhoneLoginScreen(),
           '/home_profile': (context) => const HomeProfileScreen(),
+          '/email-login': (context) => const EmailLoginScreen(),
+          '/admin-test-users': (context) => const AdminTestUsersScreen(),
         },
-        
+        onGenerateRoute: (settings) {
+          final name = settings.name ?? '';
+          if (name.startsWith('/__/auth')) {
+            // Firebase phone auth callback – chặn hiển thị
+            return MaterialPageRoute(
+              builder: (_) => const SizedBox.shrink(),
+              settings: const RouteSettings(name: '_firebase_auth_cb'),
+            );
+          }
+          return null;
+        },
         // Unknown route handler
-        onUnknownRoute: (settings) {
-          return MaterialPageRoute(
-            builder: (context) => Scaffold(
-              appBar: AppBar(
-                title: const Text('Không tìm thấy trang'),
-              ),
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Trang "${settings.name}" không tồn tại',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () => Navigator.pushReplacementNamed(context, '/'),
-                      icon: const Icon(Icons.home),
-                      label: const Text('Về trang chủ'),
-                    ),
-                  ],
+        onUnknownRoute: (settings) => MaterialPageRoute(
+          builder: (_) => Scaffold(
+            backgroundColor: Colors.orange.shade50,
+            body: Center(
+              child: Text(
+                'Quay lại trang trước xác nhận!',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.deepOrange,
+                  letterSpacing: .5,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
-          );
-        },
-        
+          ),
+        ),
+
         // Localization
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
@@ -193,8 +187,11 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AuthService authService = Provider.of<AuthService>(context, listen: false);
-    
+    final AuthService authService = Provider.of<AuthService>(
+      context,
+      listen: false,
+    );
+
     return StreamBuilder<User?>(
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
@@ -207,29 +204,20 @@ class AuthWrapper extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo hoặc icon
-                  Icon(
-                    Icons.games,
-                    size: 80,
-                    color: Colors.deepOrange,
-                  ),
+                  Icon(Icons.games, size: 80, color: Colors.deepOrange),
                   const SizedBox(height: 24),
-                  const CircularProgressIndicator(
-                    color: Colors.deepOrange,
-                  ),
+                  const CircularProgressIndicator(color: Colors.deepOrange),
                   const SizedBox(height: 16),
                   const Text(
                     'Đang khởi động...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 ],
               ),
             ),
           );
         }
-        
+
         // Error state
         if (snapshot.hasError) {
           return Scaffold(
@@ -257,9 +245,7 @@ class AuthWrapper extends StatelessWidget {
                     Text(
                       '${snapshot.error}',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
@@ -281,21 +267,30 @@ class AuthWrapper extends StatelessWidget {
             ),
           );
         }
-        
+
         // User is signed in
         if (snapshot.hasData && snapshot.data != null) {
-          // Load location khi user đã đăng nhập
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final locationProvider = Provider.of<LocationProvider>(
-              context,
-              listen: false,
-            );
-            locationProvider.updateUserLocation(snapshot.data!.uid);
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+            final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+
+            // Cập nhật vị trí
+            await locationProvider.updateUserLocation(snapshot.data!.uid);
+
+            // Lấy user từ Firestore nếu chưa có
+            if (profileProvider.userData == null) {
+              await profileProvider.loadUserProfile(); // KHÔNG cần truyền uid
+            }
+
+            // Load location settings từ user vào LocationProvider
+            if (profileProvider.userData != null) {
+              locationProvider.loadSettingsFromUser(profileProvider.userData!);
+            }
           });
-          
+
           return const UserApp();
         }
-        
+
         // User is not signed in
         return LoginScreen();
       },

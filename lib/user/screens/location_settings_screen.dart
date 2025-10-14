@@ -44,7 +44,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,7 +175,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                 activeTrackColor: Colors.deepOrange,
                                 inactiveTrackColor: Colors.grey[300],
                                 thumbColor: Colors.deepOrange,
-                                overlayColor: Colors.deepOrange.withOpacity(0.2),
+                                overlayColor: Colors.deepOrange.withValues(alpha: 0.2),
                                 thumbShape: const RoundSliderThumbShape(
                                   enabledThumbRadius: 12,
                                 ),
@@ -431,7 +431,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               ),
                               CupertinoSwitch(
                                 value: locationProvider.showDistance,
-                                activeColor: Colors.deepOrange,
+                                activeTrackColor: Colors.deepOrange,
                                 onChanged: locationProvider.setShowDistance,
                               ),
                             ],

@@ -1,8 +1,11 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:logging/logging.dart';
 
 /// Service xử lý location như Tinder
 class LocationService {
+
+  final Logger _logger = Logger('LocationService');
   
   /// Kiểm tra trạng thái quyền truy cập vị trí
   Future<bool> checkLocationPermission() async {
@@ -10,8 +13,8 @@ class LocationService {
       LocationPermission permission = await Geolocator.checkPermission();
       return permission == LocationPermission.always ||
              permission == LocationPermission.whileInUse;
-    } catch (e) {
-      print('Lỗi khi kiểm tra quyền vị trí: $e');
+    } catch (e, st) {
+      _logger.severe('Lỗi khi kiểm tra quyền vị trí: $e', e, st);
       return false;
     }
   }
@@ -19,33 +22,33 @@ class LocationService {
   /// Xin quyền truy cập vị trí
   Future<bool> requestLocationPermission() async {
     try {
-      print('Đang kiểm tra quyền hiện tại...');
+      _logger.info('Đang kiểm tra quyền hiện tại...');
       
       LocationPermission permission = await Geolocator.checkPermission();
       
-      print('Quyền hiện tại: $permission');
+      _logger.fine('Quyền hiện tại: $permission');
 
       if (permission == LocationPermission.denied) {
-        print('Chưa có quyền, đang yêu cầu...');
+        _logger.info('Chưa có quyền, đang yêu cầu...');
         permission = await Geolocator.requestPermission();
-        print('Sau khi yêu cầu: $permission');
+        _logger.fine('Sau khi yêu cầu: $permission');
       }
 
       if (permission == LocationPermission.deniedForever) {
-        print('Quyền bị từ chối vĩnh viễn, mở settings...');
+        _logger.warning('Quyền bị từ chối vĩnh viễn, mở settings...');
         await Geolocator.openLocationSettings();
         return false;
       }
 
       if (permission == LocationPermission.denied) {
-        print('Quyền vẫn bị từ chối');
+        _logger.warning('Quyền vẫn bị từ chối');
         return false;
       }
 
-      print('Đã có quyền truy cập vị trí!');
+      _logger.info('Đã có quyền truy cập vị trí!');
       return true;
-    } catch (e) {
-      print('Lỗi khi xin quyền vị trí: $e');
+    } catch (e, st) {
+      _logger.severe('Lỗi khi xin quyền vị trí: $e', e, st);
       return false;
     }
   }
@@ -61,10 +64,10 @@ class LocationService {
       // Kiểm tra quyền
       final hasPermission = await checkLocationPermission();
       if (!hasPermission) {
-        print('Chưa có quyền, đang yêu cầu...');
+        _logger.info('Chưa có quyền, đang yêu cầu...');
         final granted = await requestLocationPermission();
         if (!granted) {
-          print('Không được cấp quyền');
+          _logger.warning('Không được cấp quyền');
           return null;
         }
       }
@@ -72,21 +75,21 @@ class LocationService {
       // Kiểm tra location service
       final serviceEnabled = await isLocationServiceEnabled();
       if (!serviceEnabled) {
-        print('Dịch vụ vị trí chưa được bật');
+        _logger.warning('Dịch vụ vị trí chưa được bật');
         return null;
       }
       
       // Lấy vị trí hiện tại
-      print('Đang lấy vị trí hiện tại...');
+      _logger.info('Đang lấy vị trí hiện tại...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
       
-      print('Đã lấy được vị trí: ${position.latitude}, ${position.longitude}');
+      _logger.info('Đã lấy được vị trí: ${position.latitude}, ${position.longitude}');
       return position;
-    } catch (e) {
-      print('Lỗi khi lấy vị trí: $e');
+    } catch (e, st) {
+      _logger.severe('Lỗi khi lấy vị trí: $e', e, st);
       return null;
     }
   }
@@ -97,7 +100,7 @@ class LocationService {
     double longitude,
   ) async {
     try {
-      print('Đang chuyển đổi tọa độ thành địa chỉ...');
+      _logger.info('Đang chuyển đổi tọa độ thành địa chỉ...');
       
       final placemarks = await placemarkFromCoordinates(latitude, longitude);
       
@@ -119,15 +122,15 @@ class LocationService {
       
       final fullAddress = addressParts.join(', ');
       
-      print('Địa chỉ: $fullAddress');
+      _logger.fine('Địa chỉ: $fullAddress');
       
       return {
         'address': fullAddress,
         'city': place.locality ?? place.administrativeArea,
         'country': place.country,
       };
-    } catch (e) {
-      print('Lỗi khi chuyển đổi địa chỉ: $e');
+    } catch (e, st) {
+      _logger.severe('Lỗi khi chuyển đổi địa chỉ: $e', e, st);
       return {
         'address': null,
         'city': null,
@@ -202,8 +205,8 @@ class LocationService {
         'location': addressData['city'] ?? 'Không xác định',
         'lastLocationUpdate': DateTime.now().toIso8601String(),
       };
-    } catch (e) {
-      print('Lỗi khi lấy dữ liệu vị trí: $e');
+    } catch (e, st) {
+      _logger.severe('Lỗi khi lấy dữ liệu vị trí: $e', e, st);
       return null;
     }
   }

@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'home_profile_screen.dart';
 import 'edit_profile_screen.dart';
 import 'location_settings_screen.dart';
+import 'package:logging/logging.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -17,6 +18,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final Logger _logger = Logger('ProfilePage');
+  
   @override
   void initState() {
     super.initState();
@@ -30,7 +33,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _testLocationPermission() async {
     final locationProvider = Provider.of<LocationProvider>(context, listen: false);
     
-    print('Test: Bắt đầu request location permission...');
+    _logger.info('Test: Bắt đầu request location permission...');
     
     // Request permission
     final hasPermission = await locationProvider.requestLocationPermission();
@@ -47,7 +50,7 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     
-    print('Test: Đã có permission, đang lấy vị trí...');
+    _logger.info('Test: Đã có permission, đang lấy vị trí...');
     
     // Get current location
     final success = await locationProvider.getCurrentLocation();
@@ -217,7 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -452,7 +455,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                       (game) => Chip(
                                         label: Text(game),
                                         backgroundColor: Colors.deepOrange
-                                            .withOpacity(0.1),
+                                            .withValues(alpha: 0.1),
                                       ),
                                     )
                                     .toList(),
@@ -479,6 +482,31 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
+                      
+                      // === THÊM PHẦN NÀY Ở CUỐI ===
+                      const SizedBox(height: 24),
+                      
+                      // Admin Test Users Button
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/admin-test-users');
+                          },
+                          icon: const Icon(CupertinoIcons.person_3_fill),
+                          label: const Text('Tạo Test Users (Admin)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32), // Bottom padding
                     ],
                   ),
                 ),

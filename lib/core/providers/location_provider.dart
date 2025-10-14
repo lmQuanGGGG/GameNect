@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../services/location_service.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
+import 'package:logging/logging.dart'; // { changed code }
 
 /// Provider quản lý location và distance settings
 class LocationProvider extends ChangeNotifier {
   final LocationService _locationService = LocationService();
   final FirestoreService _firestoreService = FirestoreService();
+  final Logger _logger = Logger('LocationProvider'); // { changed code }
 
   // State
   bool _isLoading = false;
@@ -68,7 +70,7 @@ class LocationProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      print('Đang lấy vị trí hiện tại...');
+      _logger.info('Đang lấy vị trí hiện tại...'); // { changed code }
 
       // Kiểm tra quyền trước
       final hasPermission = await _locationService.requestLocationPermission();
@@ -102,15 +104,15 @@ class LocationProvider extends ChangeNotifier {
       _address = addressData['address'];
       _city = addressData['city'];
       _country = addressData['country'];
-      _currentLocation = _address ?? _city ?? 'Không xác định'; // ✅ FIX 1
+      _currentLocation = _address ?? _city ?? 'Không xác định'; // FIX 1
 
-      print('Đã lấy vị trí: $_currentLocation');
+      _logger.info('Đã lấy vị trí: $_currentLocation'); // { changed code }
 
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      print('Lỗi khi lấy vị trí: $e');
+      _logger.severe('Lỗi khi lấy vị trí: $e'); // { changed code }
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -125,7 +127,7 @@ class LocationProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      print('Đang cập nhật location cho user: $userId');
+      _logger.info('Đang cập nhật location cho user: $userId'); // { changed code }
 
       // Lấy location data
       final locationData = await _locationService.getLocationData();
@@ -148,13 +150,13 @@ class LocationProvider extends ChangeNotifier {
       _country = locationData['country'];
       _currentLocation = _address ?? _city ?? 'Không xác định'; // ✅ FIX 2
 
-      print('Đã cập nhật location thành công');
+      _logger.info('Đã cập nhật location thành công'); // { changed code }
 
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      print('Lỗi khi cập nhật location: $e');
+      _logger.severe('Lỗi khi cập nhật location: $e'); // { changed code }
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -174,7 +176,7 @@ class LocationProvider extends ChangeNotifier {
     _address = user.address;
     _city = user.city;
     _country = user.country;
-    _currentLocation = user.address ?? user.city ?? user.location; // ✅ FIX 3
+    _currentLocation = user.address ?? user.city ?? user.location; 
     
     notifyListeners();
   }
@@ -216,7 +218,7 @@ class LocationProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      print('Đang lưu settings...');
+      _logger.info('Đang lưu settings...'); // { changed code }
 
       await _firestoreService.updateLocationSettings(
         userId,
@@ -227,13 +229,13 @@ class LocationProvider extends ChangeNotifier {
         interestedInGender: _interestedInGender, // THÊM
       );
 
-      print('Đã lưu settings thành công');
+      _logger.info('Đã lưu settings thành công'); // { changed code }
 
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      print('Lỗi khi lưu settings: $e');
+      _logger.severe('Lỗi khi lưu settings: $e'); // { changed code }
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

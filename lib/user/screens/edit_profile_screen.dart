@@ -7,6 +7,8 @@ import 'dart:ui';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:developer' as developer;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/firestore_service.dart';
 import '../user_app.dart';
@@ -76,18 +78,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final locationProvider = Provider.of<LocationProvider>(context, listen: false);
     
     if (locationProvider.currentLocation == null) {
-      print('Chưa có location, đang lấy từ GPS...');
+      developer.log('Chưa có location, đang lấy từ GPS...', name: 'EditProfile');
       await locationProvider.getCurrentLocation();
     }
     
-    print('Location loaded: ${locationProvider.currentLocation}');
+    developer.log('Location loaded: ${locationProvider.currentLocation}', name: 'EditProfile');
   }
 
   Future<void> _initializeData() async {
     try {
       await _loadUserProfile();
     } catch (e) {
-      print('Error initializing data: $e');
+      developer.log('Error initializing data', name: 'EditProfile', error: e);
     }
   }
 
@@ -364,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           backgroundImage: _avatarImage != null
                                               ? FileImage(_avatarImage!)
                                               : (_avatarUrl != null
-                                                    ? NetworkImage(_avatarUrl!)
+                                                    ? CachedNetworkImageProvider(_avatarUrl!)
                                                     : null),
                                           child:
                                               _avatarImage == null &&
@@ -435,7 +437,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     borderRadius: BorderRadius.circular(8),
                                                     image: DecorationImage(
                                                       image: index < _additionalPhotoUrls.length
-                                                          ? NetworkImage(_additionalPhotoUrls[index])
+                                                          ? CachedNetworkImageProvider(_additionalPhotoUrls[index])
                                                           : FileImage(_additionalImages[index - _additionalPhotoUrls.length]) as ImageProvider,
                                                       fit: BoxFit.cover,
                                                     ),
@@ -910,7 +912,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 );
                                                 
                                                 if (locationProvider.currentLocation == null) {
-                                                  print('Đang lấy location từ GPS...');
+                                                  developer.log('Đang lấy location từ GPS...', name: 'EditProfile');
                                                   await locationProvider.getCurrentLocation();
                                                   await locationProvider.updateUserLocation(user.uid);
                                                 }
@@ -920,9 +922,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                     locationProvider.city ?? 
                                                                     'Không xác định';
 
-                                                print('Saving profile with location: $locationText');
-                                                print('Full address: ${locationProvider.address}');
-                                                print('City: ${locationProvider.city}');
+                                                developer.log('Saving profile with location: $locationText', name: 'EditProfile');
+                                                developer.log('Full address: ${locationProvider.address}', name: 'EditProfile');
+                                                developer.log('City: ${locationProvider.city}', name: 'EditProfile');
 
                                                 UserModel newUser = UserModel(
                                                   id: user.uid,
@@ -970,7 +972,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   ),
                                                 );
                                               } catch (e) {
-                                                print('Error saving profile: $e');
+                                                developer.log('Error saving profile', name: 'EditProfile', error: e);
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
                                                     content: Text('Lưu hồ sơ thất bại: $e'),

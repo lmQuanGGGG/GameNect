@@ -66,7 +66,7 @@
 				<string>fb696308786784859</string>
 			</array>
 		</dict>
-		<!-- Phone Auth - Thêm CFBundleTypeRole -->
+		<!-- Phone Auth -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
@@ -88,12 +88,11 @@
 		<string>fb-messenger-share-api</string>
 		<string>fbauth2</string>
 		<string>fbshareextension</string>
-		<!-- Phone Auth schemes -->
-        <string>tel</string>
-        <string>sms</string>
+		<string>tel</string>
+		<string>sms</string>
 	</array>
 
-	<!-- Thêm cấu hình Facebook -->
+	<!-- Facebook Config -->
 	<key>FacebookAppID</key>
 	<string>696308786784859</string>
 	<key>FacebookClientToken</key>
@@ -101,16 +100,29 @@
 	<key>FacebookDisplayName</key>
 	<string>GameNect</string>
 
-	<!-- Quyền truy cập Camera và Photo Library -->
-    <key>NSCameraUsageDescription</key>
-    <string>Ứng dụng cần quyền truy cập camera để chụp ảnh đại diện</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh đại diện</string>
-
-	<!-- Quyền truy cập vị trí -->
+	<!-- Permissions - GỘP LẠI, KHÔNG TRÙNG! -->
+	<key>NSCameraUsageDescription</key>
+	<string>GameNect cần truy cập camera để gọi video và chụp ảnh đại diện</string>
+	
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GameNect cần microphone để gọi video và trò chuyện thoại</string>
+	
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GameNect cần truy cập thư viện ảnh để chọn ảnh đại diện</string>
+	
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
+	
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
+
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<true/>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Ứng dụng cần quyền thông báo để gửi thông báo cho bạn.</string>
 </dict>
 </plist>

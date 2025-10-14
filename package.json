@@ -1,0 +1,30 @@
+{
+  "name": "gamenect_new",
+  "version": "1.0.0",
+  "description": "A new Flutter project.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lmQuanGGGG/GameNect.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lmQuanGGGG/GameNect/issues"
+  },
+  "homepage": "https://github.com/lmQuanGGGG/GameNect#readme",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "google-auth-library": "^10.4.0",
+    "yargs": "^18.0.0"
+  }
+}

@@ -8,6 +8,12 @@ import '../core/services/auth_service.dart';
 import 'screens/home_profile_screen.dart';
 import 'screens/main_screen.dart'; // Thêm import cho MainScreen
 import 'screens/phone_login_screen.dart'; // Thêm import cho PhoneLoginScreen
+import 'screens/email_login_screen.dart'; // Thêm import cho EmailLoginScreen
+import 'screens/admin_test_users_screen.dart'; // Thêm import cho AdminTestUsersScreen
+import 'screens/location_settings_screen.dart'; // Thêm import này
+import 'screens/liked_me_screen.dart';
+import '../../core/providers/match_provider.dart';
+import '../../core/providers/chat_provider.dart';
 
 class UserApp extends StatelessWidget {
   final String? initialRoute;
@@ -17,7 +23,12 @@ class UserApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [Provider<AuthService>(create: (_) => AuthService())],
+      providers: [
+        Provider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => MatchProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        // ... các provider khác
+      ],
       child: MaterialApp(
         title: 'GameNect User',
         theme: ThemeData(
@@ -39,6 +50,10 @@ class UserApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/home_profile': (context) => const HomeProfileScreen(),
           '/phone-login': (context) => const PhoneLoginScreen(), // Thêm route cho PhoneLoginScreen
+          '/email-login': (context) => const EmailLoginScreen(), // Thêm route cho EmailLoginScreen
+          '/admin-test-users': (context) => const AdminTestUsersScreen(), // Thêm route cho AdminTestUsersScreen
+          '/location-settings': (context) => const LocationSettingsScreen(), // Thêm dòng này
+          '/liked-me': (context) => const LikedMeScreen(),
         },
       ),
     );

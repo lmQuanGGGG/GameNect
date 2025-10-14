@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'profile.dart'; // Add this import
+import 'profile.dart';
+import 'match_screen.dart'; // Thêm import này
+import 'liked_me_screen.dart'; // Thêm import này
+import 'match_list_screen.dart'; // Thêm import này
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,11 +16,11 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   
   final List<Widget> _screens = [
-    const Center(child: Text('Trang chủ')),
+    MatchScreen(), // Trang chủ là màn hình match
     const Center(child: Text('Khám phá')),
-    const Center(child: Text('Lượt thích')),
-    const Center(child: Text('Tin nhắn')),
-    const ProfilePage(), // Changed from HomeProfileScreen to ProfilePage
+    LikedMeScreen(), // Hiển thị ai đã thích bạn
+    MatchListScreen(), // <-- Thay vì ChatScreen()
+    const ProfilePage(),
   ];
 
   @override
@@ -37,8 +40,8 @@ class _MainScreenState extends State<MainScreen> {
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.house),
-              activeIcon: Icon(CupertinoIcons.house_fill),
+              icon: Icon(Icons.sports_esports), 
+              activeIcon: Icon(Icons.sports_esports, color: Colors.deepOrange), 
               label: 'Trang chủ',
             ),
             BottomNavigationBarItem(

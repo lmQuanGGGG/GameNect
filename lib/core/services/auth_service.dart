@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'dart:async';
+import 'package:logging/logging.dart'; // { changed code }
 
 // Quản lý số lần gửi OTP
 class OTPAttempt {
@@ -16,6 +17,7 @@ class OTPAttempt {
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final Logger _logger = Logger('AuthService'); // { changed code }
 
   // Biến theo dõi OTP
   final Map<String, OTPAttempt> _otpAttempts = {};
@@ -47,10 +49,10 @@ class AuthService {
 
       final UserCredential userCredential =
           await _auth.signInWithCredential(credential);
-      print('Đăng nhập Google thành công: ${userCredential.user?.uid}');
+      _logger.info('Đăng nhập Google thành công: ${userCredential.user?.uid}'); // { changed code }
       return userCredential.user;
     } catch (e) {
-      print('Lỗi đăng nhập Google: $e');
+      _logger.severe('Lỗi đăng nhập Google: $e'); // { changed code }
       return null;
     }
   }
@@ -65,10 +67,10 @@ class AuthService {
           FacebookAuthProvider.credential(loginResult.accessToken!.tokenString);
       final UserCredential userCredential =
           await _auth.signInWithCredential(facebookAuthCredential);
-      print('Đăng nhập Facebook thành công: ${userCredential.user?.uid}');
+      _logger.info('Đăng nhập Facebook thành công: ${userCredential.user?.uid}'); // { changed code }
       return userCredential.user;
     } catch (e) {
-      print('Lỗi đăng nhập Facebook: $e');
+      _logger.severe('Lỗi đăng nhập Facebook: $e'); // { changed code }
       return null;
     }
   }
@@ -153,32 +155,32 @@ class AuthService {
         forceResendingToken: isResend ? _resendToken : null,
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
-          print('Xác thực tự động thành công');
+          _logger.info('Xác thực tự động thành công'); // { changed code }
           await _auth.signInWithCredential(credential);
         },
         verificationFailed: (FirebaseAuthException e) {
-          print('Lỗi xác thực: ${e.message}');
+          _logger.warning('Lỗi xác thực: ${e.message}'); // { changed code }
           if (!verificationIdCompleter.isCompleted) {
             verificationIdCompleter
                 .completeError('Lỗi gửi mã OTP: ${e.message}');
           }
         },
         codeSent: (String verificationId, int? resendToken) {
-          print('Đã gửi mã OTP đến $phoneNumber');
+          _logger.info('Đã gửi mã OTP đến $phoneNumber'); // { changed code }
           _resendToken = resendToken;
           if (!verificationIdCompleter.isCompleted) {
             verificationIdCompleter.complete(verificationId);
           }
         },
         codeAutoRetrievalTimeout: (String verificationId) {
-          print('Hết thời gian chờ OTP');
+          _logger.warning('Hết thời gian chờ OTP'); // { changed code }
           onTimeout?.call();
         },
       );
 
       return verificationIdCompleter.future;
     } catch (e) {
-      print('Lỗi gửi mã OTP: $e');
+      _logger.severe('Lỗi gửi mã OTP: $e'); // { changed code }
       throw Exception(e.toString());
     }
   }
@@ -191,11 +193,37 @@ class AuthService {
         smsCode: otp,
       );
       final userCredential = await _auth.signInWithCredential(credential);
-      print('Đăng nhập số điện thoại thành công: ${userCredential.user?.uid}');
+      _logger.info('Đăng nhập số điện thoại thành công: ${userCredential.user?.uid}'); // { changed code }
       return userCredential.user;
     } catch (e) {
-      print('Lỗi xác thực OTP: $e');
+      _logger.severe('Lỗi xác thực OTP: $e'); // { changed code }
       throw Exception('Mã OTP không hợp lệ');
+    }
+  }
+
+  /// Đăng ký với Email và Password
+  Future<User?> signUpWithEmailPassword(String email, String password) async {
+    try {
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Đăng nhập với Email và Password
+  Future<User?> signInWithEmailPassword(String email, String password) async {
+    try {
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } catch (e) {
+      rethrow;
     }
   }
 }

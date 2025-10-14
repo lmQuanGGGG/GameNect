@@ -82,6 +82,64 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Đăng ký với Email/Password
+  Future<bool> signUpWithEmailPassword(String email, String password) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // 1. Đăng ký với Email/Password
+      final user = await _authService.signUpWithEmailPassword(email, password);
+      
+      if (user != null) {
+        // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
+        if (_locationProvider != null) {
+          await _locationProvider!.updateUserLocation(user.uid);
+        }
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Đăng nhập với Email/Password
+  Future<bool> signInWithEmailPassword(String email, String password) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // 1. Đăng nhập với Email/Password
+      final user = await _authService.signInWithEmailPassword(email, password);
+      
+      if (user != null) {
+        // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
+        if (_locationProvider != null) {
+          await _locationProvider!.updateUserLocation(user.uid);
+        }
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Xác thực OTP và lấy location
   Future<bool> verifyOTP(String otp) async {
     if (_verificationId == null) {
