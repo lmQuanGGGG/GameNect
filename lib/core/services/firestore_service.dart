@@ -4,6 +4,7 @@ import 'dart:io';
 import '../models/user_model.dart';
 import '../models/match_model.dart';
 import '../models/swipe_history_model.dart';
+import '../models/moment_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'dart:developer' as developer;
@@ -585,7 +586,8 @@ Future<List<Map<String, dynamic>>> getMessages(String matchId) async {
 
 Future<void> sendMessage(String matchId, String text) async {
   final userId = FirebaseAuth.instance.currentUser?.uid;
-  final timestamp = DateTime.now();
+  
+  // Lưu tin nhắn vào chats
   await FirebaseFirestore.instance
       .collection('chats')
       .doc(matchId)
@@ -593,71 +595,307 @@ Future<void> sendMessage(String matchId, String text) async {
       .add({
         'senderId': userId,
         'text': text,
-        'timestamp': timestamp,
+        'timestamp': FieldValue.serverTimestamp(), // DÙNG serverTimestamp
       });
 
-  // Update lastMessage & lastMessageTime vào matches
+  // Cập nhật lastMessage vào matches - DÙNG serverTimestamp
   await FirebaseFirestore.instance
       .collection('matches')
       .doc(matchId)
       .update({
         'lastMessage': text,
-        'lastMessageTime': timestamp.toIso8601String(),
+        'lastMessageTime': FieldValue.serverTimestamp(), // SỬA ĐÂY
+        'lastMessageSenderId': userId,
       });
 }
 
-Stream<List<Map<String, dynamic>>> messagesStream(String matchId) {
-    return _db
-      .collection('chats')
-      .doc(matchId)
-      .collection('messages')
-      .orderBy('timestamp')
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
-  }
-
-Future<Map<String, dynamic>?> getLastMessage(String matchId) async {
-  final snapshot = await FirebaseFirestore.instance
-      .collection('chats')
-      .doc(matchId)
-      .collection('messages')
-      .orderBy('timestamp', descending: true)
-      .limit(1)
-      .get();
-
-  if (snapshot.docs.isNotEmpty) {
-    return snapshot.docs.first.data();
-  }
-  return null;
-}
-
-Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> getMatchDocsStreamForUser(String userId) {
-    return FirebaseFirestore.instance
-      .collection('matches')
-      .where('userIds', arrayContains: userId)
-      .snapshots()
-      .map((snapshot) => snapshot.docs);
-  }
-
-Future<void> addCallMessage({
+Future<void> sendMessageWithMedia({
   required String matchId,
-  required String? senderId,
-  required int duration,
-  bool missed = false,
+  required String text,
+  String? mediaUrl,
+  bool isVideo = false,
 }) async {
-  final data = {
-    'senderId': senderId,
-    'type': 'call',
-    'timestamp': DateTime.now(),
-    'callStatus': missed ? 'missed' : 'ended',
-  };
-  if (!missed) {
-    data['duration'] = duration;
-  }
+  final userId = FirebaseAuth.instance.currentUser?.uid;
+  
   await FirebaseFirestore.instance
       .collection('chats')
       .doc(matchId)
       .collection('messages')
-      .add(data);
+      .add({
+        'senderId': userId,
+        'text': text,
+        'mediaUrl': mediaUrl,
+        'isVideo': isVideo,
+        'timestamp': FieldValue.serverTimestamp(), // DÙNG serverTimestamp
+      });
+
+  await FirebaseFirestore.instance
+      .collection('matches')
+      .doc(matchId)
+      .update({
+        'lastMessage': text,
+        'lastMessageTime': FieldValue.serverTimestamp(), // SỬA ĐÂY
+        'lastMediaUrl': mediaUrl,
+        'lastIsVideo': isVideo,
+        'lastMessageSenderId': userId,
+      });
+}
+
+Future<void> addCallMessage({
+  required String matchId,
+  String? senderId,
+  required int duration,
+  bool missed = false,
+  bool declined = false,
+  bool cancelled = false,
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
+  final uid = senderId ?? user?.uid;
+  if (uid == null) return;
+
+  String callStatus;
+  String text;
+  
+  if (cancelled) {
+    callStatus = 'cancelled';
+    text = 'Đã hủy';
+  } else if (declined) {
+    callStatus = 'declined';
+    text = 'Cuộc gọi bị từ chối';
+  } else if (missed) {
+    callStatus = 'missed';
+    text = 'Cuộc gọi nhỡ';
+  } else {
+    callStatus = 'ended';
+    final minutes = duration ~/ 60;
+    final secs = duration % 60;
+    if (minutes > 0) {
+      text = 'Đã gọi $minutes phút${secs > 0 ? ' $secs giây' : ''}';
+    } else {
+      text = 'Đã gọi $secs giây';
+    }
+  }
+
+  await FirebaseFirestore.instance
+      .collection('chats')
+      .doc(matchId)
+      .collection('messages')
+      .add({
+    'senderId': uid,
+    'text': text,
+    'timestamp': FieldValue.serverTimestamp(),
+    'type': 'call',
+    'callStatus': callStatus,
+    'duration': duration,
+  });
+  
+  // Cập nhật lastMessage trong match document
+  await FirebaseFirestore.instance
+      .collection('matches')
+      .doc(matchId)
+      .update({
+        'lastMessage': text,
+        'lastMessageTime': FieldValue.serverTimestamp(), // SỬA ĐÂY
+        'lastMessageSenderId': uid,
+      });
+}
+
+Future<bool> canPostMoment(String userId) async {
+  final now = DateTime.now();
+  final startOfMonth = DateTime(now.year, now.month, 1);
+  final snap = await FirebaseFirestore.instance
+      .collection('moments')
+      .where('userId', isEqualTo: userId)
+      .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
+      .get();
+  // Lấy trạng thái premium từ user model
+  final user = await getUser(userId);
+  final isPremium = user?.isPremium ?? false;
+  return isPremium || snap.docs.length < 20;
+}
+
+Future<void> postMoment({
+  required String userId,
+  required String mediaUrl,
+  required bool isVideo,
+  required List<String> matchIds, // ĐÂY GIỜ LÀ userIds rồi
+  String? caption,
+  String? thumbnailUrl,
+}) async {
+  if (!await canPostMoment(userId)) {
+    throw Exception('Bạn đã đăng đủ 20 khoảnh khắc tháng này!');
+  }
+  
+  // matchIds parameter giờ ĐÃ LÀ userIds rồi, không cần convert nữa
+  final visibleToUserIds = <String>{userId, ...matchIds};
+  
+  developer.log('Posting moment visible to: $visibleToUserIds', name: 'FirestoreService');
+  
+  try {
+    await FirebaseFirestore.instance.collection('moments').add({
+      'userId': userId,
+      'mediaUrl': mediaUrl,
+      'isVideo': isVideo,
+      'thumbnailUrl': thumbnailUrl,
+      'createdAt': FieldValue.serverTimestamp(),
+      'matchIds': visibleToUserIds.toList(),
+      'reactions': [],
+      'replies': [],
+      'caption': caption,
+    });
+    developer.log('Moment saved successfully with ${visibleToUserIds.length} visible users', name: 'FirestoreService');
+  } catch (e) {
+    developer.log('Error saving moment: $e', name: 'FirestoreService', error: e);
+    rethrow;
+  }
+}
+
+// FIX: Dùng arrayContains thay vì whereIn để tránh giới hạn 10 phần tử
+Future<List<MomentModel>> getMomentsForUser(String userId, List<String> matchIds) async {
+  final snap = await FirebaseFirestore.instance
+      .collection('moments')
+      .where('matchIds', arrayContains: userId)
+      .orderBy('createdAt', descending: true)
+      .limit(50)
+      .get();
+  
+  return snap.docs.map((doc) => MomentModel.fromMap(doc.data(), doc.id)).toList();
+}
+
+Future<void> addReactionToMoment(String momentId, String userId, String emoji) async {
+  await FirebaseFirestore.instance.collection('moments').doc(momentId).update({
+    'reactions': FieldValue.arrayUnion([
+      {'userId': userId, 'emoji': emoji}
+    ])
+  });
+}
+
+Future<void> addReplyToMoment(String momentId, String userId, String text) async {
+  await FirebaseFirestore.instance.collection('moments').doc(momentId).update({
+    'replies': FieldValue.arrayUnion([
+      {
+        'userId': userId,
+        'text': text,
+        'repliedAt': Timestamp.now()
+      }
+    ])
+  });
+}
+
+Future<String> getOrCreateMatchId(String userA, String userB) async {
+  final snap = await FirebaseFirestore.instance
+      .collection('matches')
+      .where('userIds', arrayContains: userA)
+      .get();
+  for (var doc in snap.docs) {
+    final userIds = List<String>.from(doc['userIds'] ?? []);
+    if (userIds.contains(userB)) {
+      return doc.id;
+    }
+  }
+  // Nếu chưa có, tạo mới
+  final newDoc = await FirebaseFirestore.instance.collection('matches').add({
+    'userIds': [userA, userB],
+    'status': 'confirmed',
+    'createdAt': DateTime.now(),
+  });
+  return newDoc.id;
+}
+
+Future<void> unmatch(String matchId) async {
+  try {
+    final matchDoc = await FirebaseFirestore.instance
+        .collection('matches')
+        .doc(matchId)
+        .get();
+    
+    if (matchDoc.exists) {
+      final userIds = List<String>.from(matchDoc.data()?['userIds'] ?? []);
+      
+      if (userIds.length == 2) {
+        final userId1 = userIds[0];
+        final userId2 = userIds[1];
+        
+        // 1. Cập nhật match status
+        await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
+          'status': 'cancelled',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'isActive': false,
+        });
+        
+        // 2. Xóa userId khỏi matchIds của moments
+        final batch = FirebaseFirestore.instance.batch();
+        
+        // Xóa userId2 khỏi moments của userId1
+        final moments1 = await FirebaseFirestore.instance
+            .collection('moments')
+            .where('userId', isEqualTo: userId1)
+            .where('matchIds', arrayContains: userId2)
+            .get();
+        
+        for (var doc in moments1.docs) {
+          batch.update(doc.reference, {
+            'matchIds': FieldValue.arrayRemove([userId2])
+          });
+        }
+        
+        // Xóa userId1 khỏi moments của userId2
+        final moments2 = await FirebaseFirestore.instance
+            .collection('moments')
+            .where('userId', isEqualTo: userId2)
+            .where('matchIds', arrayContains: userId1)
+            .get();
+        
+        for (var doc in moments2.docs) {
+          batch.update(doc.reference, {
+            'matchIds': FieldValue.arrayRemove([userId1])
+          });
+        }
+        
+        await batch.commit();
+        
+        developer.log('Match cancelled and moments updated: $matchId', name: 'FirestoreService');
+      }
+    }
+  } catch (e) {
+    developer.log('Error unmatching: $e', name: 'FirestoreService', error: e);
+    rethrow;
+  }
+}
+
+Future<Map<String, dynamic>?> getLastMessage(String matchId) async {
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(matchId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+    
+    if (snapshot.docs.isNotEmpty) {
+      return snapshot.docs.first.data();
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Error getting last message: $e');
+    return null;
+  }
+}
+
+Stream<List<Map<String, dynamic>>> messagesStream(String matchId) {
+  return FirebaseFirestore.instance
+      .collection('chats')
+      .doc(matchId)
+      .collection('messages')
+      .orderBy('timestamp', descending: false)
+      .snapshots()
+      .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id; // Thêm id để tracking
+          return data;
+        }).toList();
+      });
 }
 }

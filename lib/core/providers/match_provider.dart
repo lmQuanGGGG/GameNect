@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart'; // Thêm vào pubspec.yaml
+import 'dart:developer' as developer;
 
 class MatchProvider with ChangeNotifier {
   List<UserModel> _recommendations = [];
@@ -376,5 +377,70 @@ class MatchProvider with ChangeNotifier {
     final min = seconds ~/ 60;
     final sec = seconds % 60;
     return sec == 0 ? '$min phút' : '$min:${sec.toString().padLeft(2, '0')} phút';
+  }
+
+  Stream<List<UserModel>> streamLikedMeUsers(String currentUserId, {int limit = 20}) {
+  // Stream các thay đổi của swipe_history
+  final swipeStream = FirebaseFirestore.instance
+      .collection('swipe_history')
+      .where('targetUserId', isEqualTo: currentUserId)
+      .where('action', isEqualTo: 'like')
+      .limit(limit)
+      .snapshots();
+
+  // Stream các thay đổi của matches
+  final matchStream = FirebaseFirestore.instance
+      .collection('matches')
+      .where('userIds', arrayContains: currentUserId)
+      .where('status', isEqualTo: 'confirmed') // CHỈ LẤY CONFIRMED
+      .snapshots();
+
+  // Kết hợp 2 stream để luôn cập nhật khi có match mới hoặc swipe mới
+  return Rx.combineLatest2(swipeStream, matchStream, (QuerySnapshot swipeSnap, QuerySnapshot matchSnap) async {
+    // Lấy danh sách user đã match CONFIRMED với mình
+    final matchedUserIds = <String>{};
+    for (var doc in matchSnap.docs) {
+      final userIds = List<String>.from(doc['userIds'] ?? []);
+      matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
+    }
+
+    // THÊM: Lấy danh sách user đã unmatch (cancelled)
+    final cancelledMatchSnap = await FirebaseFirestore.instance
+        .collection('matches')
+        .where('userIds', arrayContains: currentUserId)
+        .where('status', isEqualTo: 'cancelled')
+        .get();
+    
+    final cancelledUserIds = <String>{};
+    for (var doc in cancelledMatchSnap.docs) {
+      final userIds = List<String>.from(doc['userIds'] ?? []);
+      cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
+    }
+
+    // Lấy danh sách user đã thích mình nhưng chưa match VÀ chưa bị cancelled
+    final users = <UserModel>[];
+    for (var doc in swipeSnap.docs) {
+      final userId = doc['userId'];
+      
+      // BỎ QUA user đã match HOẶC đã cancelled
+      if (matchedUserIds.contains(userId) || cancelledUserIds.contains(userId)) {
+        continue;
+      }
+      
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        users.add(UserModel.fromMap(userDoc.data()!, userId));
+      }
+    }
+    
+    developer.log('Liked me users: ${users.length} (excluded ${matchedUserIds.length} matched + ${cancelledUserIds.length} cancelled)', name: 'MatchProvider');
+    
+    return users;
+  }).asyncMap((future) => future);
+}
+
+  Future<void> unmatch(String matchId) async {
+    await FirestoreService().unmatch(matchId);
+    notifyListeners();
   }
 }

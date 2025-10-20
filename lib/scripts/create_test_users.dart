@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
+import 'package:logger/logger.dart';
+
+final Logger _logger = Logger();
 
 class CreateTestUsers {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -192,7 +195,7 @@ class CreateTestUsers {
       final email = 'testuser${index.toString().padLeft(3, '7')}@gamenect.com';
       final password = 'Test@123';
 
-      print('Đang tạo user: $email (username: $username)');
+      _logger.i('Đang tạo user: $email (username: $username)');
 
       // Tạo hoặc lấy user từ Firebase Auth
       User? user;
@@ -202,11 +205,11 @@ class CreateTestUsers {
           password: password,
         );
         user = userCredential.user;
-        print('✓ Tạo mới Authentication user: $email');
+        _logger.i('✓ Tạo mới Authentication user: $email');
       } on FirebaseAuthException catch (e) {
         if (e.code == 'email-already-in-use') {
           // Email đã tồn tại -> Đăng nhập để lấy UID
-          print('⚠️  Email đã tồn tại, đang cập nhật dữ liệu: $email');
+          _logger.w('⚠️  Email đã tồn tại, đang cập nhật dữ liệu: $email');
           try {
             final userCredential = await _auth.signInWithEmailAndPassword(
               email: email,
@@ -214,7 +217,7 @@ class CreateTestUsers {
             );
             user = userCredential.user;
           } catch (signInError) {
-            print('❌ Không thể đăng nhập với email $email: $signInError');
+            _logger.e('❌ Không thể đăng nhập với email $email: $signInError');
             return null;
           }
         } else {
@@ -223,7 +226,7 @@ class CreateTestUsers {
       }
 
       if (user == null) {
-        print('❌ Không tạo được user $email');
+        _logger.e('❌ Không tạo được user $email');
         return null;
       }
 
@@ -380,7 +383,7 @@ class CreateTestUsers {
         SetOptions(merge: true),
       );
 
-      print('✓ Đã tạo/cập nhật user: $email (username: $username, ${location['city']}, $age tuổi, $gender, $rank)');
+      _logger.i('✓ Đã tạo/cập nhật user: $email (username: $username, ${location['city']}, $age tuổi, $gender, $rank)');
 
       // Đăng xuất để tạo user tiếp theo
       await _auth.signOut();
@@ -401,7 +404,7 @@ class CreateTestUsers {
         'photos': additionalPhotos.length,
       };
     } catch (e) {
-      print('✗ Lỗi khi tạo user ${index}: $e');
+      _logger.e('✗ Lỗi khi tạo user ${index}: $e');
       return null;
     }
   }
@@ -420,7 +423,7 @@ class CreateTestUsers {
 
   /// Tạo nhiều users
   Future<List<Map<String, dynamic>>> createMultipleUsers(int count) async {
-    print('=== BẮT ĐẦU TẠO $count USERS ===\n');
+    _logger.i('=== BẮT ĐẦU TẠO $count USERS ===\n');
 
     final createdUsers = <Map<String, dynamic>>[];
 
@@ -435,25 +438,25 @@ class CreateTestUsers {
 
       // Log progress mỗi 10 users
       if (i % 10 == 0) {
-        print('--- Đã tạo $i/$count users ---');
+        _logger.i('--- Đã tạo $i/$count users ---');
       }
     }
 
-    print('\n=== HOÀN TẤT ===');
-    print('Đã tạo thành công: ${createdUsers.length}/$count users');
+    _logger.i('\n=== HOÀN TẤT ===');
+    _logger.i('Đã tạo thành công: ${createdUsers.length}/$count users');
 
     return createdUsers;
   }
 
   /// Export danh sách users ra console
   void exportUsersList(List<Map<String, dynamic>> users) {
-    print('\n=== DANH SÁCH USERS ĐÃ TẠO ===\n');
-    print('STT | Email | Username | Tên | Tuổi | Giới tính | Thành phố | Rank');
-    print('-' * 150);
+    _logger.i('\n=== DANH SÁCH USERS ĐÃ TẠO ===\n');
+    _logger.i('STT | Email | Username | Tên | Tuổi | Giới tính | Thành phố | Rank');
+    _logger.i('-' * 150);
 
     for (int i = 0; i < users.length; i++) {
       final user = users[i];
-      print(
+      _logger.i(
         '${i + 1} | '
         '${user['email']} | '
         '${user['username']} | ' //  Hiển thị username
@@ -470,7 +473,7 @@ class CreateTestUsers {
 
   /// Xóa tất cả test users
   Future<void> deleteAllTestUsers() async {
-    print('=== XÓA TẤT CẢ TEST USERS ===\n');
+    _logger.i('=== XÓA TẤT CẢ TEST USERS ===\n');
 
     try {
       final snapshot = await _firestore
@@ -478,24 +481,24 @@ class CreateTestUsers {
           .where('isTestAccount', isEqualTo: true)
           .get();
 
-      print('Tìm thấy ${snapshot.docs.length} test users');
+      _logger.i('Tìm thấy ${snapshot.docs.length} test users');
 
       int deleted = 0;
       for (var doc in snapshot.docs) {
         try {
           await doc.reference.delete();
           deleted++;
-          print('✓ Đã xóa user: ${doc.data()['email']}');
+          _logger.i('✓ Đã xóa user: ${doc.data()['email']}');
         } catch (e) {
-          print('✗ Lỗi khi xóa user ${doc.data()['email']}: $e');
+          _logger.e('✗ Lỗi khi xóa user ${doc.data()['email']}: $e');
         }
       }
 
-      print('\n=== HOÀN TẤT ===');
-      print('Đã xóa $deleted/${snapshot.docs.length} users từ Firestore');
-      print('⚠️ Lưu ý: Cần xóa users từ Firebase Auth Console thủ công');
+      _logger.i('\n=== HOÀN TẤT ===');
+      _logger.i('Đã xóa $deleted/${snapshot.docs.length} users từ Firestore');
+      _logger.w('⚠️ Lưu ý: Cần xóa users từ Firebase Auth Console thủ công');
     } catch (e) {
-      print('Lỗi: $e');
+      _logger.e('Lỗi: $e');
     }
   }
 }

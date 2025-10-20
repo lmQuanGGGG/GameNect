@@ -127,35 +127,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    // Nút đăng nhập Facebook
-                    _buildLoginButton(
-                      context: context,
-                      onPressed: authProvider.isLoading
-                          ? null
-                          : () async {
-                              final success = await authProvider.signInWithFacebook();
-                              if (!context.mounted) return;
-
-                              if (success) {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const UserApp()),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Đăng nhập thất bại: ${authProvider.error}'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                      icon: const Icon(Icons.facebook, color: Colors.white, size: 24),
-                      label: 'Tiếp tục với Facebook',
-                      backgroundColor: const Color(0xFF1877F2),
-                      textColor: Colors.white,
-                    ),
-                    const SizedBox(height: 16),
+                    
 
                     // Nút đăng nhập số điện thoại
                     _buildLoginButton(

@@ -506,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _rank,
+                                         initialValue: _rank,
                                           hint: Text('Chọn rank'),
                                           decoration: InputDecoration(
                                             border: OutlineInputBorder(
@@ -694,7 +694,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _gender,
+                                         initialValue: _gender,
                                           hint: Text('Chọn giới tính'),
                                           decoration: InputDecoration(
                                             labelText: 'Giới tính',
@@ -840,7 +840,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _lookingFor,
+                                         initialValue: _lookingFor,
                                           hint: Text('Chọn mục đích'),
                                           decoration: InputDecoration(
                                             labelText: 'Mục đích tìm kiếm',
@@ -864,7 +864,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _gameStyle,
+                                         initialValue: _gameStyle,
                                           hint: Text('Chọn phong cách'),
                                           decoration: InputDecoration(
                                             labelText: 'Phong cách chơi game',

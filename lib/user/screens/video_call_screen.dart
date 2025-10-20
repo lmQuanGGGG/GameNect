@@ -5,22 +5,26 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/providers/chat_provider.dart';
+import '../../core/services/firestore_service.dart';
 
 final agoraAppId = dotenv.env['AGORA_APP_ID'] ?? '';
 
 class VideoCallScreen extends StatefulWidget {
   final String channelName;
   final String peerUserId;
-  final String peerUsername;  // THÊM
-  final String? peerAvatarUrl; // THÊM
-  
+  final String peerUsername;
+  final String? peerAvatarUrl;
+  final bool isVoiceCall; // THÊM
+
   const VideoCallScreen({
     super.key,
     required this.channelName,
     required this.peerUserId,
-    required this.peerUsername,  // THÊM
-    this.peerAvatarUrl,          // THÊM
+    required this.peerUsername,
+    this.peerAvatarUrl,
+    this.isVoiceCall = false, // THÊM
   });
 
   @override
@@ -32,34 +36,83 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   int? _remoteUid;
   bool _isInitialized = false;
   bool _isJoined = false;
-  late DateTime _callStartTime;
+  DateTime? _callStartTime; // Thêm biến này
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _isFrontCamera = true;
   Timer? _callTimeoutTimer;
+
+  // Khai báo subscription ở đầu class
+  StreamSubscription<DocumentSnapshot>? _callStatusSubscription;
+
+  // Thêm biến để track xem cuộc gọi có được trả lời không
   bool _callAnswered = false;
 
   @override
   void initState() {
     super.initState();
-    _initAgora();
-    _callStartTime = DateTime.now();
-    _callTimeoutTimer = Timer(const Duration(seconds: 60), () {
-      if (!_callAnswered && mounted) {
-        Provider.of<ChatProvider>(context, listen: false)
-            .endCall(widget.channelName, 0, missed: true);
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không ai phản hồi, cuộc gọi đã kết thúc')),
-        );
+    _callStartTime = DateTime.now(); // Lưu thời gian bắt đầu
+
+    // Lắng nghe trạng thái cuộc gọi
+    _callStatusSubscription = FirebaseFirestore.instance
+        .collection('calls')
+        .doc(widget.channelName)
+        .snapshots()
+        .listen((doc) {
+      final data = doc.data();
+      if (data != null) {
+        // Nếu cuộc gọi được trả lời, set flag
+        if (data['answered'] == true || data['status'] == 'accepted') {
+          _callAnswered = true;
+        }
+
+        // Nếu bị từ chối, tự động thoát KHÔNG hiển thị SnackBar
+        if (data['status'] == 'declined' && mounted) {
+          _callTimeoutTimer?.cancel();
+          _callStatusSubscription?.cancel();
+          _engine?.leaveChannel();
+          _engine?.release();
+          Navigator.of(context).pop(true);
+        }
       }
     });
+
+    // Timeout sau 60s - nếu không trả lời thì là cuộc gọi nhỡ
+    _callTimeoutTimer = Timer(const Duration(seconds: 60), () async {
+      if (!_callAnswered && mounted) {
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUserId != null) {
+          // Lưu cuộc gọi nhỡ
+          await FirestoreService().addCallMessage(
+            matchId: widget.channelName,
+            senderId: currentUserId,
+            duration: 0,
+            missed: true,
+          );
+        }
+
+        // Cập nhật trạng thái
+        await FirebaseFirestore.instance
+            .collection('calls')
+            .doc(widget.channelName)
+            .set({
+              'status': 'missed',
+              'endedAt': DateTime.now().toIso8601String(),
+            }, SetOptions(merge: true));
+
+        await _engine?.leaveChannel();
+        await _engine?.release();
+        Navigator.pop(context, true);
+      }
+    });
+
+    _initAgora();
   }
 
   Future<void> _initAgora() async {
     try {
       final statuses = await [Permission.microphone, Permission.camera].request();
-      
+
       if (statuses[Permission.microphone] != PermissionStatus.granted ||
           statuses[Permission.camera] != PermissionStatus.granted) {
         debugPrint('Permission denied');
@@ -74,6 +127,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(RtcEngineContext(appId: agoraAppId));
+      if (widget.isVoiceCall) {
+        await _engine!.enableAudio();
+      } else {
+        await _engine!.enableVideo();
+        await _engine!.startPreview();
+      }
 
       _engine!.registerEventHandler(
         RtcEngineEventHandler(
@@ -108,9 +167,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         ),
       );
 
-      await _engine!.enableVideo();
-      await _engine!.startPreview();
-      
       await _engine!.joinChannel(
         token: '',
         channelId: widget.channelName,
@@ -165,6 +221,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
+    _callStatusSubscription?.cancel(); // Hủy subscription
     _callTimeoutTimer?.cancel();
     _dispose();
     super.dispose();
@@ -177,6 +234,78 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     } catch (e) {
       debugPrint('Error disposing engine: $e');
     }
+  }
+
+  // Sửa hàm _leaveChannel:
+  Future<void> _leaveChannel() async {
+    _callTimeoutTimer?.cancel();
+    _callStatusSubscription?.cancel();
+    
+    // Kiểm tra trạng thái cuộc gọi
+    if (_callStartTime != null) {
+      final duration = DateTime.now().difference(_callStartTime!).inSeconds;
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      
+      if (_callAnswered) {
+        // Trường hợp đã nghe máy: Lưu "Đã gọi X phút Y giây"
+        await FirebaseFirestore.instance
+            .collection('calls')
+            .doc(widget.channelName)
+            .set({
+              'status': 'ended',
+              'endedAt': DateTime.now().toIso8601String(),
+              'duration': duration,
+            }, SetOptions(merge: true));
+        
+        if (currentUserId != null) {
+          await FirestoreService().addCallMessage(
+            matchId: widget.channelName,
+            senderId: currentUserId,
+            duration: duration,
+            missed: false,
+            declined: false,
+          );
+        }
+      } else {
+        // Trường hợp chưa nghe máy: Lưu "Đã hủy"
+        await FirebaseFirestore.instance
+            .collection('calls')
+            .doc(widget.channelName)
+            .set({
+              'status': 'cancelled',
+              'endedAt': DateTime.now().toIso8601String(),
+            }, SetOptions(merge: true));
+        
+        if (currentUserId != null) {
+          await FirestoreService().addCallMessage(
+            matchId: widget.channelName,
+            senderId: currentUserId,
+            duration: 0,
+            missed: false,
+            declined: false,
+            cancelled: true, // Thêm tham số mới
+          );
+        }
+      }
+    }
+
+    // Cleanup Agora
+    await _engine?.leaveChannel();
+    await _engine?.release();
+
+    if (mounted) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
+  // Hàm format thời lượng
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    if (minutes > 0) {
+      return '$minutes phút $secs giây';
+    }
+    return '$secs giây';
   }
 
   @override
@@ -211,9 +340,35 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           backgroundColor: Colors.black,
           body: Stack(
             children: [
-              // Video nền hoặc nền gradient
-              Positioned.fill(
-                child: _remoteUid != null
+              if (widget.isVoiceCall)
+                // Hiển thị avatar và tên đối phương khi gọi thoại
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: widget.peerAvatarUrl != null && widget.peerAvatarUrl!.isNotEmpty
+                            ? NetworkImage(widget.peerAvatarUrl!)
+                            : null,
+                        child: widget.peerAvatarUrl == null || widget.peerAvatarUrl!.isEmpty
+                            ? const Icon(Icons.person, size: 60, color: Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        widget.peerUsername,
+                        style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text('Đang gọi thoại...', style: TextStyle(color: Colors.white70, fontSize: 18)),
+                    ],
+                  ),
+                )
+              else ...[
+                Positioned.fill(
+                  child: _remoteUid != null
                     ? AgoraVideoView(
                         controller: VideoViewController.remote(
                           rtcEngine: _engine!,
@@ -236,68 +391,44 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               const Icon(Icons.person, size: 100, color: Colors.white54),
                               const SizedBox(height: 16),
                               Text(
-                                'Đang chờ ${widget.peerUsername} vào phòng...', // SỬA
+                                'Đang chờ ${widget.peerUsername} vào phòng...',
                                 style: const TextStyle(color: Colors.white70, fontSize: 18),
                               ),
                             ],
                           ),
                         ),
                       ),
-              ),
-              // Avatar và tên đối phương
-              Positioned(
-                top: 60,
-                left: 0,
-                right: 0,
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: widget.peerAvatarUrl != null && widget.peerAvatarUrl!.isNotEmpty
-                          ? NetworkImage(widget.peerAvatarUrl!) // SỬA
-                          : null,
-                      child: widget.peerAvatarUrl == null || widget.peerAvatarUrl!.isEmpty
-                          ? const Icon(Icons.person, size: 60, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.peerUsername, // SỬA
-                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                  ],
                 ),
-              ),
-              // Video nhỏ của mình
-              Positioned(
-                bottom: 100,
-                right: 20,
-                child: Container(
-                  width: 100,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: _isCameraOff
-                        ? Container(
-                            color: Colors.black54,
-                            child: const Center(
-                              child: Icon(Icons.videocam_off, color: Colors.white, size: 40),
+                // Video nhỏ của mình
+                Positioned(
+                  bottom: 100,
+                  right: 20,
+                  child: Container(
+                    width: 100,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: _isCameraOff
+                          ? Container(
+                              color: Colors.black54,
+                              child: const Center(
+                                child: Icon(Icons.videocam_off, color: Colors.white, size: 40),
+                              ),
+                            )
+                          : AgoraVideoView(
+                              controller: VideoViewController(
+                                rtcEngine: _engine!,
+                                canvas: const VideoCanvas(uid: 0),
+                              ),
                             ),
-                          )
-                        : AgoraVideoView(
-                            controller: VideoViewController(
-                              rtcEngine: _engine!,
-                              canvas: const VideoCanvas(uid: 0),
-                            ),
-                          ),
+                    ),
                   ),
                 ),
-              ),
+              ],
               // Nút điều khiển IG style
               Positioned(
                 bottom: 40,
@@ -315,23 +446,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       icon: const Icon(Icons.call_end, color: Colors.white),
                       label: const Text('Kết thúc', style: TextStyle(fontSize: 18, color: Colors.white)),
                       onPressed: () async {
-                        final callDuration = DateTime.now().difference(_callStartTime);
-
-                        if (_remoteUid == null) {
-                          await Provider.of<ChatProvider>(context, listen: false)
-                              .endCall(widget.channelName, 0, missed: true);
-                        } else {
-                          await Provider.of<ChatProvider>(context, listen: false)
-                              .endCall(widget.channelName, callDuration.inSeconds, missed: false);
-                        }
-
-                        // Cập nhật trạng thái cuộc gọi Firestore
-                        await FirebaseFirestore.instance.collection('calls').doc(widget.channelName).set({
-                          'status': 'ended',
-                          'endedAt': DateTime.now().toIso8601String(),
-                        }, SetOptions(merge: true));
-
-                        Navigator.pop(context, true);
+                        // Gọi hàm _leaveChannel thay vì xử lý trực tiếp ở đây
+                        await _leaveChannel();
                       },
                     ),
                     const SizedBox(height: 18),

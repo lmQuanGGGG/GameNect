@@ -3,12 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/models/user_model.dart';
-import '../../core/widgets/profile_card.dart';
 import '../../core/providers/match_provider.dart';
 import 'chat_screen.dart';
+import 'dart:ui';
 
 class MatchListScreen extends StatefulWidget {
-  const MatchListScreen({Key? key}) : super(key: key);
+  const MatchListScreen({super.key});
 
   @override
   State<MatchListScreen> createState() => _MatchListScreenState();
@@ -23,13 +23,37 @@ class _MatchListScreenState extends State<MatchListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white.withOpacity(0.5),
+        backgroundColor: Colors.white.withValues(alpha: 0.5),
         elevation: 0,
         toolbarHeight: 60,
         titleSpacing: 0,
+        title: Row(
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 12.0),
+              child: Icon(
+                Icons
+                    .sports_esports, // hoặc CupertinoIcons.game_controller_solid
+                color: Colors.deepOrange,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'gamenect',
+              style: TextStyle(
+                color: Colors.deepOrange,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Provider.of<MatchProvider>(context).matchedUsersStream(currentUserId),
+        stream: Provider.of<MatchProvider>(
+          context,
+        ).matchedUsersStream(currentUserId),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -44,7 +68,9 @@ class _MatchListScreenState extends State<MatchListScreen> {
               ? matchedData
               : matchedData.where((m) {
                   final user = m['user'] as UserModel;
-                  return user.username.toLowerCase().contains(searchText.toLowerCase());
+                  return user.username.toLowerCase().contains(
+                    searchText.toLowerCase(),
+                  );
                 }).toList();
 
           return ListView(
@@ -64,7 +90,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
               ),
               // Dãy avatar ngang - SẮP XẾP THEO matchedAt
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: SizedBox(
                   height: 90,
                   child: ListView.separated(
@@ -72,26 +101,157 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     itemCount: filteredData.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 16),
                     itemBuilder: (context, index) {
-                      // Sắp xếp theo thời gian match
                       final sortedMatchList = [...filteredData];
                       sortedMatchList.sort((a, b) {
-                        final aTime = a['matchedAt'] ?? DateTime.fromMillisecondsSinceEpoch(0);
-                        final bTime = b['matchedAt'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+                        final aTime =
+                            a['matchedAt'] ??
+                            DateTime.fromMillisecondsSinceEpoch(0);
+                        final bTime =
+                            b['matchedAt'] ??
+                            DateTime.fromMillisecondsSinceEpoch(0);
                         return bTime.compareTo(aTime);
                       });
                       final user = sortedMatchList[index]['user'] as UserModel;
-                      final matchId = sortedMatchList[index]['matchId'] as String;
+                      final matchId =
+                          sortedMatchList[index]['matchId'] as String;
+
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                matchId: matchId,
-                                peerUser: user,
+                              builder: (_) =>
+                                  ChatScreen(matchId: matchId, peerUser: user),
+                            ),
+                          );
+                        },
+                        onLongPress: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              child: Dialog(
+                                backgroundColor: Colors.transparent,
+                                elevation: 0,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(28),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 30,
+                                      sigmaY: 30,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                        borderRadius: BorderRadius.circular(28),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.15,
+                                          ),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Hủy tương hợp?',
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          Text(
+                                            'Bạn có chắc muốn hủy tương hợp với ${user.username}?',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            children: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, false),
+                                                style: TextButton.styleFrom(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 20,
+                                                        vertical: 12,
+                                                      ),
+                                                ),
+                                                child: Text(
+                                                  'Không',
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.7),
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              ElevatedButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, true),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      Colors.deepOrange,
+                                                  foregroundColor: Colors.white,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 24,
+                                                        vertical: 12,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  elevation: 0,
+                                                ),
+                                                child: const Text(
+                                                  'Hủy tương hợp',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           );
+                          if (confirm == true) {
+                            await Provider.of<MatchProvider>(
+                              context,
+                              listen: false,
+                            ).unmatch(matchId);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Đã hủy tương hợp với ${user.username}',
+                                ),
+                              ),
+                            );
+                          }
                         },
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -100,7 +260,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFee9ca7), Color(0xFFffdde1)],
+                                  colors: [
+                                    Color(0xFFee9ca7),
+                                    Color(0xFFffdde1),
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -115,8 +278,12 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               padding: const EdgeInsets.all(3),
                               child: CircleAvatar(
                                 radius: 30,
-                                backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                                    ? CachedNetworkImageProvider(user.avatarUrl!)
+                                backgroundImage:
+                                    user.avatarUrl != null &&
+                                        user.avatarUrl!.isNotEmpty
+                                    ? CachedNetworkImageProvider(
+                                        user.avatarUrl!,
+                                      )
                                     : null,
                                 child: user.avatarUrl == null
                                     ? const Icon(Icons.person, size: 30)
@@ -128,7 +295,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               width: 60,
                               child: Text(
                                 user.username,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
                               ),
@@ -142,14 +312,20 @@ class _MatchListScreenState extends State<MatchListScreen> {
               ),
               // Thanh tìm kiếm
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: 'Tìm kiếm tên...',
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: Colors.grey[100],
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 0,
+                      horizontal: 16,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide.none,
@@ -179,41 +355,49 @@ class _MatchListScreenState extends State<MatchListScreen> {
               ...(() {
                 final sortedChatList = [...filteredData];
                 sortedChatList.sort((a, b) {
-                  final aTime = a['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
-                  final bTime = b['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+                  final aTime =
+                      a['lastMessageTime'] ??
+                      DateTime.fromMillisecondsSinceEpoch(0);
+                  final bTime =
+                      b['lastMessageTime'] ??
+                      DateTime.fromMillisecondsSinceEpoch(0);
                   return bTime.compareTo(aTime);
                 });
                 return List.generate(sortedChatList.length, (index) {
                   final matchId = sortedChatList[index]['matchId'] as String;
                   final user = sortedChatList[index]['user'] as UserModel;
-                  final lastMessage = sortedChatList[index]['lastMessage'] as String?;
-                  final lastMessageTime = sortedChatList[index]['lastMessageTime'] as DateTime?;
+                  final lastMessage =
+                      sortedChatList[index]['lastMessage'] as String?;
+                  final lastMessageTime =
+                      sortedChatList[index]['lastMessageTime'] as DateTime?;
 
                   return InkWell(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            matchId: matchId,
-                            peerUser: user,
-                          ),
+                          builder: (_) =>
+                              ChatScreen(matchId: matchId, peerUser: user),
                         ),
                       );
                     },
                     child: ListTile(
                       leading: CircleAvatar(
                         radius: 28,
-                        backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                        backgroundImage:
+                            user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                             ? CachedNetworkImageProvider(user.avatarUrl!)
                             : null,
-                        child: user.avatarUrl == null 
-                            ? const Icon(Icons.person, size: 28) 
+                        child: user.avatarUrl == null
+                            ? const Icon(Icons.person, size: 28)
                             : null,
                       ),
                       title: Text(
                         user.username,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.normal,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,7 +409,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
                           if (lastMessage != null)
                             Text(
                               lastMessage,
-                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -234,7 +421,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
                       trailing: lastMessageTime != null
                           ? Text(
                               _formatTime(lastMessageTime),
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             )
                           : null,
                     ),

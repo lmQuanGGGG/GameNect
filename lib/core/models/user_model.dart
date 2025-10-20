@@ -1,5 +1,3 @@
-import 'dart:math';
-
 class UserModel {
   String id;
   String username;
