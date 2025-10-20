@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.55)),
+            child: Container(color: Colors.black.withValues(alpha: 0.55)),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -144,7 +144,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.orange.withOpacity(0.25),
+                              color: Colors.orange.withValues(alpha: 0.25),
                               blurRadius: 16,
                               offset: Offset(0, 6),
                             ),

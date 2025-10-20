@@ -85,7 +85,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     Icon(
                       CupertinoIcons.phone_circle_fill,
                       size: 80,
-                      color: Colors.deepOrange.withOpacity(0.8),
+                      color: Colors.deepOrange.withValues(alpha: 0.8),
                     ),
                     const SizedBox(height: 24),
                     const Text(

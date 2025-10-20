@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logging/logging.dart'; // { changed code }
 
 
 class EditProfileProvider extends ChangeNotifier {
+  final Logger _logger = Logger('EditProfileProvider'); // { changed code }
+
   // State variables
   bool _isLoading = true;
   String? _error;
@@ -56,15 +59,15 @@ class EditProfileProvider extends ChangeNotifier {
         ),
       ]);
 
-      print('Loaded options:');
-      print('Ranks: $_rankOptions');
-      print('Genders: $_genderOptions');
-      print('Game Styles: $_gameStyleOptions');
-      print('Looking For: $_lookingForOptions');
-      print('Interests: $_interestOptions');
+      _logger.info('Loaded options:');
+      _logger.info('Ranks: $_rankOptions');
+      _logger.info('Genders: $_genderOptions');
+      _logger.info('Game Styles: $_gameStyleOptions');
+      _logger.info('Looking For: $_lookingForOptions');
+      _logger.info('Interests: $_interestOptions');
     } catch (e) {
       _error = e.toString();
-      print('Error loading options: $_error');
+      _logger.severe('Error loading options: $_error');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -93,7 +96,7 @@ class EditProfileProvider extends ChangeNotifier {
         onData(localizedList);
       }
     } catch (e) {
-      print('Error loading $docName: $e');
+      _logger.severe('Error loading $docName: $e');
       _error = 'Lỗi khi tải $docName: $e';
     }
   }

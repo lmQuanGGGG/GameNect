@@ -1,180 +1,298 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../core/models/match_model.dart';
-import '../../core/models/user_model.dart';
+import 'package:flutter_card_swiper/flutter_card_swiper.dart';
+import '../../core/providers/match_provider.dart';
+//import '../../core/models/user_model.dart';
+import '../../core/widgets/profile_card.dart'; // Thay vì user_card.dart
 import '../../core/services/firestore_service.dart';
-import '../../core/services/ai_match_service.dart';
+import 'match_list_screen.dart';
 
 class MatchScreen extends StatefulWidget {
   const MatchScreen({super.key});
-
   @override
-  _MatchScreenState createState() => _MatchScreenState();
+  State<MatchScreen> createState() => _MatchScreenState();
 }
 
 class _MatchScreenState extends State<MatchScreen> {
-  final _firestoreService = FirestoreService();
-  final _aiMatchService = AIMatchService();
-  List<MatchModel> _activeMatches = [];
-  List<UserModel> _likedUsers = [];
-  bool _isLoading = true;
+  late MatchProvider matchProvider;
+  final CardSwiperController controller = CardSwiperController();
 
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    await _loadMatches();
-    await _loadLikedUsers();
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _loadMatches() async {
-    var matches = await _firestoreService.getActiveMatches();
-    setState(() => _activeMatches = matches);
-  }
-
-  Future<void> _loadLikedUsers() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      var liked = await _aiMatchService.getLikedUsers(user.uid);
-      setState(() => _likedUsers = liked);
-    }
-  }
-
-  Future<void> _findMatch() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    var userData = await _firestoreService.getUser(user.uid);
-    if (userData != null) {
-      MatchModel? match = await _aiMatchService.findMatch(userData);
-      if (match != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã tìm thấy người chơi! Hãy xác nhận.')),
+    matchProvider = Provider.of<MatchProvider>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final firestoreService = Provider.of<FirestoreService>(
+          context,
+          listen: false,
         );
-        _loadData();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không tìm thấy bạn chơi phù hợp!')),
-        );
-      }
-    }
-  }
-
-  void _confirmMatch(String matchId, bool confirm) async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await _aiMatchService.confirmMatch(user.uid, matchId, confirm);
-      if (confirm) {
-        bool isConfirmed = await _aiMatchService.isMatchConfirmed(matchId);
-        if (isConfirmed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Match thành công! Có thể trò chuyện.')),
-          );
+        final userModel = await firestoreService.getUser(firebaseUser.uid);
+        final candidateUsers = await firestoreService.getAllUsers();
+        if (userModel != null) {
+          await matchProvider.fetchRecommendations(userModel, candidateUsers);
+          if (mounted) {
+            setState(() {});
+          }
         }
       }
-      _loadData();
-    }
+    });
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void _showMatchDialog(
+    BuildContext context,
+    String username,
+    String avatarUrl,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.favorite, color: Colors.deepOrange, size: 48),
+            const SizedBox(height: 16),
+            CircleAvatar(
+              radius: 40,
+              backgroundImage: avatarUrl.isNotEmpty
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              child: avatarUrl.isEmpty
+                  ? const Icon(Icons.person, size: 40)
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Bạn đã match với $username!',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Hãy nhắn tin làm quen ngay nhé!',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context); // Đóng dialog
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MatchListScreen(),
+                  ),
+                );
+              },
+              child: const Text(
+                'Xem match',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final users = matchProvider.recommendations;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Ghép Bạn Chơi', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue[700],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 60,
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 12.0),
+              child: Icon(
+                Icons
+                    .sports_esports, // hoặc CupertinoIcons.game_controller_solid
+                color: Colors.deepOrange,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'gamenect',
+              style: TextStyle(
+                color: Colors.deepOrange,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(
+                  0,
+                ), // giảm xuống 0 để hình tròn nhỏ lại
+                minimumSize: const Size(
+                  30,
+                  30,
+                ), // đặt kích thước nhỏ hơn mặc định
+                elevation: 0,
+              ),
+              onPressed: () async {
+                final result = await Navigator.pushNamed(
+                  context,
+                  '/location-settings',
+                );
+                if (result == true) {
+                  // Gọi lại fetchRecommendations để load dữ liệu mới
+                  final firebaseUser = FirebaseAuth.instance.currentUser;
+                  if (firebaseUser != null) {
+                    final firestoreService = Provider.of<FirestoreService>(
+                      context,
+                      listen: false,
+                    );
+                    final userModel = await firestoreService.getUser(
+                      firebaseUser.uid,
+                    );
+                    final candidateUsers = await firestoreService.getAllUsers();
+                    if (userModel != null) {
+                      await Provider.of<MatchProvider>(
+                        context,
+                        listen: false,
+                      ).fetchRecommendations(userModel, candidateUsers);
+                      setState(() {});
+                    }
+                  }
+                }
+              },
+              child: const Icon(
+                Icons.settings,
+                color: Colors.white,
+                size: 20, // giữ nguyên hoặc tăng lên nếu muốn
+              ),
+            ),
+          ),
+        ],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                ElevatedButton(
-                  onPressed: _findMatch,
-                  child: Text('Tìm Bạn Chơi'),
-                ),
-                Expanded(
-                  child: DefaultTabController(
-                    length: 2,
-                    child: Column(
-                      children: [
-                        TabBar(
-                          tabs: [
-                            Tab(text: 'Trận Đang Chờ'),
-                            Tab(text: 'Ai Đã Thích Mình'),
-                          ],
-                        ),
-                        Expanded(
-                          child: TabBarView(
-                            children: [
-                              // Tab Trận Đang Chờ
-                              ListView.builder(
-                                itemCount: _activeMatches.length,
-                                itemBuilder: (context, index) {
-                                  MatchModel match = _activeMatches[index];
-                                  User? user =
-                                      FirebaseAuth.instance.currentUser;
-                                  if (user == null) return SizedBox.shrink();
-                                  bool userConfirmed =
-                                      match.confirmations[user.uid] ?? false;
-                                  return ListTile(
-                                    title: Text(match.game),
-                                    subtitle: Text(
-                                      'Thời gian: ${match.matchedAt.toString()}',
-                                    ),
-                                    trailing: userConfirmed
-                                        ? Text('Đã xác nhận')
-                                        : ElevatedButton(
-                                            onPressed: () =>
-                                                _confirmMatch(match.id, true),
-                                            child: Text('Xác nhận'),
-                                          ),
-                                  );
-                                },
-                              ),
-                              // Tab Ai Đã Thích Mình
-                              ListView.builder(
-                                itemCount: _likedUsers.length,
-                                itemBuilder: (context, index) {
-                                  UserModel user = _likedUsers[index];
-                                  return ListTile(
-                                    title: Text(user.username),
-                                    subtitle: Text('Rank: ${user.rank}'),
-                                    trailing: ElevatedButton(
-                                      onPressed: () {
-                                        final match = _activeMatches.where(
-                                          (m) => m.userIds.contains(user.id),
-                                        );
-                                        if (match.isNotEmpty) {
-                                          _confirmMatch(match.first.id, true);
-                                        } else {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Không tìm thấy trận phù hợp!',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      child: Text('Match lại'),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
+      body: matchProvider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : users.isEmpty
+          ? const Center(child: Text('Không có đề xuất nào'))
+          : SizedBox(
+              height: MediaQuery.of(context).size.height - kToolbarHeight,
+              child: CardSwiper(
+                controller: controller,
+                cardsCount: users.length,
+                cardBuilder:
+                    (
+                      context,
+                      index,
+                      horizontalOffsetPercentage,
+                      verticalOffsetPercentage,
+                    ) {
+                      if (index < 0 || index >= users.length) {
+                        return const SizedBox(); // hoặc widget rỗng
+                      }
+                      return ProfileCard(user: users[index]);
+                    },
+                padding: EdgeInsets.zero, // THÊM DÒNG NÀY nếu CardSwiper hỗ trợ
+                numberOfCardsDisplayed: users.length < 3
+                    ? users.length
+                    : 3, // Sửa dòng này
+                isLoop: false,
+                // Sửa lại onSwipe callback
+                onSwipe: (
+                  int previousIndex,
+                  int? currentIndex,
+                  CardSwiperDirection direction,
+                ) async {
+                  if (previousIndex < 0 || previousIndex >= users.length) return true;
+                  final user = users[previousIndex];
+                  final currentUserId =
+                      FirebaseAuth.instance.currentUser?.uid;
+                  final firestoreService = Provider.of<FirestoreService>(
+                    context,
+                    listen: false,
+                  );
+
+                  if (currentUserId != null) {
+                    if (direction == CardSwiperDirection.right) {
+                      // Lưu LIKE vào swipe_history
+                      await firestoreService.saveSwipeHistory(
+                        userId: currentUserId,
+                        targetUserId: user.id,
+                        action: 'like',
+                      );
+
+                      // Kiểm tra mutual like
+                      final isMutual = await firestoreService
+                          .checkMutualLike(
+                            userId: currentUserId,
+                            targetUserId: user.id,
+                          );
+
+                      if (isMutual) {
+                        await firestoreService.createNewMatch(
+                          userIds: [currentUserId, user.id],
+                          game: 'Tên game',
+                          expiresAt: DateTime.now().add(
+                            const Duration(hours: 24),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                        );
+
+                        // QUAN TRỌNG: Đợi animation xong rồi mới show dialog
+                        if (mounted) {
+                          // Đợi 500ms để CardSwiper animation hoàn tất
+                          await Future.delayed(
+                            const Duration(milliseconds: 500),
+                          );
+
+                          if (mounted) {
+                            _showMatchDialog(
+                              context,
+                              user.username,
+                              user.avatarUrl ?? '',
+                            );
+                          }
+                        }
+                      }
+                    } else if (direction == CardSwiperDirection.left) {
+                      // Lưu DISLIKE vào swipe_history
+                      await firestoreService.saveSwipeHistory(
+                        userId: currentUserId,
+                        targetUserId: user.id,
+                        action: 'dislike',
+                      );
+                    }
+                  }
+                  return true;
+                },
+                onEnd: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Hết đề xuất!')));
+                },
+              ),
             ),
     );
   }

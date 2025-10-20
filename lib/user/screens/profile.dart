@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/profile_provider.dart';
+import '../../core/providers/location_provider.dart';
 import '../../core/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'home_profile_screen.dart';
 import 'edit_profile_screen.dart';
+import 'location_settings_screen.dart';
+import 'package:logging/logging.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,6 +18,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final Logger _logger = Logger('ProfilePage');
+  
   @override
   void initState() {
     super.initState();
@@ -21,6 +27,62 @@ class _ProfilePageState extends State<ProfilePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().loadUserProfile();
     });
+  }
+
+  // Test location permission
+  Future<void> _testLocationPermission() async {
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    
+    _logger.info('Test: Bắt đầu request location permission...');
+    
+    // Request permission
+    final hasPermission = await locationProvider.requestLocationPermission();
+    
+    if (!hasPermission) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bạn cần cấp quyền truy cập vị trí'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    _logger.info('Test: Đã có permission, đang lấy vị trí...');
+    
+    // Get current location
+    final success = await locationProvider.getCurrentLocation();
+    
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Vị trí hiện tại: ${locationProvider.currentLocation ?? "Không xác định"}',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Update location to Firestore
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await locationProvider.updateUserLocation(user.uid);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Lỗi: ${locationProvider.error ?? "Không thể lấy vị trí"}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -32,7 +94,7 @@ class _ProfilePageState extends State<ProfilePage> {
             backgroundColor: Colors.white,
             elevation: 0,
             toolbarHeight: 60,
-            titleSpacing: 0, //bỏ khoảng cách mặc định giữa leading và title
+            titleSpacing: 0,
             title: Row(
               children: [
                 const Padding(
@@ -149,16 +211,16 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: Container(
                               height:
                                   MediaQuery.of(context).size.width *
-                                  0.8, // Giảm kích thước xuống 80% màn hình
+                                  0.8,
                               width: MediaQuery.of(context).size.width * 0.8,
                               margin: EdgeInsets.all(
                                 MediaQuery.of(context).size.width * 0.1,
-                              ), // Tạo margin đều
+                              ),
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle, // Làm tròn ảnh
+                                shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -218,6 +280,170 @@ class _ProfilePageState extends State<ProfilePage> {
                               ],
                             ),
                             const SizedBox(height: 16),
+                            
+                            // THÊM PHẦN NÀY - Location Info
+                            Consumer<LocationProvider>(
+                              builder: (context, locationProvider, child) {
+                                return Card(
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              CupertinoIcons.location_solid,
+                                              color: Colors.deepOrange,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              'Vị trí & Khoảng cách',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        
+                                        // Current Location
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Vị trí hiện tại:',
+                                              style: TextStyle(color: Colors.grey),
+                                            ),
+                                            Text(
+                                              locationProvider.currentLocation ?? 'Chưa cập nhật',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        
+                                        // Max Distance
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Khoảng cách tìm kiếm:',
+                                              style: TextStyle(color: Colors.grey),
+                                            ),
+                                            Text(
+                                              '${locationProvider.maxDistance.toInt()} km',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                color: Colors.deepOrange,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        
+                                        // Age Range - THÊM MỚI
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Độ tuổi:',
+                                              style: TextStyle(color: Colors.grey),
+                                            ),
+                                            Text(
+                                              '${locationProvider.minAge} - ${locationProvider.maxAge} tuổi',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                color: Colors.deepOrange,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        
+                                        // Buttons Row
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: OutlinedButton.icon(
+                                                onPressed: _testLocationPermission,
+                                                icon: locationProvider.isLoading
+                                                    ? const SizedBox(
+                                                        width: 16,
+                                                        height: 16,
+                                                        child: CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                      )
+                                                    : const Icon(
+                                                        CupertinoIcons.refresh,
+                                                        size: 18,
+                                                      ),
+                                                label: Text(
+                                                  locationProvider.isLoading
+                                                      ? 'Đang lấy...'
+                                                      : 'Lấy vị trí',
+                                                  style: const TextStyle(fontSize: 13),
+                                                ),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: Colors.deepOrange,
+                                                  side: const BorderSide(
+                                                    color: Colors.deepOrange,
+                                                  ),
+                                                  padding: const EdgeInsets.symmetric(
+                                                    vertical: 8,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                onPressed: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          const LocationSettingsScreen(),
+                                                    ),
+                                                  );
+                                                },
+                                                icon: const Icon(
+                                                  CupertinoIcons.settings,
+                                                  size: 18,
+                                                ),
+                                                label: const Text(
+                                                  'Cài đặt',
+                                                  style: TextStyle(fontSize: 13),
+                                                ),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.deepOrange,
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(
+                                                    vertical: 8,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
                             // Game yêu thích
                             _buildSection(
                               'Game yêu thích',
@@ -229,7 +455,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                       (game) => Chip(
                                         label: Text(game),
                                         backgroundColor: Colors.deepOrange
-                                            .withOpacity(0.1),
+                                            .withValues(alpha: 0.1),
                                       ),
                                     )
                                     .toList(),
@@ -256,6 +482,31 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
+                      
+                      // === THÊM PHẦN NÀY Ở CUỐI ===
+                      const SizedBox(height: 24),
+                      
+                      // Admin Test Users Button
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/admin-test-users');
+                          },
+                          icon: const Icon(CupertinoIcons.person_3_fill),
+                          label: const Text('Tạo Test Users (Admin)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32), // Bottom padding
                     ],
                   ),
                 ),

@@ -7,12 +7,15 @@ import 'dart:ui';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:developer' as developer;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/firestore_service.dart';
 import '../user_app.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/edit_profile_provider.dart';
+import '../../core/providers/location_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,10 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _birthDateController = TextEditingController();
-  String? _rank = 'Gà Mờ'; // Thêm ? để cho phép null
-  String? _location;
-  String? _district;
-  String? _ward;
+  String? _rank = 'Gà Mờ';
   int _playTime = 0;
   int _winRate = 0;
   final List<String> _hotGames = [
@@ -47,9 +47,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _favoriteGames = [];
   List<String> _searchResultGames = [];
   bool _isSearching = false;
-  List<Map<String, dynamic>> _provinces = [];
-  List<Map<String, dynamic>> _districts = [];
-  List<Map<String, dynamic>> _wards = [];
   bool _isLoading = true;
   bool _isUpdating = false;
   final String _apiKey = dotenv.env['RAWG_API_KEY']!;
@@ -60,7 +57,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _additionalPhotoUrls = [];
   final ImagePicker _picker = ImagePicker();
 
-  // Sửa lại giá trị mặc định
   String _gender = 'Nam';
   final _heightController = TextEditingController(text: '160');
   final _bioController = TextEditingController();
@@ -73,83 +69,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EditProfileProvider>().initialize();
+      _loadLocation();
     });
     _initializeData();
   }
 
+  Future<void> _loadLocation() async {
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    
+    if (locationProvider.currentLocation == null) {
+      developer.log('Chưa có location, đang lấy từ GPS...', name: 'EditProfile');
+      await locationProvider.getCurrentLocation();
+    }
+    
+    developer.log('Location loaded: ${locationProvider.currentLocation}', name: 'EditProfile');
+  }
+
   Future<void> _initializeData() async {
     try {
-      // 1. Fetch provinces first
-      await _fetchProvinces();
-
-      // 2. Then load user profile
       await _loadUserProfile();
     } catch (e) {
-      print('Error initializing data: $e');
+      developer.log('Error initializing data', name: 'EditProfile', error: e);
     }
-  }
-
-  Future<void> _fetchProvinces() async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://provinces.open-api.vn/api/?depth=1'),
-      );
-      if (response.statusCode == 200) {
-        setState(() {
-          _provinces = List<Map<String, dynamic>>.from(
-            json.decode(response.body),
-          );
-        });
-      } else {
-        throw Exception('Không thể tải danh sách tỉnh/thành phố');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể tải danh sách tỉnh/thành phố: $e')),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _fetchDistricts(String provinceCode) async {
-    setState(() {
-      _districts = [];
-      _wards = [];
-      _district = null;
-      _ward = null;
-    });
-    try {
-      final response = await http.get(
-        Uri.parse('https://provinces.open-api.vn/api/p/$provinceCode?depth=2'),
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _districts = List<Map<String, dynamic>>.from(data['districts']);
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _fetchWards(String districtCode) async {
-    setState(() {
-      _wards = [];
-      _ward = null;
-    });
-    try {
-      final response = await http.get(
-        Uri.parse('https://provinces.open-api.vn/api/d/$districtCode?depth=2'),
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _wards = List<Map<String, dynamic>>.from(data['wards']);
-        });
-      }
-    } catch (_) {}
   }
 
   Future<void> _searchGames(String query) async {
@@ -203,7 +144,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _avatarUrl = userData.avatarUrl;
             _additionalPhotoUrls = userData.additionalPhotos;
 
-            // Sử dụng provider để kiểm tra giá trị
             _gender = provider.genderOptions.contains(userData.gender)
                 ? userData.gender
                 : 'Nam';
@@ -214,51 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? userData.gameStyle
                 : 'Casual';
 
-            // Giữ nguyên phần còn lại
             final dateFormat = DateFormat('dd/MM/yyyy');
             _birthDateController.text = dateFormat.format(userData.dateOfBirth);
             _heightController.text = userData.height.toString();
             _bioController.text = userData.bio;
             _interests = userData.interests;
           });
-
-          // Xử lý địa chỉ sau khi đã có provinces
-          final locationParts = userData.location.split(', ');
-          if (locationParts.length == 3) {
-            setState(() {
-              _location = locationParts[0];
-            });
-
-            // Tìm province code
-            final selectedProvince = _provinces.firstWhere(
-              (p) => p['name'] == _location,
-              orElse: () => {},
-            );
-
-            if (selectedProvince.isNotEmpty) {
-              // Fetch districts
-              await _fetchDistricts(selectedProvince['code'].toString());
-
-              setState(() {
-                _district = locationParts[1];
-              });
-
-              // Tìm district code
-              final selectedDistrict = _districts.firstWhere(
-                (d) => d['name'] == _district,
-                orElse: () => {},
-              );
-
-              if (selectedDistrict.isNotEmpty) {
-                // Fetch wards
-                await _fetchWards(selectedDistrict['code'].toString());
-
-                setState(() {
-                  _ward = locationParts[2];
-                });
-              }
-            }
-          }
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -281,7 +182,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAdditionalPhoto() async {
-    // Kiểm tra tổng số ảnh hiện tại
     final currentPhotoCount = _additionalPhotoUrls.length + _additionalImages.length;
     if (currentPhotoCount >= 4) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -300,7 +200,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _uploadImages(String userId) async {
     try {
-      // Upload avatar image if changed
       if (_avatarImage != null) {
         final avatarFileName =
             'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -314,10 +213,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
-      // Keep existing photo URLs
       List<String> newPhotoUrls = List.from(_additionalPhotoUrls);
 
-      // Upload new additional images
       for (int i = 0; i < _additionalImages.length; i++) {
         final fileName =
             'photo_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
@@ -334,7 +231,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
-      // Update the list after all uploads are successful
       _additionalPhotoUrls = newPhotoUrls;
     } catch (e) {
       throw Exception('Lỗi khi tải ảnh lên: $e');
@@ -350,7 +246,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  // Thêm phương thức tính tuổi
   int _calculateAge(DateTime birthDate) {
     final now = DateTime.now();
     int age = now.year - birthDate.year;
@@ -364,7 +259,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isValidDate(String input) {
     if (input.isEmpty) return false;
 
-    // Format dd/MM/yyyy
     final RegExp dateRegex = RegExp(r'^\d{2}/\d{2}/\d{4}$');
     if (!dateRegex.hasMatch(input)) return false;
 
@@ -377,48 +271,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (month < 1 || month > 12) return false;
     if (day < 1 || day > 31) return false;
 
-    // Kiểm tra năm hợp lệ (từ 1950 đến hiện tại - 18)
     final now = DateTime.now();
     final minYear = 1950;
     final maxYear = now.year - 18;
     if (year < minYear || year > maxYear) return false;
 
-    // Kiểm tra số ngày trong tháng
     final daysInMonth = DateTime(year, month + 1, 0).day;
     if (day > daysInMonth) return false;
 
     return true;
   }
-
-  /*Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _dateOfBirth ?? DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now().subtract(
-        const Duration(days: 365 * 18),
-      ), // Giới hạn 18 tuổi
-      locale: const Locale('vi', 'VN'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.deepOrange,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        _dateOfBirth = picked;
-      });
-    }
-  }*/
 
   @override
   Widget build(BuildContext context) {
@@ -439,9 +301,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.blue.shade900.withValues(alpha :0.85),
-                    Colors.deepOrange.shade400.withValues(alpha :0.55),
-                    Colors.black.withValues(alpha :0.8),
+                    Colors.blue.shade900.withValues(alpha: 0.85),
+                    Colors.deepOrange.shade400.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.8),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -465,15 +327,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         constraints: BoxConstraints(maxWidth: 500),
                         padding: EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha :0.13),
+                          color: Colors.white.withValues(alpha: 0.13),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha :0.22),
+                            color: Colors.white.withValues(alpha: 0.22),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withValues(alpha :0.10),
+                              color: Colors.blue.withValues(alpha: 0.10),
                               blurRadius: 24,
                               offset: Offset(0, 8),
                             ),
@@ -504,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           backgroundImage: _avatarImage != null
                                               ? FileImage(_avatarImage!)
                                               : (_avatarUrl != null
-                                                    ? NetworkImage(_avatarUrl!)
+                                                    ? CachedNetworkImageProvider(_avatarUrl!)
                                                     : null),
                                           child:
                                               _avatarImage == null &&
@@ -546,7 +408,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         itemCount: _additionalImages.length + _additionalPhotoUrls.length + 
                                           (_additionalImages.length + _additionalPhotoUrls.length < 4 ? 1 : 0),
                                         itemBuilder: (context, index) {
-                                          // Nếu là nút thêm ảnh mới
                                           if (index == _additionalImages.length + _additionalPhotoUrls.length &&
                                               _additionalImages.length + _additionalPhotoUrls.length < 4) {
                                             return GestureDetector(
@@ -564,7 +425,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             );
                                           }
 
-                                          // Hiển thị ảnh đã có hoặc mới chọn
                                           return Stack(
                                             children: [
                                               GestureDetector(
@@ -577,14 +437,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     borderRadius: BorderRadius.circular(8),
                                                     image: DecorationImage(
                                                       image: index < _additionalPhotoUrls.length
-                                                          ? NetworkImage(_additionalPhotoUrls[index])
+                                                          ? CachedNetworkImageProvider(_additionalPhotoUrls[index])
                                                           : FileImage(_additionalImages[index - _additionalPhotoUrls.length]) as ImageProvider,
                                                       fit: BoxFit.cover,
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                              // Nút xóa ảnh
                                               Positioned(
                                                 top: 4,
                                                 right: 12,
@@ -604,7 +463,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   ),
                                                 ),
                                               ),
-                                              // Nút sửa ảnh
                                               Positioned(
                                                 bottom: 4,
                                                 right: 12,
@@ -635,14 +493,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       decoration: InputDecoration(
                                         labelText: 'Tên người dùng',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       validator: (value) => value!.isEmpty
                                           ? 'Vui lòng nhập tên người dùng'
@@ -652,14 +506,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _rank,
+                                         initialValue: _rank,
                                           hint: Text('Chọn rank'),
                                           decoration: InputDecoration(
                                             border: OutlineInputBorder(
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withValues(alpha :0.85),
+                                            fillColor: Colors.white.withValues(alpha: 0.85),
                                           ),
                                           items: provider.rankOptions
                                               .map((rank) => DropdownMenuItem(
@@ -671,124 +525,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           validator: (value) => value == null ? 'Vui lòng chọn rank' : null,
                                         );
                                       },
-                                    ),
-                                    SizedBox(height: 14),
-                                    DropdownButtonFormField<String>(
-                                      hint: Text('Chọn tỉnh/thành phố'),
-                                      value: _location,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white.withOpacity(
-                                          0.85,
-                                        ),
-                                      ),
-                                      items: _provinces
-                                          .map(
-                                            (province) =>
-                                                DropdownMenuItem<String>(
-                                                  value: province['name'],
-                                                  child: Text(province['name']),
-                                                ),
-                                          )
-                                          .toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _location = value;
-                                          _district = null;
-                                          _ward = null;
-                                        });
-                                        final selectedProvince = _provinces
-                                            .firstWhere(
-                                              (p) => p['name'] == value,
-                                              orElse: () => {},
-                                            );
-                                        if (selectedProvince.isNotEmpty) {
-                                          _fetchDistricts(
-                                            selectedProvince['code'].toString(),
-                                          );
-                                        }
-                                      },
-                                      validator: (value) => value == null
-                                          ? 'Vui lòng chọn tỉnh/thành phố'
-                                          : null,
-                                    ),
-                                    SizedBox(height: 14),
-                                    DropdownButtonFormField<String>(
-                                      hint: Text('Chọn quận/huyện'),
-                                      value: _district,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white.withValues(alpha :
-                                          0.85,
-                                        ),
-                                      ),
-                                      items: _districts
-                                          .map(
-                                            (district) =>
-                                                DropdownMenuItem<String>(
-                                                  value: district['name'],
-                                                  child: Text(district['name']),
-                                                ),
-                                          )
-                                          .toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _district = value;
-                                          _ward = null;
-                                        });
-                                        final selectedDistrict = _districts
-                                            .firstWhere(
-                                              (d) => d['name'] == value,
-                                              orElse: () => {},
-                                            );
-                                        if (selectedDistrict.isNotEmpty) {
-                                          _fetchWards(
-                                            selectedDistrict['code'].toString(),
-                                          );
-                                        }
-                                      },
-                                      validator: (value) => value == null
-                                          ? 'Vui lòng chọn quận/huyện'
-                                          : null,
-                                    ),
-                                    SizedBox(height: 14),
-                                    DropdownButtonFormField<String>(
-                                      hint: Text('Chọn phường/xã'),
-                                      value: _ward,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white.withValues(alpha :
-                                          0.85,
-                                        ),
-                                      ),
-                                      items: _wards
-                                          .map(
-                                            (ward) => DropdownMenuItem<String>(
-                                              value: ward['name'],
-                                              child: Text(ward['name']),
-                                            ),
-                                          )
-                                          .toList(),
-                                      onChanged: (value) =>
-                                          setState(() => _ward = value),
-                                      validator: (value) => value == null
-                                          ? 'Vui lòng chọn phường/xã'
-                                          : null,
                                     ),
                                     SizedBox(height: 16),
                                     Text(
@@ -804,14 +540,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         hintText: "Tìm kiếm game...",
                                         prefixIcon: Icon(Icons.search),
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :
-                                          0.85,
-                                        ),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       onChanged: _searchGames,
                                     ),
@@ -829,7 +561,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       title: Text("Chọn game"),
                                       selectedColor: Colors.deepOrange,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha :0.85),
+                                        color: Colors.white.withValues(alpha: 0.85),
                                         borderRadius: BorderRadius.all(
                                           Radius.circular(8),
                                         ),
@@ -893,24 +625,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                     SizedBox(height: 16),
                                     TextFormField(
-                                      initialValue: _playTime
-                                          .toString(), // Hiển thị giá trị hiện tại
+                                      initialValue: _playTime.toString(),
                                       decoration: InputDecoration(
                                         labelText: 'Thời gian chơi (phút/ngày)',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :0.85),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       keyboardType: TextInputType.number,
                                       onChanged: (value) => setState(() {
-                                        // Thêm setState để cập nhật UI
                                         _playTime =
                                             int.tryParse(value) ??
-                                            _playTime; // Giữ lại giá trị cũ nếu parse thất bại
+                                            _playTime;
                                       }),
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
@@ -924,24 +652,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                     SizedBox(height: 14),
                                     TextFormField(
-                                      initialValue: _winRate
-                                          .toString(), // Hiển thị giá trị hiện tại
+                                      initialValue: _winRate.toString(),
                                       decoration: InputDecoration(
                                         labelText: 'Tỷ lệ thắng (%)',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :0.85),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       keyboardType: TextInputType.number,
                                       onChanged: (value) => setState(() {
-                                        // Thêm setState để cập nhật UI
                                         _winRate =
                                             int.tryParse(value) ??
-                                            _winRate; // Giữ lại giá trị cũ nếu parse thất bại
+                                            _winRate;
                                       }),
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
@@ -970,17 +694,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _gender,
+                                         initialValue: _gender,
                                           hint: Text('Chọn giới tính'),
                                           decoration: InputDecoration(
                                             labelText: 'Giới tính',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(
-                                                8,
-                                              ),
+                                              borderRadius: BorderRadius.circular(8),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withValues(alpha :0.85),
+                                            fillColor: Colors.white.withValues(alpha: 0.85),
                                           ),
                                           items: provider.genderOptions
                                               .map((gender) => DropdownMenuItem(
@@ -999,12 +721,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         labelText: 'Ngày sinh (dd/MM/yyyy)',
                                         hintText: 'VD: 25/12/1990',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :0.85),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                         suffixIcon: Icon(
                                           Icons.calendar_today,
                                           color: Colors.deepOrange,
@@ -1023,7 +743,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         return null;
                                       },
                                       onChanged: (value) {
-                                        // Tự động thêm dấu / khi nhập
                                         if (value.length == 2 &&
                                             !value.contains('/')) {
                                           _birthDateController.text = '$value/';
@@ -1055,12 +774,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       decoration: InputDecoration(
                                         labelText: 'Chiều cao (cm)',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :0.85),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       keyboardType: TextInputType.number,
                                       validator: (value) {
@@ -1080,12 +797,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       decoration: InputDecoration(
                                         labelText: 'Giới thiệu bản thân',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         filled: true,
-                                        fillColor: Colors.white.withValues(alpha :0.85),
+                                        fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       maxLines: 3,
                                       maxLength: 200,
@@ -1101,7 +816,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           title: Text("Sở thích khác"),
                                           selectedColor: Colors.deepOrange,
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha :0.85),
+                                            color: Colors.white.withValues(alpha: 0.85),
                                             borderRadius: BorderRadius.circular(8),
                                             border: Border.all(
                                               color: Colors.deepOrange,
@@ -1125,17 +840,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _lookingFor,
+                                         initialValue: _lookingFor,
                                           hint: Text('Chọn mục đích'),
                                           decoration: InputDecoration(
                                             labelText: 'Mục đích tìm kiếm',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(
-                                                8,
-                                              ),
+                                              borderRadius: BorderRadius.circular(8),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withValues(alpha :0.85),
+                                            fillColor: Colors.white.withValues(alpha: 0.85),
                                           ),
                                           items: provider.lookingForOptions
                                               .map((option) => DropdownMenuItem(
@@ -1151,17 +864,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
-                                          value: _gameStyle,
+                                         initialValue: _gameStyle,
                                           hint: Text('Chọn phong cách'),
                                           decoration: InputDecoration(
                                             labelText: 'Phong cách chơi game',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(
-                                                8,
-                                              ),
+                                              borderRadius: BorderRadius.circular(8),
                                             ),
                                             filled: true,
-                                            fillColor: Colors.white.withValues(alpha :0.85),
+                                            fillColor: Colors.white.withValues(alpha: 0.85),
                                           ),
                                           items: provider.gameStyleOptions
                                               .map((style) => DropdownMenuItem(
@@ -1177,16 +888,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Center(
                                       child: ElevatedButton(
                                         onPressed: () async {
-                                          if (_formKey.currentState!
-                                                  .validate() &&
+                                          if (_formKey.currentState!.validate() &&
                                               _rank != null &&
-                                              _location != null &&
-                                              _district != null &&
-                                              _ward != null &&
                                               _favoriteGames.isNotEmpty) {
-                                            User? user = FirebaseAuth
-                                                .instance
-                                                .currentUser;
+                                            User? user = FirebaseAuth.instance.currentUser;
                                             if (user != null) {
                                               try {
                                                 setState(() {
@@ -1194,53 +899,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 });
                                                 await _uploadImages(user.uid);
                                                 final dateParts =
-                                                    _birthDateController.text
-                                                        .split('/');
+                                                    _birthDateController.text.split('/');
                                                 final birthDate = DateTime(
-                                                  int.parse(
-                                                    dateParts[2],
-                                                  ), // năm
-                                                  int.parse(
-                                                    dateParts[1],
-                                                  ), // tháng
-                                                  int.parse(
-                                                    dateParts[0],
-                                                  ), // ngày
+                                                  int.parse(dateParts[2]),
+                                                  int.parse(dateParts[1]),
+                                                  int.parse(dateParts[0]),
                                                 );
+
+                                                final locationProvider = Provider.of<LocationProvider>(
+                                                  context,
+                                                  listen: false,
+                                                );
+                                                
+                                                if (locationProvider.currentLocation == null) {
+                                                  developer.log('Đang lấy location từ GPS...', name: 'EditProfile');
+                                                  await locationProvider.getCurrentLocation();
+                                                  await locationProvider.updateUserLocation(user.uid);
+                                                }
+
+                                                final locationText = locationProvider.currentLocation ?? 
+                                                                    locationProvider.address ?? 
+                                                                    locationProvider.city ?? 
+                                                                    'Không xác định';
+
+                                                developer.log('Saving profile with location: $locationText', name: 'EditProfile');
+                                                developer.log('Full address: ${locationProvider.address}', name: 'EditProfile');
+                                                developer.log('City: ${locationProvider.city}', name: 'EditProfile');
 
                                                 UserModel newUser = UserModel(
                                                   id: user.uid,
-                                                  username:
-                                                      _usernameController.text,
+                                                  username: _usernameController.text,
                                                   favoriteGames: _favoriteGames,
                                                   rank: _rank!,
-                                                  location:
-                                                      '$_location, $_district, $_ward',
+                                                  location: locationText,
                                                   playTime: _playTime,
                                                   winRate: _winRate,
                                                   avatarUrl: _avatarUrl,
-                                                  additionalPhotos:
-                                                      _additionalPhotoUrls,
-                                                  // Thêm các trường mới
+                                                  additionalPhotos: _additionalPhotoUrls,
+                                                  latitude: locationProvider.latitude,
+                                                  longitude: locationProvider.longitude,
+                                                  address: locationProvider.address,
+                                                  city: locationProvider.city,
+                                                  country: locationProvider.country,
                                                   gender: _gender,
                                                   dateOfBirth: birthDate,
-                                                  age: _calculateAge(
-                                                    birthDate,
-                                                  ), // Vẫn giữ trường age để tiện tính toán
-                                                  height: int.parse(
-                                                    _heightController.text,
-                                                  ),
+                                                  age: _calculateAge(birthDate),
+                                                  height: int.parse(_heightController.text),
                                                   bio: _bioController.text,
                                                   interests: _interests,
                                                   lookingFor: _lookingFor,
                                                   gameStyle: _gameStyle,
                                                 );
-                                                await _firestoreService.addUser(
-                                                  newUser,
-                                                );
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
+                                                
+                                                await _firestoreService.addUser(newUser);
+                                                
+                                                ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
                                                     content: Text(
                                                       _isUpdating
@@ -1249,24 +962,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     ),
                                                   ),
                                                 );
+                                                
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        const UserApp(
-                                                          initialRoute:
-                                                              '/home_profile',
-                                                        ),
+                                                    builder: (context) => const UserApp(
+                                                      initialRoute: '/home_profile',
+                                                    ),
                                                   ),
                                                 );
                                               } catch (e) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
+                                                developer.log('Error saving profile', name: 'EditProfile', error: e);
+                                                ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
-                                                    content: Text(
-                                                      'Lưu hồ sơ thất bại: $e',
-                                                    ),
+                                                    content: Text('Lưu hồ sơ thất bại: $e'),
                                                   ),
                                                 );
                                               } finally {
@@ -1276,9 +985,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               }
                                             }
                                           } else {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
+                                            ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text(
                                                   'Vui lòng điền đầy đủ thông tin và chọn ít nhất một game!',
@@ -1288,16 +995,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           }
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              Colors.deepOrange[400],
+                                          backgroundColor: Colors.deepOrange[400],
                                           padding: EdgeInsets.symmetric(
                                             horizontal: 40,
                                             vertical: 16,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
+                                            borderRadius: BorderRadius.circular(16),
                                           ),
                                           elevation: 8,
                                           shadowColor: Colors.deepOrange,
@@ -1335,11 +1039,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (pickedFile != null) {
       setState(() {
         if (index < _additionalPhotoUrls.length) {
-          // If editing an existing uploaded photo
           _additionalPhotoUrls.removeAt(index);
           _additionalImages.add(File(pickedFile.path));
         } else {
-          // If editing a newly selected photo
           _additionalImages[index - _additionalPhotoUrls.length] = File(
             pickedFile.path,
           );
@@ -1351,10 +1053,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _removeAdditionalPhoto(int index) {
     setState(() {
       if (index < _additionalPhotoUrls.length) {
-        // Remove from uploaded photos
         _additionalPhotoUrls.removeAt(index);
       } else {
-        // Remove from newly selected photos
         _additionalImages.removeAt(index - _additionalPhotoUrls.length);
       }
     });
