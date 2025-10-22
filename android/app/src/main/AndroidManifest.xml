@@ -31,7 +31,13 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3"/>
             </intent-filter>
-            
+            <!-- Deep link PayOS: gamenect://payment/... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="gamenect" android:host="payment"/>
+            </intent-filter>
         </activity>
         <!-- Google Sign-In meta-data -->
         <meta-data
@@ -79,6 +85,14 @@
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="google"/>
+        </intent>
+         <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 </manifest>

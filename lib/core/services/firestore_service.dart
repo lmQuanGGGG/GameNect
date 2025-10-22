@@ -343,13 +343,27 @@ Future<void> saveSwipeHistory({
   required String action,
 }) async {
   try {
+    final now = DateTime.now();
+    
+    // 1. Log vào swipe_history (giữ 30 ngày, sau đó Firestore tự xóa)
     await _db.collection('swipe_history').add({
       'userId': userId,
       'targetUserId': targetUserId,
-      'action': action, // 'like' hoặc 'dislike'
+      'action': action,
+      'timestamp': FieldValue.serverTimestamp(),
+      'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 60))), // TTL
+    });
+    
+    // 2. Upsert vào swipe_latest (trạng thái mới nhất - query nhanh)
+    final latestDocId = '${userId}_$targetUserId';
+    await _db.collection('swipe_latest').doc(latestDocId).set({
+      'userId': userId,
+      'targetUserId': targetUserId,
+      'action': action,
       'timestamp': FieldValue.serverTimestamp(),
     });
-    developer.log('Đã lưu swipe history: $action', name: 'FirestoreService');
+    
+    developer.log('Đã lưu swipe: $action', name: 'FirestoreService');
   } catch (e) {
     developer.log('Lỗi khi lưu swipe history: $e', name: 'FirestoreService', error: e);
     rethrow;
@@ -595,20 +609,20 @@ Future<void> sendMessage(String matchId, String text) async {
       .add({
         'senderId': userId,
         'text': text,
-        'timestamp': FieldValue.serverTimestamp(), // DÙNG serverTimestamp
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'text', // ← THÊM FIELD NÀY
       });
 
-  // Cập nhật lastMessage vào matches - DÙNG serverTimestamp
+  // Cập nhật lastMessage vào matches
   await FirebaseFirestore.instance
       .collection('matches')
       .doc(matchId)
       .update({
         'lastMessage': text,
-        'lastMessageTime': FieldValue.serverTimestamp(), // SỬA ĐÂY
+        'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSenderId': userId,
       });
 }
-
 Future<void> sendMessageWithMedia({
   required String matchId,
   required String text,
@@ -703,36 +717,48 @@ Future<void> addCallMessage({
 Future<bool> canPostMoment(String userId) async {
   final now = DateTime.now();
   final startOfMonth = DateTime(now.year, now.month, 1);
-  final snap = await FirebaseFirestore.instance
-      .collection('moments')
-      .where('userId', isEqualTo: userId)
-      .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
-      .get();
-  // Lấy trạng thái premium từ user model
+
+  // Kiểm tra premium trước
   final user = await getUser(userId);
   final isPremium = user?.isPremium ?? false;
-  return isPremium || snap.docs.length < 20;
+  if (isPremium) return true;
+
+  // Đếm số moment trong tháng bằng count (nhanh, chính xác)
+  try {
+    final query = _db
+        .collection('moments')
+        .where('userId', isEqualTo: userId)
+        .where('createdAt', isGreaterThanOrEqualTo: startOfMonth);
+
+    final agg = await query.count().get();
+    final total = agg.count ?? 0;
+
+    return total < 20;
+  } catch (e) {
+    developer.log('canPostMoment error: $e', name: 'FirestoreService', error: e);
+    return false;
+  }
 }
 
 Future<void> postMoment({
   required String userId,
   required String mediaUrl,
   required bool isVideo,
-  required List<String> matchIds, // ĐÂY GIỜ LÀ userIds rồi
+  required List<String> matchIds,
   String? caption,
   String? thumbnailUrl,
 }) async {
+  // Kiểm tra giới hạn trước
   if (!await canPostMoment(userId)) {
-    throw Exception('Bạn đã đăng đủ 20 khoảnh khắc tháng này!');
+    throw Exception('LIMIT_EXCEEDED'); // Throw mã lỗi đặc biệt
   }
-  
-  // matchIds parameter giờ ĐÃ LÀ userIds rồi, không cần convert nữa
+
   final visibleToUserIds = <String>{userId, ...matchIds};
-  
+
   developer.log('Posting moment visible to: $visibleToUserIds', name: 'FirestoreService');
-  
+
   try {
-    await FirebaseFirestore.instance.collection('moments').add({
+    await _db.collection('moments').add({
       'userId': userId,
       'mediaUrl': mediaUrl,
       'isVideo': isVideo,

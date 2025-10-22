@@ -6,12 +6,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/providers/moment_provider.dart';
 import 'camera_capture_screen.dart';
 import 'package:video_player/video_player.dart';
-import 'dart:developer';
+//import 'dart:developer';
 import '../../core/services/firestore_service.dart';
 import '../../core/models/user_model.dart';
 import '../../core/providers/chat_provider.dart';
 import 'dart:ui';
 import 'dart:developer' as developer;
+//import 'package:flutter/services.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // THÊM
+import '../../core/providers/profile_provider.dart';
+import 'subscription_screen.dart';
 
 class MomentScreen extends StatefulWidget {
   const MomentScreen({super.key});
@@ -36,10 +40,8 @@ class _MomentScreenState extends State<MomentScreen>
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
       final provider = Provider.of<MomentProvider>(context, listen: false);
-      final matchedUserIds = await provider.getMatchedUserIds(userId);
-      log('Current userId: $userId');
-      log('Matched userIds: $matchedUserIds');
-      await provider.fetchMoments(userId, matchedUserIds);
+      // CHỈNH: dùng stream realtime thay vì fetch 1 lần
+      await provider.listenMoments(userId);
     }
   }
 
@@ -84,33 +86,96 @@ class _MomentScreenState extends State<MomentScreen>
                       children: [
                         // Logo row
                         Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.only(left: 12.0),
-                                child: Icon(
-                                  Icons
-                                      .sports_esports, // hoặc CupertinoIcons.game_controller_solid
-                                  color: Colors.deepOrange,
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'gamenect',
-                                style: TextStyle(
-                                  color: Colors.deepOrange,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+  padding: const EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 12,
+  ),
+  child: Row(
+    children: [
+      const Padding(
+        padding: EdgeInsets.only(left: 12.0),
+        child: Icon(
+          Icons.sports_esports,
+          color: Colors.deepOrange,
+          size: 26,
+        ),
+      ),
+      const SizedBox(width: 8),
+      const Text(
+        'gamenect',
+        style: TextStyle(
+          color: Colors.deepOrange,
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
+      ),
+      const Spacer(),
+      // THÊM: Premium badge/nút
+      Consumer<ProfileProvider>(
+        builder: (context, provider, _) {
+          final isPremium = provider.userData?.isPremium == true;
+          if (isPremium) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.amber, Colors.orange.shade600],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Premium',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } else {
+            return TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                );
+              },
+              icon: const Icon(
+                Icons.workspace_premium_rounded,
+                color: Colors.deepOrange,
+                size: 20,
+              ),
+              label: const Text(
+                'Nâng cấp',
+                style: TextStyle(
+                  color: Colors.deepOrange,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+            );
+          }
+        },
+      ),
+    ],
+  ),
+),
+                        
                         // TabBar
                         TabBar(
                           controller: _tabController,
@@ -646,23 +711,11 @@ class MyMomentsTab extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text(
-            'Xóa khoảnh khắc?',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Text(
-            'Bạn có chắc muốn xóa khoảnh khắc này?',
-            style: TextStyle(color: Colors.white70),
-          ),
+          title: const Text('Xóa khoảnh khắc?', style: TextStyle(color: Colors.white)),
+          content: const Text('Bạn có chắc muốn xóa khoảnh khắc này?', style: TextStyle(color: Colors.white70)),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy', style: TextStyle(color: Colors.white70))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
           ],
         ),
       ),
@@ -670,36 +723,41 @@ class MyMomentsTab extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        await FirebaseFirestore.instance
-            .collection('moments')
-            .doc(momentId)
-            .delete();
+        // Lấy URL media/thumbnail để xóa Storage (nếu cần)
+        final doc = await FirebaseFirestore.instance.collection('moments').doc(momentId).get();
+        final data = doc.data() ?? {};
+        final mediaUrl = data['mediaUrl'] as String?;
+        final thumbUrl = data['thumbnailUrl'] as String?;
+
+        // Xóa document trên Firestore
+        await FirebaseFirestore.instance.collection('moments').doc(momentId).delete();
+
+        // Thử xóa file trên Storage (nếu có quyền)
+        try {
+          if (mediaUrl != null && mediaUrl.startsWith('http')) {
+            await FirebaseStorage.instance.refFromURL(mediaUrl).delete();
+          }
+          if (thumbUrl != null && thumbUrl.startsWith('http')) {
+            await FirebaseStorage.instance.refFromURL(thumbUrl).delete();
+          }
+        } catch (_) {
+          // Bỏ qua lỗi Storage (không chặn xóa moment)
+        }
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Đã xóa khoảnh khắc'),
               backgroundColor: Colors.deepOrange,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
-          final userId = FirebaseAuth.instance.currentUser?.uid;
-          if (userId != null) {
-            final provider = Provider.of<MomentProvider>(
-              context,
-              listen: false,
-            );
-            final matchedUserIds = await provider.getMatchedUserIds(userId);
-            await provider.fetchMoments(userId, matchedUserIds);
-          }
+          // KHÔNG cần fetch lại — Provider đang listen realtime, UI tự cập nhật
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
         }
       }
     }
@@ -945,21 +1003,21 @@ class MomentCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // SỬA: Ảnh giữ đúng tỉ lệ (contain), video giữ nguyên
               moment.isVideo
                   ? VideoPlayerWidget(videoUrl: moment.mediaUrl)
-                  : CachedNetworkImage(
-                      imageUrl: moment.mediaUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.deepOrange,
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Icon(
-                          Icons.error_outline,
-                          color: Colors.white,
-                          size: 50,
+                  : Container(
+                      color: Colors.black, // nền để letterbox/pillarbox
+                      child: Center(
+                        child: CachedNetworkImage(
+                          imageUrl: moment.mediaUrl,
+                          fit: BoxFit.contain, // CHỈNH: không crop
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(color: Colors.deepOrange),
+                          ),
+                          errorWidget: (context, url, error) => const Center(
+                            child: Icon(Icons.error_outline, color: Colors.white, size: 50),
+                          ),
                         ),
                       ),
                     ),
@@ -1156,9 +1214,9 @@ class MomentCard extends StatelessWidget {
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
+                            height: 56, // CHỈNH: chiều cao cố định
                             padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                              horizontal: 10,
+                              horizontal: 10, // bỏ vertical để giữ đúng 56
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.25),
@@ -1175,13 +1233,18 @@ class MomentCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                // Quick emoji buttons - chỉ 3 emoji
-                                ...['❤️', '😂']
-                                    .map(
-                                      (emoji) => GestureDetector(
+                            // Cho phép cuộn ngang để tránh tràn
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Quick emoji buttons
+                                  ...['❤️', '😂'].map(
+                                    (emoji) => Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: GestureDetector(
                                         onTap: () {
                                           Provider.of<MomentProvider>(
                                             context,
@@ -1191,81 +1254,70 @@ class MomentCard extends StatelessWidget {
                                             currentUserId,
                                             emoji,
                                           );
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
                                             SnackBar(
                                               content: Text(
                                                 emoji,
                                                 textAlign: TextAlign.center,
-                                                style: TextStyle(fontSize: 24),
+                                                style: const TextStyle(fontSize: 24),
                                               ),
-                                              duration: const Duration(
-                                                milliseconds: 600,
-                                              ),
-                                              backgroundColor:
-                                                  Colors.transparent,
+                                              duration: const Duration(milliseconds: 600),
+                                              backgroundColor: Colors.transparent,
                                               elevation: 0,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
+                                              behavior: SnackBarBehavior.floating,
                                             ),
                                           );
                                         },
                                         child: Container(
                                           width: 40,
-                                          height: 40,
+                                          height: 40, // đảm bảo nhỏ hơn 56 để cân đối
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.15,
-                                            ),
+                                            color: Colors.white.withValues(alpha: 0.15),
                                             shape: BoxShape.circle,
                                           ),
                                           child: Center(
                                             child: Text(
                                               emoji,
-                                              style: const TextStyle(
-                                                fontSize: 20,
-                                              ),
+                                              style: const TextStyle(fontSize: 20),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    )
-                                    .toList(),
-                                // Nút mở full picker
-                                GestureDetector(
-                                  onTap: () => _showReactionPicker(
-                                    context,
-                                    moment.id,
-                                    currentUserId,
+                                    ),
                                   ),
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.15,
+                                  // Nút mở full picker
+                                  GestureDetector(
+                                    onTap: () => _showReactionPicker(
+                                      context,
+                                      moment.id,
+                                      currentUserId,
+                                    ),
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
                                       ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.add_rounded,
-                                      color: Colors.white,
-                                      size: 22,
+                                      child: const Icon(
+                                        Icons.add_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Nút Camera giữa
+                    // Nút Camera giữa (đã là 56x56, giữ nguyên)
                     GestureDetector(
                       onTap: () async {
-                        // Mở camera để reply
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -1317,9 +1369,9 @@ class MomentCard extends StatelessWidget {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                             child: Container(
+                              height: 56, // CHỈNH: chiều cao cố định bằng với ô emoji
                               padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                                horizontal: 16,
+                                horizontal: 16, // bỏ vertical để giữ đúng 56
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.25),
@@ -1339,14 +1391,14 @@ class MomentCard extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
-                                children: [
+                                children: const [
                                   Icon(
                                     Icons.chat_bubble_outline_rounded,
                                     color: Colors.white,
                                     size: 20,
                                   ),
-                                  const SizedBox(width: 6),
-                                  const Flexible(
+                                  SizedBox(width: 6),
+                                  Flexible(
                                     child: Text(
                                       'Gửi',
                                       style: TextStyle(
@@ -1807,9 +1859,9 @@ class MomentCard extends StatelessWidget {
               ),
             ],
           ),
+        )
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -1842,59 +1894,51 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   Widget build(BuildContext context) {
     if (!_isInitialized) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: Colors.deepOrange,
-          strokeWidth: 3,
-        ),
+        child: CircularProgressIndicator(color: Colors.deepOrange, strokeWidth: 3),
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _videoController.value.isPlaying
-              ? _videoController.pause()
-              : _videoController.play();
-        });
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _videoController.value.size.width,
-              height: _videoController.value.size.height,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: AspectRatio(
+            aspectRatio: _videoController.value.aspectRatio,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _videoController.value.isPlaying
+                      ? _videoController.pause()
+                      : _videoController.play();
+                });
+              },
               child: VideoPlayer(_videoController),
             ),
           ),
-          if (!_videoController.value.isPlaying)
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(50),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 60,
+        ),
+
+        if (!_videoController.value.isPlaying)
+          Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 2,
                     ),
                   ),
+                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 60),
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 

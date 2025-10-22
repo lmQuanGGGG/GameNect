@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import '../../core/providers/match_provider.dart';
+import '../../core/providers/profile_provider.dart';
 //import '../../core/models/user_model.dart';
 import '../../core/widgets/profile_card.dart'; // Thay vì user_card.dart
 import '../../core/services/firestore_service.dart';
 import 'match_list_screen.dart';
+import 'subscription_screen.dart';
 
 class MatchScreen extends StatefulWidget {
   const MatchScreen({super.key});
@@ -113,7 +115,7 @@ class _MatchScreenState extends State<MatchScreen> {
   @override
   Widget build(BuildContext context) {
     final users = matchProvider.recommendations;
-
+    
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -125,8 +127,7 @@ class _MatchScreenState extends State<MatchScreen> {
             const Padding(
               padding: EdgeInsets.only(left: 12.0),
               child: Icon(
-                Icons
-                    .sports_esports, // hoặc CupertinoIcons.game_controller_solid
+                Icons.sports_esports,
                 color: Colors.deepOrange,
                 size: 26,
               ),
@@ -143,19 +144,81 @@ class _MatchScreenState extends State<MatchScreen> {
           ],
         ),
         actions: [
+          // THÊM: Premium Button/Badge giống profile
+          Consumer<ProfileProvider>(
+            builder: (context, provider, _) {
+              final isPremium = provider.userData?.isPremium == true;
+              if (isPremium) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.amber, Colors.orange.shade600],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen()),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Colors.deepOrange,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Nâng cấp',
+                    style: TextStyle(
+                      color: Colors.deepOrange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                );
+              }
+            },
+          ),
+          // Nút cài đặt như cũ
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepOrange,
                 shape: const CircleBorder(),
-                padding: const EdgeInsets.all(
-                  0,
-                ), // giảm xuống 0 để hình tròn nhỏ lại
-                minimumSize: const Size(
-                  30,
-                  30,
-                ), // đặt kích thước nhỏ hơn mặc định
+                padding: const EdgeInsets.all(0),
+                minimumSize: const Size(30, 30),
                 elevation: 0,
               ),
               onPressed: () async {
@@ -188,7 +251,7 @@ class _MatchScreenState extends State<MatchScreen> {
               child: const Icon(
                 Icons.settings,
                 color: Colors.white,
-                size: 20, // giữ nguyên hoặc tăng lên nếu muốn
+                size: 20,
               ),
             ),
           ),

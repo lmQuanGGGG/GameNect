@@ -809,20 +809,20 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: (callStatus == 'missed' || callStatus == 'declined')
-                      ? [callColor.withOpacity(0.3), callColor.withOpacity(0.2)]
+                      ? [callColor.withValues(alpha: 0.3), callColor.withValues(alpha: 0.2)]
                       : callStatus == 'cancelled'
                       ? [
-                          Colors.grey.withOpacity(0.3),
-                          Colors.grey.withOpacity(0.2),
+                          Colors.grey.withValues(alpha: 0.3),
+                          Colors.grey.withValues(alpha: 0.2),
                         ]
                       : [
-                          Colors.white.withOpacity(0.2),
-                          Colors.white.withOpacity(0.1),
+                          Colors.white.withValues(alpha: 0.2),
+                          Colors.white.withValues(alpha: 0.1),
                         ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),

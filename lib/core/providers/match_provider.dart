@@ -436,7 +436,55 @@ class MatchProvider with ChangeNotifier {
     developer.log('Liked me users: ${users.length} (excluded ${matchedUserIds.length} matched + ${cancelledUserIds.length} cancelled)', name: 'MatchProvider');
     
     return users;
-  }).asyncMap((future) => future);
+  }).asyncMap((f) => f).asBroadcastStream();
+}
+
+  // Những người TÔI đã dislike (mình là userId, họ là targetUserId)
+  Stream<List<UserModel>> streamMyDislikedUsers(String currentUserId, {int limit = 100}) {
+  final swipeStream = FirebaseFirestore.instance
+      .collection('swipe_latest')
+      .where('userId', isEqualTo: currentUserId)
+      .where('action', isEqualTo: 'dislike')
+      .limit(limit)
+      .snapshots();
+
+  final matchStream = FirebaseFirestore.instance
+      .collection('matches')
+      .where('userIds', arrayContains: currentUserId)
+      .snapshots(); // ← Lấy TẤT CẢ matches (confirmed + cancelled) 1 lần
+
+  return Rx.combineLatest2(swipeStream, matchStream,
+      (QuerySnapshot swipeSnap, QuerySnapshot matchSnap) async {
+    // Lọc confirmed và cancelled từ cùng 1 snapshot
+    final matchedUserIds = <String>{};
+    final cancelledUserIds = <String>{};
+    
+    for (var doc in matchSnap.docs) {
+      final status = doc['status'];
+      final ids = List<String>.from(doc['userIds'] ?? []);
+      final otherIds = ids.where((id) => id != currentUserId);
+      
+      if (status == 'confirmed') {
+        matchedUserIds.addAll(otherIds);
+      } else if (status == 'cancelled') {
+        cancelledUserIds.addAll(otherIds);
+      }
+    }
+
+    final users = <UserModel>[];
+    for (var doc in swipeSnap.docs) {
+      final targetId = doc['targetUserId'];
+      if (matchedUserIds.contains(targetId) || cancelledUserIds.contains(targetId)) continue;
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(targetId).get();
+      if (userDoc.exists) {
+        users.add(UserModel.fromMap(userDoc.data()!, targetId));
+      }
+    }
+
+    developer.log('My disliked users: ${users.length}', name: 'MatchProvider');
+    return users;
+  }).asyncMap((f) => f).asBroadcastStream(); // ← ĐÃ CÓ broadcast
 }
 
   Future<void> unmatch(String matchId) async {
