@@ -25,6 +25,11 @@ class _SubscriptionScreenContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = Provider.of<SubscriptionProvider>(context);
 
+    // Fetch plans khi mở màn hình
+    if (provider.plans.isEmpty) {
+      provider.fetchPlans();
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
@@ -142,27 +147,45 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
-                  // Plan cards
-                  _buildPlanCard(
-                    context,
-                    planType: 'yearly',
-                    title: 'Gói 1 Năm',
-                    price: '507.000đ',
-                    pricePerMonth: '42.250đ/tháng',
-                    badge: 'Tiết kiệm 50%',
-                    isSelected: provider.selectedPlan == 'yearly',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildPlanCard(
-                    context,
-                    planType: 'monthly',
-                    title: 'Gói 1 Tháng',
-                    price: '84.500đ',
-                    pricePerMonth: null,
-                    badge: null,
-                    isSelected: provider.selectedPlan == 'monthly',
-                  ),
-                  const SizedBox(height: 32),
+                  // Plan cards (thay thế phần hard-code)
+                  if (provider.plans.isNotEmpty) ...[
+                    for (var plan in provider.plans)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildPlanCard(
+                          context,
+                          planType: plan['planType'],
+                          title: plan['title'],
+                          price: plan['priceText'],
+                          pricePerMonth: plan['pricePerMonth'],
+                          badge: plan['badge'],
+                          isSelected: provider.selectedPlan == plan['planType'],
+                        ),
+                      ),
+                    const SizedBox(height: 32),
+                  ] else ...[
+                    // fallback nếu chưa có dữ liệu Firestore
+                    _buildPlanCard(
+                      context,
+                      planType: 'yearly',
+                      title: 'Gói 1 Năm',
+                      price: '507.000đ',
+                      pricePerMonth: '42.250đ/tháng',
+                      badge: 'Tiết kiệm 50%',
+                      isSelected: provider.selectedPlan == 'yearly',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildPlanCard(
+                      context,
+                      planType: 'monthly',
+                      title: 'Gói 1 Tháng',
+                      price: '84.500đ',
+                      pricePerMonth: null,
+                      badge: null,
+                      isSelected: provider.selectedPlan == 'monthly',
+                    ),
+                    const SizedBox(height: 32),
+                  ],
 
                   // Subscribe button
                   SizedBox(

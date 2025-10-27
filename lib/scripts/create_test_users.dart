@@ -192,7 +192,7 @@ class CreateTestUsers {
       // Tạo username unique (chữ thường không dấu + số)
       final username = '${_removeVietnameseTones(firstName.toLowerCase())}${_removeVietnameseTones(lastName.toLowerCase())}${index.toString().padLeft(3, '0')}';
       
-      final email = 'testuser${index.toString().padLeft(3, '7')}@gamenect.com';
+      final email = 'testuser${index.toString().padLeft(3, '8')}@gamenect.com';
       final password = 'Test@123';
 
       _logger.i('Đang tạo user: $email (username: $username)');

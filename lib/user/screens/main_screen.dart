@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gamenect_new/core/providers/chat_provider.dart';
 import 'dart:developer' as developer;
+import 'package:provider/provider.dart';
 import 'profile.dart';
 import 'match_screen.dart';
 import 'liked_me_screen.dart';
 import 'match_list_screen.dart';
 import 'moment_screen.dart';
+import 'dart:async';
+import '../../core/models/user_model.dart';
+
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -26,6 +31,52 @@ class _MainScreenState extends State<MainScreen> {
     MatchListScreen(),
     const ProfilePage(),
   ];
+
+  List<StreamSubscription> _messageSubscriptions = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId != null) {
+        // Lấy danh sách matchId và peerUser từ Firestore
+        final matchesSnapshot = await FirebaseFirestore.instance
+            .collection('matches')
+            .where('userIds', arrayContains: currentUserId)
+            .where('status', isEqualTo: 'confirmed')
+            .get();
+
+        for (var doc in matchesSnapshot.docs) {
+          final matchId = doc.id;
+          final userIds = List<String>.from(doc['userIds'] ?? []);
+          final peerId = userIds.firstWhere(
+            (id) => id != currentUserId,
+            orElse: () => '',
+          );
+          if (peerId != null) {
+            final userDoc = await FirebaseFirestore.instance.collection('users').doc(peerId).get();
+            if (userDoc.exists) {
+              final peerUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
+              // Gọi messagesStream để lắng nghe tin nhắn mới, KHÔNG ảnh hưởng UI
+              final sub = chatProvider.messagesStream(matchId, peerUser).listen((_) {});
+              _messageSubscriptions.add(sub);
+            }
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _messageSubscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

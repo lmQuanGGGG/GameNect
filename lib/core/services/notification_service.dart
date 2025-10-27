@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../main.dart';
+import 'dart:convert'; 
 
 
 // Hàm chung để hiển thị thông báo trên cả iOS và Android
@@ -32,10 +33,45 @@ Future<void> showNotification({
         presentSound: true, // BẮT BUỘC để có âm thanh
         presentBadge: true, // BẮT BUỘC để hiện badge
         categoryIdentifier: categoryId,
-        interruptionLevel: InterruptionLevel.timeSensitive, // iOS 15+: ưu tiên cao
+        interruptionLevel: InterruptionLevel.timeSensitive, 
       ),
     ),
     payload: payload,
+  );
+}
+
+Future<void> showMomentReactionNotification({
+  required String momentOwnerId,
+  required String reactorUsername,
+  required String reactorUserId,
+  required String momentId,
+  required String emoji,
+}) async {
+  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'moment_reactions_channel',
+    'Cảm xúc Moment',
+    channelDescription: 'Thông báo khi có người thả cảm xúc vào moment',
+    importance: Importance.high,
+    priority: Priority.high,
+    icon: '@mipmap/ic_launcher',
+    playSound: true,
+    enableVibration: true,
+  );
+
+  const NotificationDetails notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(
+    momentId.hashCode, // Unique ID dựa trên momentId
+    '$reactorUsername đã thả cảm xúc $emoji',
+    'Vào moment của bạn',
+    notificationDetails,
+    payload: json.encode({
+      'type': 'moment_reaction',
+      'momentId': momentId,
+      'reactorUserId': reactorUserId,
+    }),
   );
 }
 

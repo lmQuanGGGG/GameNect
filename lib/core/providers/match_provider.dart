@@ -333,38 +333,76 @@ class MatchProvider with ChangeNotifier {
 
         // Stream lấy message cuối cùng
         final msgStream = FirebaseFirestore.instance
-            .collection('chats')
-            .doc(matchId)
-            .collection('messages')
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .snapshots()
-            .asyncMap((msgSnap) async {
-              String? lastMessage;
-              DateTime? lastMessageTime;
-              if (msgSnap.docs.isNotEmpty) {
-                final msg = msgSnap.docs.first.data();
-                lastMessageTime = (msg['timestamp'] as Timestamp?)?.toDate();
-                if (msg['type'] == 'call') {
-                  if (msg['callStatus'] == 'missed') {
-                    lastMessage = 'Cuộc gọi nhỡ';
-                  } else {
-                    final duration = msg['duration'] ?? 0;
-                    lastMessage = 'Đã gọi ${_formatDuration(duration)}';
-                  }
-                } else {
-                  lastMessage = msg['text'] ?? '';
-                }
-              }
-              final user = await userFuture;
-              return {
-                'user': user,
-                'matchId': matchId,
-                'matchedAt': (doc['matchedAt'] as Timestamp?)?.toDate(),
-                'lastMessage': lastMessage,
-                'lastMessageTime': lastMessageTime,
-              };
-            });
+    .collection('chats')
+    .doc(matchId)
+    .collection('messages')
+    .orderBy('timestamp', descending: true)
+    .limit(1)
+    .snapshots()
+    .asyncMap((msgSnap) async {
+      String? lastMessage;
+      DateTime? lastMessageTime;
+      if (msgSnap.docs.isNotEmpty) {
+        final msg = msgSnap.docs.first.data();
+        lastMessageTime = (msg['timestamp'] as Timestamp?)?.toDate();
+        
+        final msgType = msg['type'] ?? 'text';
+        final senderId = msg['senderId'];
+        final isMe = senderId == currentUserId; // ← Kiểm tra ai gửi
+        
+        switch (msgType) {
+          case 'call':
+            if (msg['callStatus'] == 'missed') {
+              lastMessage = isMe ? 'Bạn: Cuộc gọi nhỡ' : 'Cuộc gọi nhỡ';
+            } else if (msg['callStatus'] == 'declined') {
+              lastMessage = isMe ? 'Bạn: Cuộc gọi bị từ chối' : 'Cuộc gọi bị từ chối';
+            } else if (msg['callStatus'] == 'cancelled') {
+              lastMessage = isMe ? 'Bạn: Đã hủy' : 'Đã hủy';
+            } else {
+              final duration = msg['duration'] ?? 0;
+              lastMessage = isMe 
+                ? 'Bạn: Đã gọi ${_formatDuration(duration)}'
+                : 'Đã gọi ${_formatDuration(duration)}';
+            }
+            break;
+          
+          case 'voice':
+            lastMessage = isMe 
+              ? 'Bạn: Đã gửi tin nhắn thoại' 
+              : 'Đã gửi tin nhắn thoại';
+            break;
+          
+          case 'react':
+            final emoji = msg['emoji'] ?? '❤️';
+            lastMessage = isMe 
+              ? 'Bạn: Đã thả cảm xúc $emoji'
+              : 'Đã thả cảm xúc $emoji';
+            break;
+          
+          case 'media':
+            final isVideo = msg['isVideo'] ?? false;
+            if (isMe) {
+              lastMessage = isVideo ? 'Bạn: Đã gửi video' : 'Bạn: Đã gửi hình ảnh';
+            } else {
+              lastMessage = isVideo ? 'Đã gửi video' : 'Đã gửi hình ảnh';
+            }
+            break;
+          
+          default:
+            // Tin nhắn văn bản thông thường
+            final text = msg['text'] ?? '';
+            lastMessage = isMe ? 'Bạn: $text' : text;
+        }
+      }
+      final user = await userFuture;
+      return {
+        'user': user,
+        'matchId': matchId,
+        'matchedAt': (doc['matchedAt'] as Timestamp?)?.toDate(),
+        'lastMessage': lastMessage,
+        'lastMessageTime': lastMessageTime,
+      };
+    });
         return msgStream;
       }).toList();
 

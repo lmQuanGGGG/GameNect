@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/moment_provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -514,7 +514,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     // Đăng moment
     await momentProvider.postMoment(
       userId: userId,
-      mediaUrl: mediaUrl!,
+      mediaUrl: mediaUrl,
       isVideo: _isVideo,
       matchIds: matchedUserIds,
       caption: caption.isEmpty ? null : caption,
@@ -550,7 +550,7 @@ Future<void> _showPremiumUpsellDialog() async {
   await showDialog<void>(
     context: context,
     barrierDismissible: true,
-    barrierColor: Colors.black.withOpacity(0.7),
+    barrierColor: Colors.black.withValues(alpha: 0.7),
     builder: (ctx) => BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
       child: Dialog(
@@ -567,12 +567,12 @@ Future<void> _showPremiumUpsellDialog() async {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.deepOrange.withOpacity(0.2),
-                    Colors.black.withOpacity(0.85),
+                    Colors.deepOrange.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.85),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -580,7 +580,7 @@ Future<void> _showPremiumUpsellDialog() async {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.2),
+                      color: Colors.amber.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 56),
@@ -594,13 +594,13 @@ Future<void> _showPremiumUpsellDialog() async {
                   Text(
                     'Bạn đã đăng đủ 20 khoảnh khắc trong tháng này!',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, height: 1.5),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, height: 1.5),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Nâng cấp để đăng không giới hạn 🔥',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 15, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 24),
                   Row(
@@ -612,10 +612,10 @@ Future<void> _showPremiumUpsellDialog() async {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                             ),
                           ),
-                          child: Text('Để sau', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600)),
+                          child: Text('Để sau', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -632,7 +632,7 @@ Future<void> _showPremiumUpsellDialog() async {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             elevation: 8,
-                            shadowColor: Colors.deepOrange.withOpacity(0.5),
+                            shadowColor: Colors.deepOrange.withValues(alpha: 0.5),
                           ),
                           child: const Text('Nâng cấp ngay', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                         ),
@@ -1201,6 +1201,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     onPressed: () {
                       // Xóa thumbnail local
                       if (_localThumbnailPath != null) {
+                        // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
                       }
                       setState(() {
@@ -1239,6 +1240,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     label: 'Chụp lại',
                     onPressed: () {
                       if (_localThumbnailPath != null) {
+                        // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
                       }
                       setState(() {
@@ -1272,6 +1274,7 @@ Future<void> _showPremiumUpsellDialog() async {
     
     // Xóa thumbnail local
     if (_localThumbnailPath != null) {
+      // ignore: body_might_complete_normally_catch_error
       File(_localThumbnailPath!).delete().catchError((_) {});
     }
     

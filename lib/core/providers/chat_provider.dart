@@ -47,6 +47,60 @@ class ChatProvider with ChangeNotifier {
     // }
   }
 
+  Future<void> sendVoiceMessage(
+    String matchId,
+    String audioUrl, {
+    int? duration,
+    UserModel? peerUser,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    await FirestoreService().sendVoiceMessage(
+      matchId: matchId,
+      audioUrl: audioUrl,
+      duration: duration,
+    );
+    await fetchMessages(matchId);
+    _isLoading = false;
+    notifyListeners();
+
+    // Gửi thông báo push cho đối phương
+    if (peerUser != null) {
+      await handleMessageNotification(
+        matchId,
+        'Đã gửi 1 tin nhắn thoại',
+        peerUser,
+      );
+    }
+  }
+
+  Future<void> reactToMessage(String matchId, String messageId, String emoji) async {
+  await FirestoreService().reactToMessage(
+    matchId: matchId,
+    messageId: messageId,
+    emoji: emoji,
+  );
+  notifyListeners();
+}
+
+Future<void> sendMediaWithNotify(
+  String matchId,
+  String mediaUrl, {
+  bool isVideo = false,
+  String? caption,
+  UserModel? peerUser,
+}) async {
+  await FirestoreService().sendMediaWithNotify(
+    matchId: matchId,
+    mediaUrl: mediaUrl,
+    isVideo: isVideo,
+    caption: caption,
+    peerUser: peerUser,
+  );
+  await fetchMessages(matchId);
+  notifyListeners();
+}
+
   Future<void> sendMessageWithMedia(
     String matchId,
     String text, {
@@ -71,8 +125,18 @@ class ChatProvider with ChangeNotifier {
         if (lastMsg['senderId'] != currentUserId &&
             msgId != null &&
             _lastNotifiedMessageId[matchId] != msgId) {
-          handleMessageNotification(matchId, lastMsg['text'] ?? '', peerUser);
-          _lastNotifiedMessageId[matchId] = msgId;
+            String notifyText = '';
+            if (lastMsg['type'] == 'voice') {
+              notifyText = 'Đã gửi 1 tin nhắn thoại';
+            } else if (lastMsg['type'] == 'media') {
+              notifyText = 'Đã gửi 1 hình ảnh/video';
+            } else if (lastMsg['type'] == 'react') {
+              notifyText = 'Đã thả cảm xúc';
+            } else {
+              notifyText = lastMsg['text'] ?? '';
+            }
+            handleMessageNotification(matchId, notifyText, peerUser);
+            _lastNotifiedMessageId[matchId] = msgId;
         }
       }
       return messages;

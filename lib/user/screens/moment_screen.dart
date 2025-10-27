@@ -646,6 +646,28 @@ class _FeedTabState extends State<FeedTab> {
               ),
             ),
           ),
+          const SizedBox(height: 24),
+          // Nút camera để up hình/video
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            ),
+            icon: const Icon(Icons.camera_alt_rounded),
+            label: const Text(
+              'Đăng khoảnh khắc',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
+              );
+              // Xử lý kết quả up hình/video ở đây nếu cần
+            },
+          ),
         ],
       ),
     );

@@ -25,7 +25,29 @@ class SubscriptionProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  int getPlanPrice(String planType) => planType == 'yearly' ? 507000 : 84500;
+  List<Map<String, dynamic>> _plans = [];
+  List<Map<String, dynamic>> get plans => _plans;
+
+  Future<void> fetchPlans() async {
+    final snap = await FirebaseFirestore.instance
+        .collection('premium_plans')
+        .where('isActive', isEqualTo: true)
+        .get();
+    _plans = snap.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id; 
+      return data;
+    }).toList();
+    notifyListeners();
+  }
+
+  int getPlanPrice(String planType) {
+    final plan = _plans.firstWhere(
+      (p) => p['planType'] == planType,
+      orElse: () => {},
+    );
+    return plan['price'] ?? (planType == 'yearly' ? 507000 : 84500);
+  }
 
   Future<Map<String, dynamic>?> purchasePlan(String planType) async {
     _isLoading = true;

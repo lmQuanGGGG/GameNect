@@ -28,14 +28,14 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.deepOrange.withOpacity(0.12),
-            Colors.orange.withOpacity(0.08),
+            Colors.deepOrange.withValues(alpha: 0.12),
+            Colors.orange.withValues(alpha: 0.08),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepOrange.withOpacity(0.5), width: 1.2),
+        border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.5), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

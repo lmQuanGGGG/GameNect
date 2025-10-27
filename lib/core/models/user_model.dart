@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   String id;
   String username;
@@ -80,6 +81,10 @@ class UserModel {
 
   // New field
   double? distanceKm;
+  bool isAdmin; // Thêm dòng này
+  DateTime? premiumEndDate; // Thêm dòng này
+  String? premiumPlan;
+  DateTime? premiumStartDate;
 
   UserModel({
     required this.id,
@@ -144,6 +149,10 @@ class UserModel {
     this.gamingStats,
     this.gamingPlatforms = const [],
     this.distanceKm,
+    this.isAdmin = false, // Thêm dòng này
+    this.premiumEndDate,
+    this.premiumPlan,
+    this.premiumStartDate,
   });
 
   // Getters
@@ -240,6 +249,10 @@ class UserModel {
       'gamingStats': gamingStats,
       'gamingPlatforms': gamingPlatforms,
       'distanceKm': distanceKm,
+      'isAdmin': isAdmin, // Thêm dòng này
+      'premiumEndDate': premiumEndDate?.toIso8601String(),
+      'premiumPlan': premiumPlan,
+      'premiumStartDate': premiumStartDate?.toIso8601String(),
     };
   }
 
@@ -338,8 +351,93 @@ class UserModel {
       gamingStats: map['gamingStats'],
       gamingPlatforms: List<String>.from(map['gamingPlatforms'] ?? []),
       distanceKm: map['distanceKm']?.toDouble(),
+      isAdmin: map['isAdmin'] ?? false, // Thêm dòng này
+      premiumEndDate: map['premiumEndDate'] != null
+          ? (map['premiumEndDate'] is Timestamp
+              ? (map['premiumEndDate'] as Timestamp).toDate()
+              : DateTime.tryParse(map['premiumEndDate'].toString()))
+          : null,
+      premiumPlan: map['premiumPlan'],
+      premiumStartDate: map['premiumStartDate'] != null
+          ? (map['premiumStartDate'] is Timestamp
+              ? (map['premiumStartDate'] as Timestamp).toDate()
+              : DateTime.tryParse(map['premiumStartDate'].toString()))
+          : null,
     );
   }
 
-  
+  UserModel copyWith({
+    String? id,
+    String? username,
+    List<String>? favoriteGames,
+    String? rank,
+    String? location,
+    int? playTime,
+    int? winRate,
+    int? points,
+    String? avatarUrl,
+    List<String>? additionalPhotos,
+    String? gender,
+    int? age,
+    int? height,
+    String? bio,
+    List<String>? interests,
+    String? lookingFor,
+    String? gameStyle,
+    DateTime? dateOfBirth,
+    double? latitude,
+    double? longitude,
+    String? address,
+    String? city,
+    String? country,
+    DateTime? lastLocationUpdate,
+    double? maxDistance,
+    bool? showDistance,
+    int? minAge,
+    int? maxAge,
+    String? interestedInGender,
+    bool? isVerified,
+    // Premium fields
+    bool? isPremium,
+    String? premiumPlan,
+    DateTime? premiumStartDate,
+    DateTime? premiumEndDate,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      favoriteGames: favoriteGames ?? this.favoriteGames,
+      rank: rank ?? this.rank,
+      location: location ?? this.location,
+      playTime: playTime ?? this.playTime,
+      winRate: winRate ?? this.winRate,
+      points: points ?? this.points,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      additionalPhotos: additionalPhotos ?? this.additionalPhotos,
+      gender: gender ?? this.gender,
+      age: age ?? this.age,
+      height: height ?? this.height,
+      bio: bio ?? this.bio,
+      interests: interests ?? this.interests,
+      lookingFor: lookingFor ?? this.lookingFor,
+      gameStyle: gameStyle ?? this.gameStyle,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      country: country ?? this.country,
+      lastLocationUpdate: lastLocationUpdate ?? this.lastLocationUpdate,
+      maxDistance: maxDistance ?? this.maxDistance,
+      showDistance: showDistance ?? this.showDistance,
+      minAge: minAge ?? this.minAge,
+      maxAge: maxAge ?? this.maxAge,
+      interestedInGender: interestedInGender ?? this.interestedInGender,
+      isVerified: isVerified ?? this.isVerified,
+      isPremium: isPremium ?? this.isPremium,
+      premiumPlan: premiumPlan ?? this.premiumPlan,
+      premiumStartDate: premiumStartDate ?? this.premiumStartDate,
+      premiumEndDate: premiumEndDate ?? this.premiumEndDate,
+    );
+  }
 }

@@ -28,6 +28,7 @@ import 'user/screens/chat_screen.dart';
 import 'user/screens/video_call_screen.dart';
 import 'dart:developer' as developer;
 import 'dart:async';
+import 'admin/admin_app.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -351,6 +352,7 @@ class GameNectApp extends StatelessWidget {
           '/home_profile': (context) => const HomeProfileScreen(),
           '/email-login': (context) => const EmailLoginScreen(),
           '/admin-test-users': (context) => const AdminTestUsersScreen(),
+          '/moments': (context) => const UserApp(initialRoute: '/main'),
           '/chat': (context) {
             final args = ModalRoute.of(context)!.settings.arguments as Map;
             return ChatScreen(
@@ -412,6 +414,7 @@ class GameNectApp extends StatelessWidget {
   }
 }
 
+// Thay thế AuthWrapper trong main.dart (từ dòng 320 trở đi)
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -471,37 +474,106 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            final locationProvider = Provider.of<LocationProvider>(context, listen: false);
-            final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-            final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-            final matchProvider = Provider.of<MatchProvider>(context, listen: false);
-
-            await locationProvider.updateUserLocation(snapshot.data!.uid);
-
-            if (profileProvider.userData == null) {
-              await profileProvider.loadUserProfile();
-            }
-
-            if (profileProvider.userData != null) {
-              locationProvider.loadSettingsFromUser(profileProvider.userData!);
-            }
-
-            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-            if (currentUserId != null) {
-              final matches = await matchProvider.fetchMatchedUsersWithMatchId(currentUserId);
-              for (var match in matches) {
-                final matchId = match['matchId'] as String;
-                final peerUser = match['user'] as UserModel;
-                chatProvider.messagesStream(matchId, peerUser).listen((_) {});
-                chatProvider.listenForIncomingCalls(matchId, peerUser);
+          developer.log('User logged in: ${snapshot.data!.uid}', name: 'Auth');
+          developer.log('Email: ${snapshot.data!.email}', name: 'Auth');
+          
+          // Kiểm tra role của user
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(snapshot.data!.uid)
+                .get(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                developer.log('Đang load user data từ Firestore...', name: 'Auth');
+                return Scaffold(
+                  backgroundColor: Colors.white,
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: Colors.deepOrange),
+                        SizedBox(height: 16),
+                        Text('Đang kiểm tra quyền truy cập...', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
               }
-            }
-          });
 
-          return const UserApp();
+              if (userSnapshot.hasError) {
+                developer.log('Error loading user data: ${userSnapshot.error}', name: 'Auth');
+                return LoginScreen();
+              }
+
+              if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                developer.log('User document not found in Firestore', name: 'Auth');
+                return LoginScreen();
+              }
+
+              final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+              
+              if (userData == null) {
+                developer.log('User data is null', name: 'Auth');
+                return LoginScreen();
+              }
+
+              // LOG QUAN TRỌNG
+              developer.log('Full user data: $userData', name: 'Auth');
+              
+              final isAdmin = userData['isAdmin'] ?? false;
+              
+              developer.log('isAdmin: $isAdmin', name: 'Auth');
+              developer.log('isAdmin type: ${isAdmin.runtimeType}', name: 'Auth');
+              developer.log('Checking if isAdmin == true: ${isAdmin == true}', name: 'Auth');
+
+              // Nếu là admin, chuyển đến AdminApp
+              if (isAdmin == true) {
+                developer.log('ADMIN DETECTED! Navigating to AdminApp', name: 'Auth');
+                return const AdminApp();
+              }
+
+              developer.log('👥 Regular user detected! Navigating to UserApp', name: 'Auth');
+
+              // User bình thường
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                try {
+                  final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+                  final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+                  final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+                  final matchProvider = Provider.of<MatchProvider>(context, listen: false);
+
+                  await locationProvider.updateUserLocation(snapshot.data!.uid);
+
+                  if (profileProvider.userData == null) {
+                    await profileProvider.loadUserProfile();
+                  }
+
+                  if (profileProvider.userData != null) {
+                    locationProvider.loadSettingsFromUser(profileProvider.userData!);
+                  }
+
+                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                  if (currentUserId != null) {
+                    final matches = await matchProvider.fetchMatchedUsersWithMatchId(currentUserId);
+                    for (var match in matches) {
+                      final matchId = match['matchId'] as String;
+                      final peerUser = match['user'] as UserModel;
+                      chatProvider.messagesStream(matchId, peerUser).listen((_) {});
+                      chatProvider.listenForIncomingCalls(matchId, peerUser);
+                    }
+                  }
+                } catch (e) {
+                  developer.log('Error in postFrameCallback: $e', name: 'Auth');
+                }
+              });
+
+              return const UserApp();
+            },
+          );
         }
 
+        developer.log('No user logged in, showing LoginScreen', name: 'Auth');
         return LoginScreen();
       },
     );
