@@ -7,6 +7,8 @@ import Foundation
 
 import agora_rtc_engine
 import audio_session
+import awesome_notifications
+import awesome_notifications_core
 import cloud_firestore
 import cloud_functions
 import facebook_auth_desktop
@@ -32,6 +34,8 @@ import video_player_avfoundation
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   AgoraRtcNgPlugin.register(with: registry.registrar(forPlugin: "AgoraRtcNgPlugin"))
   AudioSessionPlugin.register(with: registry.registrar(forPlugin: "AudioSessionPlugin"))
+  AwesomeNotificationsPlugin.register(with: registry.registrar(forPlugin: "AwesomeNotificationsPlugin"))
+  AwesomeNotificationsCorePlugin.register(with: registry.registrar(forPlugin: "AwesomeNotificationsCorePlugin"))
   FLTFirebaseFirestorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseFirestorePlugin"))
   FirebaseFunctionsPlugin.register(with: registry.registrar(forPlugin: "FirebaseFunctionsPlugin"))
   FacebookAuthDesktopPlugin.register(with: registry.registrar(forPlugin: "FacebookAuthDesktopPlugin"))

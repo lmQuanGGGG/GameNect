@@ -21,7 +21,7 @@ import 'core/providers/match_provider.dart';
 import 'core/services/firestore_service.dart';
 import 'core/providers/chat_provider.dart';
 import 'core/providers/moment_provider.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/models/user_model.dart';
 import 'user/screens/chat_screen.dart';
@@ -30,120 +30,157 @@ import 'dart:developer' as developer;
 import 'dart:async';
 import 'admin/admin_app.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  final granted = await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-      ?.requestPermissions(alert: true, badge: true, sound: true);
-  
-  developer.log('iOS Notification Permission: $granted', name: 'Main.Notification');
-  
-  if (granted == false) {
-    developer.log('iOS Notification Permission DENIED. Guide user to Settings.', name: 'Main.Notification');
-  }
-
-  final darwinCallCategory = DarwinNotificationCategory(
-    'CALL_CATEGORY',
-    actions: [
-      DarwinNotificationAction.plain('accept', 'Nghe'),
-      DarwinNotificationAction.plain('decline', 'Từ chối'),
+  // KHỞI TẠO AWESOME NOTIFICATIONS
+  await AwesomeNotifications().initialize(
+    null, // Icon mặc định (dùng app icon)
+    [
+      // Channel tin nhắn
+      NotificationChannel(
+        channelKey: 'gamenect_channel',
+        channelName: 'Gamenect Messages',
+        channelDescription: 'Thông báo tin nhắn',
+        defaultColor: Color(0xFFFF453A),
+        ledColor: Colors.white,
+        importance: NotificationImportance.Max,
+        channelShowBadge: true,
+        playSound: true,
+        enableVibration: true,
+      ),
+      
+      // Channel cuộc gọi
+      NotificationChannel(
+        channelKey: 'call_channel',
+        channelName: 'Gamenect Calls',
+        channelDescription: 'Thông báo cuộc gọi',
+        defaultColor: Colors.green,
+        ledColor: Colors.green,
+        importance: NotificationImportance.Max,
+        channelShowBadge: true,
+        playSound: true,
+        enableVibration: true,
+        criticalAlerts: true,
+      ),
+      
+      // Channel moments
+      NotificationChannel(
+        channelKey: 'moment_channel',
+        channelName: 'Gamenect Moments',
+        channelDescription: 'Thông báo moments',
+        defaultColor: Color(0xFFFF453A),
+        ledColor: Colors.white,
+        importance: NotificationImportance.High,
+        channelShowBadge: true,
+      ),
     ],
   );
 
-  final initializationSettings = InitializationSettings(
-    android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-    iOS: DarwinInitializationSettings(
-      notificationCategories: [darwinCallCategory],
-    ),
-  );
+  // XIN QUYỀN NOTIFICATION
+  final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+  if (!isAllowed) {
+    await AwesomeNotifications().requestPermissionToSendNotifications();
+  }
 
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) async {
-      final payload = response.payload ?? '';
-      final parts = payload.split(':');
-    
-      final context = navigatorKey.currentContext;
-      if (context == null) {
-        developer.log('Navigator context is null, cannot handle notification', name: 'Main.Notification');
-        return;
-      }
-
-      if (payload.startsWith('call:') && parts.length >= 3) {
-        final matchId = parts[1];
-        final peerUserId = parts[2];
-
-        if (response.actionId == 'accept') {
-          developer.log('Accept call action triggered', name: 'Main.Call');
-          await _handleAcceptCall(matchId, peerUserId);
-          return;
-        }
-
-        if (response.actionId == 'decline') {
-          developer.log('Decline call action triggered', name: 'Main.Call');
-          
-          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-          if (currentUserId == null) return;
-          
-          await FirebaseFirestore.instance
-              .collection('calls')
-              .doc(matchId)
-              .set({
-                'status': 'declined',
-                'answered': false,
-                'endedAt': DateTime.now().toIso8601String(),
-              }, SetOptions(merge: true));
-          
-          await FirestoreService().addCallMessage(
-            matchId: matchId,
-            senderId: currentUserId,
-            duration: 0,
-            declined: true,
-          );
-          
-          return;
-        }
-
-        developer.log('Show incoming call dialog', name: 'Main.Call');
-        showIncomingCallDialog(matchId, peerUserId);
-      }
-
-      if (payload.startsWith('chat:') && parts.length >= 3) {
-        final matchId = parts[1];
-        final peerUserId = parts[2];
-        developer.log('Navigate to chat: $matchId', name: 'Main.Chat');
-        
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(peerUserId)
-            .get();
-            
-        if (!userDoc.exists || userDoc.data() == null) {
-          developer.log('User not found: $peerUserId', name: 'Main.Chat');
-          return;
-        }
-        
-        final peerUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
-        navigatorKey.currentState?.pushNamed(
-          '/chat',
-          arguments: {'matchId': matchId, 'peerUser': peerUser},
-        );
-      }
-    },
+  // LẮNG NGHE NOTIFICATION ACTIONS
+  AwesomeNotifications().setListeners(
+    onActionReceivedMethod: onActionReceivedMethod,
+    onNotificationCreatedMethod: onNotificationCreatedMethod,
+    onNotificationDisplayedMethod: onNotificationDisplayedMethod,
+    onDismissActionReceivedMethod: onDismissActionReceivedMethod,
   );
 
   runApp(const GameNectApp());
 }
 
-Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
+// XỬ LÝ KHI BẤM VÀO NOTIFICATION
+@pragma("vm:entry-point")
+Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
+  final payload = receivedAction.payload ?? {};
+  final actionKey = receivedAction.buttonKeyPressed;
+  
+  developer.log('Notification action: $actionKey, payload: $payload', name: 'Notification');
+
+  // XỬ LÝ CUỘC GỌI
+  if (payload['type'] == 'call') {
+    final matchId = payload['matchId'] ?? '';
+    final peerUserId = payload['peerUserId'] ?? '';
+
+    if (actionKey == 'accept') {
+      developer.log('Accept call', name: 'Notification');
+      await _handleAcceptCall(matchId, peerUserId);
+    } else if (actionKey == 'decline') {
+      developer.log('Decline call', name: 'Notification');
+      await _handleDeclineCall(matchId);
+    } else {
+      // Bấm vào notification body (không phải button)
+      _showIncomingCallDialog(matchId, peerUserId);
+    }
+  }
+
+  // XỬ LÝ TIN NHẮN
+  else if (payload['type'] == 'chat') {
+    final matchId = payload['matchId'] ?? '';
+    final peerUserId = payload['peerUserId'] ?? '';
+    
+    developer.log('Navigate to chat: $matchId', name: 'Notification');
+    
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(peerUserId)
+          .get();
+          
+      if (userDoc.exists && userDoc.data() != null) {
+        final peerUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
+        
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              matchId: matchId,
+              peerUser: peerUser,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      developer.log('Error: $e', name: 'Notification');
+    }
+  }
+
+  // XỬ LÝ MOMENT
+  else if (payload['type'] == 'moment_reaction') {
+    final momentId = payload['momentId'] ?? '';
+    final reactorUserId = payload['reactorUserId'] ?? '';
+    
+    developer.log('Navigate to moment: $momentId', name: 'Notification');
+    // TODO: Navigate đến moment screen
+  }
+}
+
+// Các callback khác
+@pragma("vm:entry-point")
+ Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
+  developer.log('Notification created: ${receivedNotification.id}', name: 'Notification');
+}
+
+@pragma("vm:entry-point")
+ Future<void> onNotificationDisplayedMethod(ReceivedNotification receivedNotification) async {
+  developer.log('Notification displayed: ${receivedNotification.id}', name: 'Notification');
+}
+
+@pragma("vm:entry-point")
+ Future<void> onDismissActionReceivedMethod(ReceivedAction receivedAction) async {
+  developer.log('Notification dismissed: ${receivedAction.id}', name: 'Notification');
+}
+
+// Handle accept call
+ Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
   try {
     await FirebaseFirestore.instance
         .collection('calls')
@@ -155,32 +192,53 @@ Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
         .doc(peerUserId)
         .get();
         
-    if (!peerDoc.exists || peerDoc.data() == null) {
-      developer.log('Peer user not found', name: 'Main.Call');
-      return;
+    if (peerDoc.exists && peerDoc.data() != null) {
+      final peerUser = UserModel.fromMap(peerDoc.data()!, peerDoc.id);
+
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => VideoCallScreen(
+            channelName: matchId,
+            peerUserId: peerUserId,
+            peerUsername: peerUser.username,
+            peerAvatarUrl: peerUser.avatarUrl,
+            isVoiceCall: false,
+          ),
+        ),
+      );
     }
-
-    final peerUser = UserModel.fromMap(peerDoc.data()!, peerDoc.id);
-
-    navigatorKey.currentState?.pushNamed(
-      '/video_call',
-      arguments: {
-        'channelName': matchId,
-        'peerUserId': peerUserId,
-        'peerUsername': peerUser.username,
-        'peerAvatarUrl': peerUser.avatarUrl,
-        'isVoiceCall': false,
-      },
-    );
   } catch (e) {
-    developer.log('Error accepting call: $e', name: 'Main.Call');
+    developer.log('Error accepting call: $e', name: 'Notification');
   }
 }
 
-void showIncomingCallDialog(String matchId, String peerUserId) async {
+// Handle decline call
+ Future<void> _handleDeclineCall(String matchId) async {
+  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  if (currentUserId == null) return;
+  
+  await FirebaseFirestore.instance
+      .collection('calls')
+      .doc(matchId)
+      .set({
+        'status': 'declined',
+        'answered': false,
+        'endedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+  
+  await FirestoreService().addCallMessage(
+    matchId: matchId,
+    senderId: currentUserId,
+    duration: 0,
+    declined: true,
+  );
+}
+
+// Show incoming call dialog
+void _showIncomingCallDialog(String matchId, String peerUserId) async {
   final context = navigatorKey.currentContext;
   if (context == null) {
-    developer.log('Cannot show dialog: context is null', name: 'Main.Call');
+    developer.log('Cannot show dialog: context is null', name: 'Notification');
     return;
   }
 
@@ -190,7 +248,7 @@ void showIncomingCallDialog(String matchId, String peerUserId) async {
       .get();
       
   if (!userDoc.exists || userDoc.data() == null) {
-    developer.log('User not found for dialog', name: 'Main.Call');
+    developer.log('User not found for dialog', name: 'Notification');
     return;
   }
 
@@ -245,28 +303,8 @@ void showIncomingCallDialog(String matchId, String peerUserId) async {
                   icon: const Icon(Icons.call_end),
                   label: const Text('Từ chối'),
                   onPressed: () async {
-                    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                    if (currentUserId == null) return;
-                    
-                    if (Navigator.of(dialogContext).canPop()) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                    
-                    await FirebaseFirestore.instance
-                        .collection('calls')
-                        .doc(matchId)
-                        .set({
-                          'status': 'declined',
-                          'answered': false,
-                          'endedAt': DateTime.now().toIso8601String(),
-                        }, SetOptions(merge: true));
-                    
-                    await FirestoreService().addCallMessage(
-                      matchId: matchId,
-                      senderId: currentUserId,
-                      duration: 0,
-                      declined: true,
-                    );
+                    Navigator.of(dialogContext).pop();
+                    await _handleDeclineCall(matchId);
                   },
                 ),
               ],
@@ -414,7 +452,6 @@ class GameNectApp extends StatelessWidget {
   }
 }
 
-// Thay thế AuthWrapper trong main.dart (từ dòng 320 trở đi)
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -477,7 +514,6 @@ class AuthWrapper extends StatelessWidget {
           developer.log('User logged in: ${snapshot.data!.uid}', name: 'Auth');
           developer.log('Email: ${snapshot.data!.email}', name: 'Auth');
           
-          // Kiểm tra role của user
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
                 .collection('users')
@@ -518,16 +554,12 @@ class AuthWrapper extends StatelessWidget {
                 return LoginScreen();
               }
 
-              // LOG QUAN TRỌNG
               developer.log('Full user data: $userData', name: 'Auth');
               
               final isAdmin = userData['isAdmin'] ?? false;
               
               developer.log('isAdmin: $isAdmin', name: 'Auth');
-              developer.log('isAdmin type: ${isAdmin.runtimeType}', name: 'Auth');
-              developer.log('Checking if isAdmin == true: ${isAdmin == true}', name: 'Auth');
 
-              // Nếu là admin, chuyển đến AdminApp
               if (isAdmin == true) {
                 developer.log('ADMIN DETECTED! Navigating to AdminApp', name: 'Auth');
                 return const AdminApp();
@@ -535,7 +567,6 @@ class AuthWrapper extends StatelessWidget {
 
               developer.log('👥 Regular user detected! Navigating to UserApp', name: 'Auth');
 
-              // User bình thường
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 try {
                   final locationProvider = Provider.of<LocationProvider>(context, listen: false);

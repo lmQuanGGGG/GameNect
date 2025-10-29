@@ -46,8 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      await chatProvider.fetchMessages(widget.matchId);
+      //final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+     //await chatProvider.fetchMessages(widget.matchId);
 
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {

@@ -4,6 +4,8 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   agora_rtc_engine
+  awesome_notifications
+  awesome_notifications_core
   cloud_firestore
   file_selector_windows
   firebase_auth
