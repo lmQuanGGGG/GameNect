@@ -42,10 +42,12 @@ class _MainScreenState extends State<MainScreen> {
 
           return BottomNavigationBar(
             currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            selectedItemColor: Colors.deepOrange,
-            unselectedItemColor: Colors.grey,
-            type: BottomNavigationBarType.fixed,
+  onTap: (index) => setState(() => _currentIndex = index),
+  selectedItemColor: Colors.deepOrange,  // <-- Giữ deepOrange cho selected
+  unselectedItemColor: Colors.grey.shade600,  // <-- Xám tối hơn cho unselected
+  type: BottomNavigationBarType.fixed,
+  backgroundColor: Colors.white,  // <-- Giữ trắng để tinh tế, phù hợp với UI sạch
+  elevation: 4, 
             items: [
               const BottomNavigationBarItem(
                 icon: Icon(Icons.sports_esports),

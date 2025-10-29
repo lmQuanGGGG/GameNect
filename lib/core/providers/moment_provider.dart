@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:gamenect_new/core/services/notification_service.dart';
 import 'package:logger/logger.dart';
-import 'dart:async'; // THÊM
+import 'dart:async';
 import '../models/moment_model.dart';
 import '../services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final Logger _logger = Logger();
 
@@ -14,9 +16,14 @@ class MomentProvider with ChangeNotifier {
   List<MomentModel> get moments => _moments;
   bool get isLoading => _isLoading;
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _momentsSub; // THÊM
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _momentsSub;
+  
+  // THÊM: Map để lưu lại reaction đã thông báo (tránh duplicate)
+  final Map<String, Set<String>> _notifiedReactions = {};
+  
+  // THÊM: Flag để bỏ qua snapshot đầu tiên
+  bool _isFirstSnapshot = true;
 
-  /// FIX: Lấy danh sách userId của những người đã match (không phải matchId)
   Future<List<String>> getMatchedUserIds(String userId) async {
     final snap = await FirebaseFirestore.instance
         .collection('matches')
@@ -32,10 +39,11 @@ class MomentProvider with ChangeNotifier {
     return matchedUserIds.toSet().toList();
   }
 
-  // NGHE REALTIME
+  // NGHE REALTIME VÀ DETECT REACTIONS MỚI
   Future<void> listenMoments(String userId) async {
     await _momentsSub?.cancel();
     _isLoading = true;
+    _isFirstSnapshot = true; // ⭐ RESET flag
     notifyListeners();
 
     _momentsSub = FirebaseFirestore.instance
@@ -44,10 +52,88 @@ class MomentProvider with ChangeNotifier {
         .orderBy('createdAt', descending: true)
         .limit(200)
         .snapshots()
-        .listen((snap) {
-          _moments = snap.docs
+        .listen((snap) async {
+          final newMoments = snap.docs
               .map((d) => MomentModel.fromMap(d.data(), d.id))
               .toList();
+
+          // ⭐ BỎ QUA SNAPSHOT ĐẦU TIÊN (khi mới đăng nhập)
+          if (_isFirstSnapshot) {
+            //_logger.i('🔇 Skipping first snapshot (initial load)', name: 'MomentProvider');
+            _isFirstSnapshot = false;
+            
+            // Lưu lại tất cả reactions hiện có để không thông báo lại
+            for (var moment in newMoments) {
+              if (moment.userId != userId) continue;
+              _notifiedReactions[moment.id] ??= {};
+              for (var reaction in moment.reactions) {
+                final reactorUserId = reaction['userId'] as String?;
+                final emoji = reaction['emoji'] as String?;
+                if (reactorUserId != null && emoji != null && reactorUserId != userId) {
+                  final reactionKey = '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
+                  _notifiedReactions[moment.id]!.add(reactionKey);
+                }
+              }
+            }
+            
+            _moments = newMoments;
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
+
+          // KIỂM TRA REACTION MỚI (chỉ từ snapshot thứ 2 trở đi)
+          for (var moment in newMoments) {
+            // CHỈ kiểm tra moment của MÌNH
+            if (moment.userId != userId) continue;
+
+            // Khởi tạo set nếu chưa có
+            _notifiedReactions[moment.id] ??= {};
+
+            // Duyệt qua reactions
+            for (var reaction in moment.reactions) {
+              final reactorUserId = reaction['userId'] as String?;
+              final emoji = reaction['emoji'] as String?;
+
+              if (reactorUserId == null || emoji == null) continue;
+              
+              // Bỏ qua reaction của chính mình
+              if (reactorUserId == userId) continue;
+
+              // Tạo key unique cho reaction này
+              final reactionKey = '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
+
+              // Nếu chưa thông báo → GỬI THÔNG BÁO
+              if (!_notifiedReactions[moment.id]!.contains(reactionKey)) {
+                _notifiedReactions[moment.id]!.add(reactionKey);
+
+                // Lấy thông tin người react
+                try {
+                  final userDoc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(reactorUserId)
+                      .get();
+                  
+                  final reactorUsername = userDoc.data()?['username'] ?? 'Người dùng';
+
+                  // GỬI THÔNG BÁO
+                  await showMomentReactionNotification(
+                    momentOwnerId: userId,
+                    reactorUsername: reactorUsername,
+                    reactorUserId: reactorUserId,
+                    momentId: moment.id,
+                    emoji: emoji,
+                  );
+                  
+                  _logger.i('Sent reaction notification: $reactorUsername reacted $emoji to moment ${moment.id}');
+                } catch (e) {
+                  _logger.e('Error sending reaction notification: $e');
+                }
+              }
+            }
+          }
+
+          _moments = newMoments;
           _isLoading = false;
           notifyListeners();
         }, onError: (e) {
@@ -90,7 +176,7 @@ class MomentProvider with ChangeNotifier {
         caption: caption,
         thumbnailUrl: thumbnailUrl,
       );
-      // KHÔNG gọi fetch lại; stream listenMoments sẽ tự cập nhật
+      // Stream sẽ tự cập nhật
     } catch (e) {
       rethrow;
     }
@@ -99,11 +185,9 @@ class MomentProvider with ChangeNotifier {
   Future<void> reactToMoment(String momentId, String userId, String emoji) async {
     try {
       await FirestoreService().addReactionToMoment(momentId, userId, emoji);
-      final index = _moments.indexWhere((m) => m.id == momentId);
-      if (index != -1) {
-        _moments[index].reactions.add({'userId': userId, 'emoji': emoji});
-        notifyListeners();
-      }
+      // KHÔNG CẦN gọi notification ở đây nữa
+      // Stream của chủ moment sẽ tự detect và gửi notification
+      _logger.i('Reaction added to Firestore: $emoji on moment $momentId');
     } catch (e) {
       _logger.e('Error reacting to moment: $e');
       rethrow;
@@ -130,7 +214,8 @@ class MomentProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    _momentsSub?.cancel(); // THÊM
+    _momentsSub?.cancel();
+    _notifiedReactions.clear();
     super.dispose();
   }
 }

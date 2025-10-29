@@ -47,6 +47,13 @@ class _MomentScreenState extends State<MomentScreen>
 
   @override
   Widget build(BuildContext context) {
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    final momentId = args?['momentId'];
+    // Nếu có momentId, scroll hoặc mở chi tiết moment đó
+    // ...existing code...
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -66,11 +73,11 @@ class _MomentScreenState extends State<MomentScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
+                      begin: Alignment.topCenter, 
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.7),
-                        Colors.black.withValues(alpha: 0.3),
+                        Colors.deepOrange.withValues(alpha: 0.8), 
+                        const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.6),
                       ],
                     ),
                     border: Border(
@@ -86,96 +93,110 @@ class _MomentScreenState extends State<MomentScreen>
                       children: [
                         // Logo row
                         Padding(
-  padding: const EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 12,
-  ),
-  child: Row(
-    children: [
-      const Padding(
-        padding: EdgeInsets.only(left: 12.0),
-        child: Icon(
-          Icons.sports_esports,
-          color: Colors.deepOrange,
-          size: 26,
-        ),
-      ),
-      const SizedBox(width: 8),
-      const Text(
-        'gamenect',
-        style: TextStyle(
-          color: Colors.deepOrange,
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
-      ),
-      const Spacer(),
-      // THÊM: Premium badge/nút
-      Consumer<ProfileProvider>(
-        builder: (context, provider, _) {
-          final isPremium = provider.userData?.isPremium == true;
-          if (isPremium) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.amber, Colors.orange.shade600],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.workspace_premium_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Premium',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          } else {
-            return TextButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-                );
-              },
-              icon: const Icon(
-                Icons.workspace_premium_rounded,
-                color: Colors.deepOrange,
-                size: 20,
-              ),
-              label: const Text(
-                'Nâng cấp',
-                style: TextStyle(
-                  color: Colors.deepOrange,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-            );
-          }
-        },
-      ),
-    ],
-  ),
-),
-                        
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(left: 12.0),
+                                child: Icon(
+                                  Icons.sports_esports,
+                                  color: Colors.deepOrange,
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'gamenect',
+                                style: TextStyle(
+                                  color: Colors.deepOrange,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
+                              ),
+                              const Spacer(),
+                              // THÊM: Premium badge/nút
+                              Consumer<ProfileProvider>(
+                                builder: (context, provider, _) {
+                                  final isPremium =
+                                      provider.userData?.isPremium == true;
+                                  if (isPremium) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.amber,
+                                              Colors.orange.shade600,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(
+                                              Icons.workspace_premium_rounded,
+                                              color: Colors.white,
+                                              size: 18,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Premium',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    return TextButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const SubscriptionScreen(),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.workspace_premium_rounded,
+                                        color: Colors.deepOrange,
+                                        size: 20,
+                                      ),
+                                      label: const Text(
+                                        'Nâng cấp',
+                                        style: TextStyle(
+                                          color: Colors.deepOrange,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+
                         // TabBar
                         TabBar(
                           controller: _tabController,
@@ -281,16 +302,18 @@ class _FeedTabState extends State<FeedTab> {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
         try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .set({
-                'lastSeenMoments': FieldValue.serverTimestamp(), // THAY ĐỔI: Dùng serverTimestamp
-              }, SetOptions(merge: true)); // THAY ĐỔI: Thêm merge: true
-        
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'lastSeenMoments':
+                FieldValue.serverTimestamp(), // THAY ĐỔI: Dùng serverTimestamp
+          }, SetOptions(merge: true)); // THAY ĐỔI: Thêm merge: true
+
           developer.log('Updated lastSeenMoments', name: 'FeedTab');
         } catch (e) {
-          developer.log('Error updating lastSeenMoments: $e', name: 'FeedTab', error: e);
+          developer.log(
+            'Error updating lastSeenMoments: $e',
+            name: 'FeedTab',
+            error: e,
+          );
         }
       }
     });
@@ -653,7 +676,9 @@ class _FeedTabState extends State<FeedTab> {
               backgroundColor: Colors.deepOrange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
             ),
             icon: const Icon(Icons.camera_alt_rounded),
             label: const Text(
@@ -733,11 +758,23 @@ class MyMomentsTab extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text('Xóa khoảnh khắc?', style: TextStyle(color: Colors.white)),
-          content: const Text('Bạn có chắc muốn xóa khoảnh khắc này?', style: TextStyle(color: Colors.white70)),
+          title: const Text(
+            'Xóa khoảnh khắc?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'Bạn có chắc muốn xóa khoảnh khắc này?',
+            style: TextStyle(color: Colors.white70),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy', style: TextStyle(color: Colors.white70))),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+            ),
           ],
         ),
       ),
@@ -746,13 +783,19 @@ class MyMomentsTab extends StatelessWidget {
     if (confirm == true) {
       try {
         // Lấy URL media/thumbnail để xóa Storage (nếu cần)
-        final doc = await FirebaseFirestore.instance.collection('moments').doc(momentId).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('moments')
+            .doc(momentId)
+            .get();
         final data = doc.data() ?? {};
         final mediaUrl = data['mediaUrl'] as String?;
         final thumbUrl = data['thumbnailUrl'] as String?;
 
         // Xóa document trên Firestore
-        await FirebaseFirestore.instance.collection('moments').doc(momentId).delete();
+        await FirebaseFirestore.instance
+            .collection('moments')
+            .doc(momentId)
+            .delete();
 
         // Thử xóa file trên Storage (nếu có quyền)
         try {
@@ -772,14 +815,18 @@ class MyMomentsTab extends StatelessWidget {
               content: const Text('Đã xóa khoảnh khắc'),
               backgroundColor: Colors.deepOrange,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
           // KHÔNG cần fetch lại — Provider đang listen realtime, UI tự cập nhật
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
         }
       }
     }
@@ -1035,10 +1082,16 @@ class MomentCard extends StatelessWidget {
                           imageUrl: moment.mediaUrl,
                           fit: BoxFit.contain, // CHỈNH: không crop
                           placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(color: Colors.deepOrange),
+                            child: CircularProgressIndicator(
+                              color: Colors.deepOrange,
+                            ),
                           ),
                           errorWidget: (context, url, error) => const Center(
-                            child: Icon(Icons.error_outline, color: Colors.white, size: 50),
+                            child: Icon(
+                              Icons.error_outline,
+                              color: Colors.white,
+                              size: 50,
+                            ),
                           ),
                         ),
                       ),
@@ -1276,32 +1329,44 @@ class MomentCard extends StatelessWidget {
                                             currentUserId,
                                             emoji,
                                           );
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: Text(
                                                 emoji,
                                                 textAlign: TextAlign.center,
-                                                style: const TextStyle(fontSize: 24),
+                                                style: const TextStyle(
+                                                  fontSize: 24,
+                                                ),
                                               ),
-                                              duration: const Duration(milliseconds: 600),
-                                              backgroundColor: Colors.transparent,
+                                              duration: const Duration(
+                                                milliseconds: 600,
+                                              ),
+                                              backgroundColor:
+                                                  Colors.transparent,
                                               elevation: 0,
-                                              behavior: SnackBarBehavior.floating,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
                                             ),
                                           );
                                         },
                                         child: Container(
                                           width: 40,
-                                          height: 40, // đảm bảo nhỏ hơn 56 để cân đối
+                                          height:
+                                              40, // đảm bảo nhỏ hơn 56 để cân đối
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha: 0.15),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.15,
+                                            ),
                                             shape: BoxShape.circle,
                                           ),
                                           child: Center(
                                             child: Text(
                                               emoji,
-                                              style: const TextStyle(fontSize: 20),
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -1319,7 +1384,9 @@ class MomentCard extends StatelessWidget {
                                       width: 40,
                                       height: 40,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.15),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(
@@ -1391,7 +1458,8 @@ class MomentCard extends StatelessWidget {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                             child: Container(
-                              height: 56, // CHỈNH: chiều cao cố định bằng với ô emoji
+                              height:
+                                  56, // CHỈNH: chiều cao cố định bằng với ô emoji
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16, // bỏ vertical để giữ đúng 56
                               ),
@@ -1750,9 +1818,9 @@ class MomentCard extends StatelessWidget {
               ),
             ),
           ),
-        )
         ),
-      );
+      ),
+    );
   }
 
   void _showReactionUsers(BuildContext context, List reactions) {
@@ -1881,9 +1949,9 @@ class MomentCard extends StatelessWidget {
               ),
             ],
           ),
-        )
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -1916,7 +1984,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   Widget build(BuildContext context) {
     if (!_isInitialized) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.deepOrange, strokeWidth: 3),
+        child: CircularProgressIndicator(
+          color: Colors.deepOrange,
+          strokeWidth: 3,
+        ),
       );
     }
 
@@ -1955,7 +2026,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       width: 2,
                     ),
                   ),
-                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 60),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 60,
+                  ),
                 ),
               ),
             ),

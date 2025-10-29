@@ -37,11 +37,9 @@ void main() async {
   await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // KHỞI TẠO AWESOME NOTIFICATIONS
   await AwesomeNotifications().initialize(
-    null, // Icon mặc định (dùng app icon)
+    null,
     [
-      // Channel tin nhắn
       NotificationChannel(
         channelKey: 'gamenect_channel',
         channelName: 'Gamenect Messages',
@@ -53,8 +51,6 @@ void main() async {
         playSound: true,
         enableVibration: true,
       ),
-      
-      // Channel cuộc gọi
       NotificationChannel(
         channelKey: 'call_channel',
         channelName: 'Gamenect Calls',
@@ -67,8 +63,6 @@ void main() async {
         enableVibration: true,
         criticalAlerts: true,
       ),
-      
-      // Channel moments
       NotificationChannel(
         channelKey: 'moment_channel',
         channelName: 'Gamenect Moments',
@@ -81,13 +75,11 @@ void main() async {
     ],
   );
 
-  // XIN QUYỀN NOTIFICATION
   final isAllowed = await AwesomeNotifications().isNotificationAllowed();
   if (!isAllowed) {
     await AwesomeNotifications().requestPermissionToSendNotifications();
   }
 
-  // LẮNG NGHE NOTIFICATION ACTIONS
   AwesomeNotifications().setListeners(
     onActionReceivedMethod: onActionReceivedMethod,
     onNotificationCreatedMethod: onNotificationCreatedMethod,
@@ -98,7 +90,6 @@ void main() async {
   runApp(const GameNectApp());
 }
 
-// XỬ LÝ KHI BẤM VÀO NOTIFICATION
 @pragma("vm:entry-point")
 Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
   final payload = receivedAction.payload ?? {};
@@ -106,7 +97,6 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
   
   developer.log('Notification action: $actionKey, payload: $payload', name: 'Notification');
 
-  // XỬ LÝ CUỘC GỌI
   if (payload['type'] == 'call') {
     final matchId = payload['matchId'] ?? '';
     final peerUserId = payload['peerUserId'] ?? '';
@@ -118,12 +108,9 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
       developer.log('Decline call', name: 'Notification');
       await _handleDeclineCall(matchId);
     } else {
-      // Bấm vào notification body (không phải button)
       _showIncomingCallDialog(matchId, peerUserId);
     }
   }
-
-  // XỬ LÝ TIN NHẮN
   else if (payload['type'] == 'chat') {
     final matchId = payload['matchId'] ?? '';
     final peerUserId = payload['peerUserId'] ?? '';
@@ -152,35 +139,33 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
       developer.log('Error: $e', name: 'Notification');
     }
   }
-
-  // XỬ LÝ MOMENT
   else if (payload['type'] == 'moment_reaction') {
     final momentId = payload['momentId'] ?? '';
     final reactorUserId = payload['reactorUserId'] ?? '';
-    
     developer.log('Navigate to moment: $momentId', name: 'Notification');
-    // TODO: Navigate đến moment screen
+    navigatorKey.currentState?.pushNamed(
+      '/moments',
+      arguments: {'momentId': momentId}
+    );
   }
 }
 
-// Các callback khác
 @pragma("vm:entry-point")
- Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
+Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
   developer.log('Notification created: ${receivedNotification.id}', name: 'Notification');
 }
 
 @pragma("vm:entry-point")
- Future<void> onNotificationDisplayedMethod(ReceivedNotification receivedNotification) async {
+Future<void> onNotificationDisplayedMethod(ReceivedNotification receivedNotification) async {
   developer.log('Notification displayed: ${receivedNotification.id}', name: 'Notification');
 }
 
 @pragma("vm:entry-point")
- Future<void> onDismissActionReceivedMethod(ReceivedAction receivedAction) async {
+Future<void> onDismissActionReceivedMethod(ReceivedAction receivedAction) async {
   developer.log('Notification dismissed: ${receivedAction.id}', name: 'Notification');
 }
 
-// Handle accept call
- Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
+Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
   try {
     await FirebaseFirestore.instance
         .collection('calls')
@@ -212,8 +197,7 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
   }
 }
 
-// Handle decline call
- Future<void> _handleDeclineCall(String matchId) async {
+Future<void> _handleDeclineCall(String matchId) async {
   final currentUserId = FirebaseAuth.instance.currentUser?.uid;
   if (currentUserId == null) return;
   
@@ -234,7 +218,6 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
   );
 }
 
-// Show incoming call dialog
 void _showIncomingCallDialog(String matchId, String peerUserId) async {
   final context = navigatorKey.currentContext;
   if (context == null) {
@@ -512,7 +495,6 @@ class AuthWrapper extends StatelessWidget {
 
         if (snapshot.hasData && snapshot.data != null) {
           developer.log('User logged in: ${snapshot.data!.uid}', name: 'Auth');
-          developer.log('Email: ${snapshot.data!.email}', name: 'Auth');
           
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
@@ -521,7 +503,6 @@ class AuthWrapper extends StatelessWidget {
                 .get(),
             builder: (context, userSnapshot) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
-                developer.log('Đang load user data từ Firestore...', name: 'Auth');
                 return Scaffold(
                   backgroundColor: Colors.white,
                   body: Center(
@@ -538,41 +519,36 @@ class AuthWrapper extends StatelessWidget {
               }
 
               if (userSnapshot.hasError) {
-                developer.log('Error loading user data: ${userSnapshot.error}', name: 'Auth');
                 return LoginScreen();
               }
 
               if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                developer.log('User document not found in Firestore', name: 'Auth');
                 return LoginScreen();
               }
 
               final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
               
               if (userData == null) {
-                developer.log('User data is null', name: 'Auth');
                 return LoginScreen();
               }
 
-              developer.log('Full user data: $userData', name: 'Auth');
-              
               final isAdmin = userData['isAdmin'] ?? false;
-              
-              developer.log('isAdmin: $isAdmin', name: 'Auth');
 
               if (isAdmin == true) {
-                developer.log('ADMIN DETECTED! Navigating to AdminApp', name: 'Auth');
+                developer.log('🔑 ADMIN DETECTED', name: 'Auth');
                 return const AdminApp();
               }
 
-              developer.log('👥 Regular user detected! Navigating to UserApp', name: 'Auth');
+              developer.log('👥 Regular user detected', name: 'Auth');
 
+              // ⭐ QUAN TRỌNG: BẮT ĐẦU LẮNG NGHE NGAY KHI ĐĂNG NHẬP
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 try {
                   final locationProvider = Provider.of<LocationProvider>(context, listen: false);
                   final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
                   final chatProvider = Provider.of<ChatProvider>(context, listen: false);
                   final matchProvider = Provider.of<MatchProvider>(context, listen: false);
+                  final momentProvider = Provider.of<MomentProvider>(context, listen: false); // ⭐ THÊM
 
                   await locationProvider.updateUserLocation(snapshot.data!.uid);
 
@@ -586,6 +562,7 @@ class AuthWrapper extends StatelessWidget {
 
                   final currentUserId = FirebaseAuth.instance.currentUser?.uid;
                   if (currentUserId != null) {
+                    // Lắng nghe chat + calls
                     final matches = await matchProvider.fetchMatchedUsersWithMatchId(currentUserId);
                     for (var match in matches) {
                       final matchId = match['matchId'] as String;
@@ -593,6 +570,11 @@ class AuthWrapper extends StatelessWidget {
                       chatProvider.messagesStream(matchId, peerUser).listen((_) {});
                       chatProvider.listenForIncomingCalls(matchId, peerUser);
                     }
+
+                    // ⭐⭐⭐ LẮNG NGHE MOMENTS (để nhận thông báo reactions)
+                    developer.log('🎬 Starting moment reactions listener...', name: 'Auth');
+                    await momentProvider.listenMoments(currentUserId);
+                    developer.log('✅ Moment listener started', name: 'Auth');
                   }
                 } catch (e) {
                   developer.log('Error in postFrameCallback: $e', name: 'Auth');
@@ -604,7 +586,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        developer.log('No user logged in, showing LoginScreen', name: 'Auth');
+        developer.log('No user logged in', name: 'Auth');
         return LoginScreen();
       },
     );
