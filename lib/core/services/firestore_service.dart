@@ -9,7 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
-import '../services/location_service.dart';
+//import '../services/location_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -542,27 +542,6 @@ Future<void> updateMatchConfirmation({
   }
 }
 
-/// Lấy danh sách matches pending của user (chưa confirm)
-Future<List<MatchModel>> getPendingMatches(String userId) async {
-  try {
-    final snapshot = await _db
-        .collection('matches')
-        .where('userIds', arrayContains: userId)
-        .where('status', whereIn: [MatchStatus.pending, MatchStatus.partial])
-        .where('isActive', isEqualTo: true)
-        .get();
-    
-    final matches = snapshot.docs
-        .map((doc) => MatchModel.fromMap(doc.data(), doc.id))
-        .toList();
-    
-    developer.log('User có ${matches.length} match pending', name: 'FirestoreService');
-    return matches;
-  } catch (e) {
-    developer.log('Lỗi khi lấy pending matches: $e', name: 'FirestoreService', error: e);
-    return [];
-  }
-}
 
 /// Stream theo dõi matches của user
 Stream<List<MatchModel>> getUserMatchesStream(String userId) {

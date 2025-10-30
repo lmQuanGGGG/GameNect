@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gamenect_new/core/widgets/profile_card.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
@@ -11,7 +12,7 @@ import 'dart:developer' as developer;
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/firestore_service.dart';
-import '../user_app.dart';
+//import '../user_app.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/edit_profile_provider.dart';
@@ -962,12 +963,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     ),
                                                   ),
                                                 );
-                                                
+
+                                                // Sau khi lưu/chỉnh sửa, chuyển sang màn hình hiển thị ProfileCard giống UserManagementScreen
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(
-                                                    builder: (context) => const UserApp(
-                                                      initialRoute: '/home_profile',
+                                                    builder: (_) => Scaffold(
+                                                      appBar: AppBar(
+                                                        title: Text(newUser.username),
+                                                        backgroundColor: Colors.white,
+                                                        foregroundColor: Colors.deepOrange,
+                                                      ),
+                                                      backgroundColor: Colors.white,
+                                                      body: Center(
+                                                        child: ProfileCard(user: newUser),
+                                                      ),
                                                     ),
                                                   ),
                                                 );

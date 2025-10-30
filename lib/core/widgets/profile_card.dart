@@ -185,6 +185,56 @@ class _ProfileCardState extends State<ProfileCard> {
     );
   }
 
+  // Hàm hiển thị danh sách game yêu thích
+  Widget _buildGameTags(List<String> games) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: games.map((game) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.deepOrange.withOpacity(0.12), // Nền cam nhạt
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            game,
+            style: const TextStyle(
+              color: Colors.deepOrange, // Chữ cam
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // Hàm hiển thị danh sách sở thích khác
+  Widget _buildInterestTags(List<String> interests) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: interests.map((interest) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.12), // Nền xanh nhạt
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            interest,
+            style: const TextStyle(
+              color: Colors.blue, // Chữ xanh
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -302,20 +352,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: user.favoriteGames.map((game) {
-                          return Chip(
-                            label: Text(game),
-                            backgroundColor: Colors.deepOrange.withValues(alpha: 0.1),
-                            labelStyle: TextStyle(
-                              color: Colors.deepOrange[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                      _buildGameTags(user.favoriteGames),
                       const SizedBox(height: 24),
                       if (user.interests.isNotEmpty) ...[
                         Text(
@@ -327,20 +364,7 @@ class _ProfileCardState extends State<ProfileCard> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: user.interests.map((interest) {
-                            return Chip(
-                              label: Text(interest),
-                              backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                              labelStyle: TextStyle(
-                                color: Colors.blue[700],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                        _buildInterestTags(user.interests),
                         const SizedBox(height: 24),
                       ],
                       ListTile(

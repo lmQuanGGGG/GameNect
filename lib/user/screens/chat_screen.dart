@@ -4,12 +4,12 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
-import 'package:record/record.dart'; // Import package record
+import 'package:record/record.dart'; 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:just_audio/just_audio.dart'; // Thêm import
-import 'package:image_picker/image_picker.dart'; // Thêm import
+import 'package:just_audio/just_audio.dart'; 
+import 'package:image_picker/image_picker.dart'; 
 import '../../core/providers/chat_provider.dart';
 import '../../core/models/user_model.dart';
 import 'video_call_screen.dart';
@@ -557,7 +557,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       'startedAt': DateTime.now()
                                           .toIso8601String(),
                                     }, SetOptions(merge: true));
-                                final result = await Navigator.push(
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => VideoCallScreen(
@@ -591,7 +591,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                           .toIso8601String(),
                                     }, SetOptions(merge: true));
 
-                                final result = await Navigator.push(
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => VideoCallScreen(
@@ -1035,13 +1035,46 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageBubble(
-    Map<String, dynamic> msg,
-    bool isMe,
-    String avatarUrl,
-    String timeString,
-  ) {
-    final isCall = msg['type'] == 'call';
-    final isVoice = msg['type'] == 'voice';
+  Map<String, dynamic> msg,
+  bool isMe,
+  String avatarUrl,
+  String timeString,
+) {
+  // Nếu là tin nhắn của đối phương thì hiện avatar bên trái, giữ nguyên bubble cũ
+  if (!isMe) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0, top: 2),
+          child: CircleAvatar(
+            radius: 18,
+            backgroundImage: avatarUrl.isNotEmpty
+                ? NetworkImage(avatarUrl)
+                : null,
+            backgroundColor: Colors.deepOrange.withOpacity(0.18),
+            child: avatarUrl.isEmpty
+                ? const Icon(Icons.person, color: Colors.white, size: 18)
+                : null,
+          ),
+        ),
+        Flexible(child: _buildMessageBubbleContent(msg, isMe, timeString)), // bubble cũ
+      ],
+    );
+  } else {
+    // Tin nhắn của mình thì giữ nguyên như cũ
+    return _buildMessageBubbleContent(msg, isMe, timeString);
+  }
+}
+
+// Tách phần nội dung bubble cũ ra hàm riêng để dễ bảo trì
+Widget _buildMessageBubbleContent(
+  Map<String, dynamic> msg,
+  bool isMe,
+  String timeString,
+) {
+  final isCall = msg['type'] == 'call';
+  final isVoice = msg['type'] == 'voice';
 
     if (isCall) {
       final callStatus = msg['callStatus'] ?? '';
@@ -1225,10 +1258,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = msg['text'] ?? '';
 
     final reactions = (msg['reactions'] as List?) ?? [];
-    final currentUserId = Provider.of<ChatProvider>(
-      context,
-      listen: false,
-    ).currentUserId;
 
     return GestureDetector(
       onLongPress: !isMe
@@ -1405,11 +1434,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  String _formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes}:${secs.toString().padLeft(2, '0')}';
-  }
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();

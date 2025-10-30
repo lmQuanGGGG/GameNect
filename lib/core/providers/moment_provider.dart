@@ -5,25 +5,32 @@ import 'package:logger/logger.dart';
 import 'dart:async';
 import '../models/moment_model.dart';
 import '../services/firestore_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+//import 'package:firebase_auth/firebase_auth.dart';
 
 final Logger _logger = Logger();
 
+// MomentProvider quản lý trạng thái và logic liên quan đến tính năng Moment (story), bao gồm lấy dữ liệu, lắng nghe realtime, xử lý reaction và reply.
 class MomentProvider with ChangeNotifier {
+  // Danh sách các moment hiện tại
   List<MomentModel> _moments = [];
+  // Trạng thái đang tải dữ liệu
   bool _isLoading = false;
 
+  // Getter trả về danh sách moment
   List<MomentModel> get moments => _moments;
+  // Getter trả về trạng thái loading
   bool get isLoading => _isLoading;
 
+  // Biến lưu subscription stream realtime moments
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _momentsSub;
   
-  // THÊM: Map để lưu lại reaction đã thông báo (tránh duplicate)
+  // Map lưu lại các reaction đã gửi thông báo để tránh gửi lặp lại
   final Map<String, Set<String>> _notifiedReactions = {};
   
-  // THÊM: Flag để bỏ qua snapshot đầu tiên
+  // Biến cờ để bỏ qua snapshot đầu tiên khi vừa đăng nhập (tránh gửi thông báo cũ)
   bool _isFirstSnapshot = true;
 
+  // Hàm lấy danh sách user đã match với userId
   Future<List<String>> getMatchedUserIds(String userId) async {
     final snap = await FirebaseFirestore.instance
         .collection('matches')
@@ -39,11 +46,11 @@ class MomentProvider with ChangeNotifier {
     return matchedUserIds.toSet().toList();
   }
 
-  // NGHE REALTIME VÀ DETECT REACTIONS MỚI
+  // Hàm lắng nghe realtime moments, tự động phát hiện reaction mới để gửi thông báo cho chủ moment
   Future<void> listenMoments(String userId) async {
     await _momentsSub?.cancel();
     _isLoading = true;
-    _isFirstSnapshot = true; // ⭐ RESET flag
+    _isFirstSnapshot = true; // Reset cờ snapshot đầu tiên
     notifyListeners();
 
     _momentsSub = FirebaseFirestore.instance
@@ -57,12 +64,11 @@ class MomentProvider with ChangeNotifier {
               .map((d) => MomentModel.fromMap(d.data(), d.id))
               .toList();
 
-          // ⭐ BỎ QUA SNAPSHOT ĐẦU TIÊN (khi mới đăng nhập)
+          // Bỏ qua snapshot đầu tiên để không gửi thông báo cho các reaction cũ
           if (_isFirstSnapshot) {
             //_logger.i('🔇 Skipping first snapshot (initial load)', name: 'MomentProvider');
             _isFirstSnapshot = false;
-            
-            // Lưu lại tất cả reactions hiện có để không thông báo lại
+            // Lưu lại tất cả reaction hiện có để không thông báo lại
             for (var moment in newMoments) {
               if (moment.userId != userId) continue;
               _notifiedReactions[moment.id] ??= {};
@@ -82,15 +88,15 @@ class MomentProvider with ChangeNotifier {
             return;
           }
 
-          // KIỂM TRA REACTION MỚI (chỉ từ snapshot thứ 2 trở đi)
+          // Kiểm tra các reaction mới (chỉ thực hiện từ snapshot thứ hai trở đi)
           for (var moment in newMoments) {
-            // CHỈ kiểm tra moment của MÌNH
+            // Chỉ kiểm tra moment của chính mình
             if (moment.userId != userId) continue;
 
-            // Khởi tạo set nếu chưa có
+            // Khởi tạo set reaction nếu chưa có
             _notifiedReactions[moment.id] ??= {};
 
-            // Duyệt qua reactions
+            // Duyệt qua các reaction
             for (var reaction in moment.reactions) {
               final reactorUserId = reaction['userId'] as String?;
               final emoji = reaction['emoji'] as String?;
@@ -100,14 +106,14 @@ class MomentProvider with ChangeNotifier {
               // Bỏ qua reaction của chính mình
               if (reactorUserId == userId) continue;
 
-              // Tạo key unique cho reaction này
+              // Tạo key duy nhất cho mỗi reaction
               final reactionKey = '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
 
-              // Nếu chưa thông báo → GỬI THÔNG BÁO
+              // Nếu chưa gửi thông báo cho reaction này thì gửi thông báo
               if (!_notifiedReactions[moment.id]!.contains(reactionKey)) {
                 _notifiedReactions[moment.id]!.add(reactionKey);
 
-                // Lấy thông tin người react
+                // Lấy thông tin người đã react
                 try {
                   final userDoc = await FirebaseFirestore.instance
                       .collection('users')
@@ -116,7 +122,7 @@ class MomentProvider with ChangeNotifier {
                   
                   final reactorUsername = userDoc.data()?['username'] ?? 'Người dùng';
 
-                  // GỬI THÔNG BÁO
+                  // Gửi thông báo cho chủ moment
                   await showMomentReactionNotification(
                     momentOwnerId: userId,
                     reactorUsername: reactorUsername,
@@ -143,6 +149,7 @@ class MomentProvider with ChangeNotifier {
         });
   }
 
+  // Hàm lấy moments của user và các user đã match
   Future<void> fetchMoments(String userId, List<String> matchIds) async {
     _isLoading = true;
     notifyListeners();
@@ -159,6 +166,7 @@ class MomentProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Hàm đăng moment mới (ảnh/video)
   Future<void> postMoment({
     required String userId,
     required String mediaUrl,
@@ -176,12 +184,13 @@ class MomentProvider with ChangeNotifier {
         caption: caption,
         thumbnailUrl: thumbnailUrl,
       );
-      // Stream sẽ tự cập nhật
+      // Stream sẽ tự động cập nhật khi có moment mới
     } catch (e) {
       rethrow;
     }
   }
 
+  // Hàm thêm reaction vào moment
   Future<void> reactToMoment(String momentId, String userId, String emoji) async {
     try {
       await FirestoreService().addReactionToMoment(momentId, userId, emoji);
@@ -194,6 +203,7 @@ class MomentProvider with ChangeNotifier {
     }
   }
 
+  // Hàm trả lời (reply) vào moment
   Future<void> replyToMoment(String momentId, String userId, String text) async {
     try {
       await FirestoreService().addReplyToMoment(momentId, userId, text);
@@ -212,6 +222,7 @@ class MomentProvider with ChangeNotifier {
     }
   }
 
+  // Hàm hủy subscription khi dispose provider
   @override
   void dispose() {
     _momentsSub?.cancel();

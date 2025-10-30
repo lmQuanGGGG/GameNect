@@ -1,158 +1,246 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { setGlobalOptions } = require('firebase-functions/v2');
+const admin = require('firebase-admin');
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
-const {defineSecret} = require("firebase-functions/params");
+setGlobalOptions({ region: 'asia-southeast1', memory: '512MiB', timeoutSeconds: 30 });
 
-admin.initializeApp();
+// Gửi thông báo khi có tin nhắn mới
+exports.sendMessageNotification = onDocumentCreated(
+  'matches/{matchId}/messages/{messageId}',
+  async (event) => {
+    try {
+      const snap = event.data;
+      if (!snap) return;
 
-const payosChecksumKey = defineSecret("PAYOS_CHECKSUM_KEY");
+      const message = snap.data();
+      const matchId = event.params.matchId;
+      console.log('New message:', message);
 
-setGlobalOptions({ maxInstances: 10 });
+      const db = admin.firestore();
+      const matchDoc = await db.collection('matches').doc(matchId).get();
+      if (!matchDoc.exists) return console.log('Match not found');
 
-// PAYOS WEBHOOK
-exports.payosWebhook = onRequest(
-    {secrets: [payosChecksumKey]},
-    async (req, res) => {
-      try {
-        console.log("=== WEBHOOK RECEIVED ===");
-        console.log("Method:", req.method);
-        console.log("Full body:", JSON.stringify(req.body, null, 2));
+      const matchData = matchDoc.data();
+      const receiverId = matchData.user1Id === message.senderId
+        ? matchData.user2Id
+        : matchData.user1Id;
 
-        // Xử lý GET request (test webhook)
-        if (req.method === "GET") {
-          console.log("GET request - returning success");
-          return res.status(200).json({
-            success: true,
-            message: "Webhook is active",
-          });
-        }
+      console.log('Receiver ID:', receiverId);
 
-        // Xử lý POST request
-        if (req.method !== "POST") {
-          console.log("Invalid method");
-          return res.status(200).json({success: true});
-        }
+      const receiverDoc = await db.collection('users').doc(receiverId).get();
+      if (!receiverDoc.exists) return console.log('Receiver not found');
 
-        // PayOS gửi data trực tiếp trong body
-        const {code, desc, success, data, signature} = req.body;
+      const fcmToken = receiverDoc.data()?.fcmToken;
+      if (!fcmToken) return console.log('No FCM token');
 
-        console.log("Parsed data:", {code, desc, success, data, signature});
+      const senderDoc = await db.collection('users').doc(message.senderId).get();
+      const senderName = senderDoc.exists
+        ? senderDoc.data()?.username || 'User'
+        : 'User';
 
-        // Nếu không có data (test request)
-        if (!data) {
-          console.log("No data - test request");
-          return res.status(200).json({success: true});
-        }
+      let messageBody = message.message || '';
+      if (message.imageUrl) messageBody = 'Sent a photo';
+      else if (message.type === 'call') messageBody = 'Missed call';
 
-        const orderCode = data.orderCode;
-        const paymentStatus = data.code; // "00" = thành công
+      // QUAN TRONG: Payload cho Android với cả notification và data
+      const payload = {
+        token: fcmToken,
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'gamenect_channel',
+            sound: 'default', 
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',  
+          },
+        },
+        notification: {
+          title: senderName,
+          body: messageBody,
+          sound: 'default',  
+          click_action: 'FLUTTER_NOTIFICATION_CLICK', 
+        },
+        data: {
+          type: 'chat',
+          matchId: matchId,
+          peerUserId: message.senderId,
+          peerUsername: senderName,
+          message: messageBody,
+          'content.id': Date.now().toString(),
+          'content.channelKey': 'gamenect_channel',
+          'content.title': senderName,
+          'content.body': messageBody,
+          'content.notificationLayout': 'Messaging',
+          'content.category': 'Message',
+          'content.wakeUpScreen': true,  
+          'content.payload.type': 'chat',
+          'content.payload.matchId': matchId,
+          'content.payload.peerUserId': message.senderId,
+          'content.payload.peerUsername': senderName,
+        },
+      };
 
-        console.log(`Order ${orderCode}, Status: ${paymentStatus}`);
+      console.log('Sending notification...');
+      const response = await admin.messaging().send(payload);
+      console.log('Notification sent:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      return null;
+    }
+  }
+);
 
-        // Verify signature
-        if (signature) {
-          const crypto = require("crypto");
-          
-          // Tạo string để verify theo format của PayOS
-          const sortedData = {
-            amount: data.amount,
-            code: data.code,
-            desc: data.desc,
-            orderCode: data.orderCode,
-            // Thêm các field khác nếu cần
-          };
-          
-          const dataStr = Object.keys(sortedData)
-              .sort()
-              .map((key) => `${key}=${sortedData[key]}`)
-              .join("&");
-          
-          const expectedSignature = crypto
-              .createHmac("sha256", payosChecksumKey.value())
-              .update(dataStr)
-              .digest("hex");
+// Gửi thông báo khi có cuộc gọi
+exports.sendCallNotification = onDocumentCreated(
+  'calls/{matchId}',
+  async (event) => {
+    try {
+      const call = event.data?.data();
+      const matchId = event.params.matchId;
+      if (!call) return;
 
-          console.log("Data string:", dataStr);
-          console.log("Expected signature:", expectedSignature);
-          console.log("Received signature:", signature);
+      console.log('New call:', call);
 
-          if (signature !== expectedSignature) {
-            console.warn("⚠️ Signature mismatch - but continuing");
-            // Không reject để test
-          }
-        }
+      const db = admin.firestore();
+      const receiverDoc = await db.collection('users').doc(call.receiverId).get();
+      if (!receiverDoc.exists) return console.log('Receiver not found');
 
-        // Xử lý thanh toán thành công (code = "00")
-        if (paymentStatus === "00") {
-          console.log("Processing successful payment...");
+      const fcmToken = receiverDoc.data()?.fcmToken;
+      if (!fcmToken) return console.log('No FCM token');
 
-          const orderDoc = await admin.firestore()
-              .collection("orders")
-              .doc(orderCode.toString())
-              .get();
+      const callerDoc = await db.collection('users').doc(call.callerId).get();
+      const callerName = callerDoc.exists
+        ? callerDoc.data()?.username || 'User'
+        : 'User';
 
-          if (orderDoc.exists) {
-            const orderData = orderDoc.data();
-            console.log("Order found:", orderData);
+      const payload = {
+        token: fcmToken,
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'call_channel',
+            sound: 'default',
+            priority: 'max',
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        },
+        notification: {
+          title: 'Cuộc gọi đến',
+          body: `${callerName} đang gọi cho bạn`,
+          sound: 'default',  
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',  
+        },
+        data: {
+          type: 'call',
+          matchId: matchId,
+          peerUserId: call.callerId,
+          peerUsername: callerName,
+          'content.id': matchId,
+          'content.channelKey': 'call_channel',
+          'content.title': 'Cuộc gọi đến',
+          'content.body': `${callerName} đang gọi cho bạn`,
+          'content.category': 'Call',
+          'content.wakeUpScreen': true,  
+          'content.fullScreenIntent': true,  
+          'content.criticalAlert': true,  
+          'content.locked': true,  
+          'content.payload.type': 'call',
+          'content.payload.matchId': matchId,
+          'content.payload.peerUserId': call.callerId,
+          'content.payload.peerUsername': callerName,
+          'actionButtons.0.key': 'accept',
+          'actionButtons.0.label': 'Nghe',
+          'actionButtons.0.autoDismissible': true, 
+          'actionButtons.1.key': 'decline',
+          'actionButtons.1.label': 'Từ chối',
+          'actionButtons.1.autoDismissible': true,  
+        },
+      };
 
-            // Update order status
-            await orderDoc.ref.update({
-              status: "success",
-              paymentData: data,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+      console.log('Sending call notification...');
+      const response = await admin.messaging().send(payload);
+      console.log('Call notification sent');
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      return null;
+    }
+  }
+);
 
-            // Calculate end date
-            const endDate = orderData.planType === "yearly" ?
-              new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) :
-              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+// Gửi thông báo khi có reaction moment
+exports.sendMomentReactionNotification = onDocumentCreated(
+  'moments/{momentId}/reactions/{reactionId}',
+  async (event) => {
+    try {
+      const reaction = event.data?.data();
+      const momentId = event.params.momentId;
+      if (!reaction) return;
 
-            // Activate premium
-            await admin.firestore()
-                .collection("users")
-                .doc(orderData.userId)
-                .update({
-                  isPremium: true,
-                  premiumPlan: orderData.planType,
-                  premiumStartDate: admin.firestore.FieldValue.serverTimestamp(),
-                  premiumEndDate: admin.firestore.Timestamp.fromDate(endDate),
-                });
+      console.log('New reaction:', reaction);
 
-            console.log("✅ Premium activated for user:", orderData.userId);
-          } else {
-            console.error("❌ Order not found:", orderCode);
-          }
-        } else {
-          console.log(`Payment status: ${paymentStatus} - ${desc}`);
-        }
+      const db = admin.firestore();
+      const momentDoc = await db.collection('moments').doc(momentId).get();
+      if (!momentDoc.exists) return console.log('Moment not found');
 
-        // LUÔN TRẢ 200 SUCCESS
-        return res.status(200).json({success: true});
-      } catch (error) {
-        console.error("❌ Webhook error:", error);
-        console.error("Error stack:", error.stack);
-        
-        // VẪN TRẢ 200 để PayOS không retry liên tục
-        return res.status(200).json({
-          success: true,
-          message: "Error handled",
-        });
-      }
-    });
+      const momentOwnerId = momentDoc.data()?.userId;
+      if (reaction.userId === momentOwnerId) return console.log('Self reaction, skip');
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+      const ownerDoc = await db.collection('users').doc(momentOwnerId).get();
+      if (!ownerDoc.exists) return console.log('Owner not found');
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+      const fcmToken = ownerDoc.data()?.fcmToken;
+      if (!fcmToken) return console.log('No FCM token');
+
+      const reactorDoc = await db.collection('users').doc(reaction.userId).get();
+      const reactorName = reactorDoc.exists
+        ? reactorDoc.data()?.username || 'Someone'
+        : 'Someone';
+
+      const payload = {
+        token: fcmToken,
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'moment_channel',
+            sound: 'default',
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        },
+        notification: {
+          title: `${reactorName} đã thả cảm xúc ${reaction.emoji || '❤️'}`,
+          body: 'Vào moment của bạn',
+          sound: 'default',  
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',  
+        },
+        data: {
+          type: 'moment_reaction',
+          momentId: momentId,
+          reactorUserId: reaction.userId,
+          reactorUsername: reactorName,
+          emoji: reaction.emoji || '❤️',
+          momentOwnerId: momentOwnerId,
+          'content.id': momentId,
+          'content.channelKey': 'moment_channel',
+          'content.title': `${reactorName} đã thả cảm xúc ${reaction.emoji || '❤️'}`,
+          'content.body': 'Vào moment của bạn',
+          'content.category': 'Social',
+          'content.payload.type': 'moment_reaction',
+          'content.payload.momentId': momentId,
+          'content.payload.reactorUserId': reaction.userId,
+          'content.payload.reactorUsername': reactorName,
+          'content.payload.emoji': reaction.emoji || '❤️',
+          'content.payload.momentOwnerId': momentOwnerId,
+        },
+      };
+
+      console.log('Sending moment notification...');
+      const response = await admin.messaging().send(payload);
+      console.log('Moment notification sent');
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      return null;
+    }
+  }
+);

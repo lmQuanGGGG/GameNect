@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:gamenect_new/core/widgets/profile_card.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/location_provider.dart';
 import '../../core/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_profile_screen.dart';
 import 'edit_profile_screen.dart';
 import 'location_settings_screen.dart';
 import 'package:logging/logging.dart';
@@ -318,24 +318,32 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Stack(
                         children: [
+                          // Khi bấm vào avatar, mở màn hình mới hiển thị ProfileCard 
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      HomeProfileScreen(userId: provider.userData!.id),
+                                  builder: (_) => Scaffold(
+                                    appBar: AppBar(
+                                      title: Text(provider.userData!.username),
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.deepOrange,
+                                    ),
+                                    backgroundColor: Colors.white,
+                                    body: Center(
+                                      child: ProfileCard(
+                                        user: provider.userData!,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               );
                             },
                             child: Container(
-                              height:
-                                  MediaQuery.of(context).size.width *
-                                  0.8,
+                              height: MediaQuery.of(context).size.width * 0.8,
                               width: MediaQuery.of(context).size.width * 0.8,
-                              margin: EdgeInsets.all(
-                                MediaQuery.of(context).size.width * 0.1,
-                              ),
+                              margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.1),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 boxShadow: [
@@ -347,8 +355,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ],
                                 image: DecorationImage(
                                   image: NetworkImage(
-                                    provider.userData!.avatarUrl ??
-                                        'https://via.placeholder.com/400',
+                                    provider.userData!.avatarUrl ?? 'https://via.placeholder.com/400',
                                   ),
                                   fit: BoxFit.cover,
                                 ),
@@ -600,7 +607,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       
                       const SizedBox(height: 24),
                       
-                      Padding(
+                      /*Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: ElevatedButton.icon(
                           onPressed: () {
@@ -619,7 +626,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 32),*/
                     ],
                   ),
                 ),

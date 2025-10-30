@@ -1,13 +1,17 @@
 // core/models/swipe_history_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SwipeHistory {
-  final String id;
-  final String userId;
-  final String targetUserId;
-  final String action; // 'like' hoặc 'dislike'
-  final DateTime timestamp;
+// Lớp SwipeHistory lưu lại lịch sử thao tác swipe (vuốt) của người dùng trên hệ thống.
+// Mỗi lần vuốt sẽ lưu lại ai là người thực hiện, ai là đối tượng bị vuốt, hành động là like hay dislike, và thời điểm thực hiện.
 
+class SwipeHistory {
+  final String id;               // Id của lịch sử swipe (document id trong Firestore)
+  final String userId;           // Id của user thực hiện thao tác swipe
+  final String targetUserId;     // Id của user bị swipe (đối tượng được vuốt)
+  final String action;           // Hành động swipe: 'like' hoặc 'dislike'
+  final DateTime timestamp;      // Thời điểm thực hiện thao tác swipe
+
+  // Hàm khởi tạo đối tượng SwipeHistory với các tham số truyền vào.
   SwipeHistory({
     required this.id,
     required this.userId,
@@ -16,6 +20,8 @@ class SwipeHistory {
     required this.timestamp,
   });
 
+  // Hàm chuyển đối tượng SwipeHistory thành Map để lưu vào Firestore.
+  // Trường timestamp được chuyển thành chuỗi ISO8601 để lưu trữ.
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -25,6 +31,8 @@ class SwipeHistory {
     };
   }
 
+  // Hàm tạo đối tượng SwipeHistory từ Map lấy từ Firestore.
+  // Xử lý trường timestamp có thể là Timestamp hoặc String.
   factory SwipeHistory.fromMap(Map<String, dynamic> map, String id) {
     return SwipeHistory(
       id: id,

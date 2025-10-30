@@ -1,3 +1,6 @@
+// File này định nghĩa màn hình cài đặt vị trí và các tùy chọn matching cho người dùng.
+// Người dùng có thể điều chỉnh khoảng cách tối đa, độ tuổi, giới tính muốn tìm, và các cài đặt khác.
+// Sử dụng provider để quản lý trạng thái và lưu trữ vào Firestore.
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -28,7 +31,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     });
   }
 
-  /// Lưu settings
+  /// Lưu settings vào Firestore
   Future<void> _saveSettings() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
@@ -58,7 +61,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     }
   }
 
-  /// Refresh location
+  /// Refresh location hiện tại
   Future<void> _refreshLocation() async {
     final locationProvider = context.read<LocationProvider>();
     await locationProvider.getCurrentLocation();
@@ -107,7 +110,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Vị trí hiện tại
+                      // Phần hiển thị vị trí hiện tại
                       _buildSection(
                         title: 'Vị trí hiện tại',
                         child: Container(
@@ -161,7 +164,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Khoảng cách tối đa
+                      // Phần cài đặt khoảng cách tối đa
                       _buildSection(
                         title: 'Khoảng cách tối đa',
                         subtitle: 'Tìm người chơi trong bán kính ${locationProvider.maxDistance.round()} km',
@@ -169,7 +172,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                           children: [
                             const SizedBox(height: 16),
                             
-                            // Slider
+                            // Slider để chọn khoảng cách
                             SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 activeTrackColor: Colors.deepOrange,
@@ -195,7 +198,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               ),
                             ),
 
-                            // Distance labels
+                            // Nhãn khoảng cách
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
                               child: Row(
@@ -221,7 +224,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
                             const SizedBox(height: 24),
 
-                            // Quick select buttons
+                            // Các nút chọn nhanh khoảng cách
                             Row(
                               children: [
                                 Expanded(
@@ -267,7 +270,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Độ tuổi - THÊM MỚI
+                      // Phần cài đặt độ tuổi
                       _buildSection(
                         title: 'Độ tuổi',
                         subtitle: 'Chỉ hiển thị người chơi từ ${locationProvider.minAge} đến ${locationProvider.maxAge} tuổi',
@@ -275,7 +278,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                           children: [
                             const SizedBox(height: 16),
                             
-                            // Range Slider
+                            // Range Slider cho độ tuổi
                             SliderTheme(
                               data: SliderTheme.of(context).copyWith(
                                 activeTrackColor: Colors.deepOrange,
@@ -306,7 +309,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               ),
                             ),
 
-                            // Age labels
+                            // Nhãn độ tuổi
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
                               child: Row(
@@ -332,7 +335,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
                             const SizedBox(height: 24),
 
-                            // Quick select age ranges
+                            // Các nút chọn nhanh độ tuổi
                             Row(
                               children: [
                                 Expanded(
@@ -369,7 +372,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Giới tính muốn tìm - THÊM MỚI
+                      // Phần cài đặt giới tính muốn tìm
                       _buildSection(
                         title: 'Tìm kiếm',
                         subtitle: 'Giới tính bạn muốn tìm',
@@ -441,7 +444,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Thông tin
+                      // Thông tin hướng dẫn
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -481,6 +484,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     );
   }
 
+  // Widget helper để xây dựng một section với title và child
   Widget _buildSection({
     required String title,
     String? subtitle,
@@ -512,6 +516,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     );
   }
 
+  // Widget helper cho nút chọn nhanh khoảng cách
   Widget _buildQuickSelectButton({
     required String label,
     required double value,
@@ -542,6 +547,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     );
   }
 
+  // Widget helper cho nút chọn nhanh độ tuổi
   Widget _buildAgeRangeButton({
     required String label,
     required int minAge,
@@ -576,6 +582,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     );
   }
 
+  // Widget helper cho nút chọn giới tính
   Widget _buildGenderButton({
     required String label,
     required bool isSelected,

@@ -8,7 +8,6 @@ import 'user/screens/login_screen.dart';
 import 'user/user_app.dart';
 import 'user/screens/edit_profile_screen.dart';
 import 'package:provider/provider.dart';
-import 'user/screens/home_profile_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/edit_profile_provider.dart';
@@ -29,57 +28,32 @@ import 'user/screens/video_call_screen.dart';
 import 'dart:developer' as developer;
 import 'dart:async';
 import 'admin/admin_app.dart';
+import 'core/controllers/notification_controller.dart'; 
 
+// Khóa navigator toàn cục để điều hướng từ các phần khác của ứng dụng, đặc biệt là từ thông báo
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+// Hàm main: điểm khởi đầu của ứng dụng
+// Khởi tạo các dịch vụ cần thiết như Firebase, thông báo, và chạy ứng dụng
 void main() async {
+  // Đảm bảo Flutter đã được khởi tạo trước khi thực hiện bất kỳ hoạt động bất đồng bộ nào
   WidgetsFlutterBinding.ensureInitialized();
+  // Tải biến môi trường từ file .env
   await dotenv.load(fileName: ".env");
+  
+  // Khởi tạo Firebase với các tùy chọn cho nền tảng hiện tại
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await AwesomeNotifications().initialize(
-    null,
-    [
-      NotificationChannel(
-        channelKey: 'gamenect_channel',
-        channelName: 'Gamenect Messages',
-        channelDescription: 'Thông báo tin nhắn',
-        defaultColor: Color(0xFFFF453A),
-        ledColor: Colors.white,
-        importance: NotificationImportance.Max,
-        channelShowBadge: true,
-        playSound: true,
-        enableVibration: true,
-      ),
-      NotificationChannel(
-        channelKey: 'call_channel',
-        channelName: 'Gamenect Calls',
-        channelDescription: 'Thông báo cuộc gọi',
-        defaultColor: Colors.green,
-        ledColor: Colors.green,
-        importance: NotificationImportance.Max,
-        channelShowBadge: true,
-        playSound: true,
-        enableVibration: true,
-        criticalAlerts: true,
-      ),
-      NotificationChannel(
-        channelKey: 'moment_channel',
-        channelName: 'Gamenect Moments',
-        channelDescription: 'Thông báo moments',
-        defaultColor: Color(0xFFFF453A),
-        ledColor: Colors.white,
-        importance: NotificationImportance.High,
-        channelShowBadge: true,
-      ),
-    ],
-  );
+  // Khởi tạo thông báo cục bộ với chế độ debug
+  await NotificationController.initializeLocalNotifications(debug: true);
+  
+  // Khởi tạo thông báo từ xa (FCM) với chế độ debug
+  await NotificationController.initializeRemoteNotifications(debug: true);
+  
+  // Yêu cầu quyền truy cập thông báo
+  await NotificationController.requestPermissions();
 
-  final isAllowed = await AwesomeNotifications().isNotificationAllowed();
-  if (!isAllowed) {
-    await AwesomeNotifications().requestPermissionToSendNotifications();
-  }
-
+  // Thiết lập các listener cho AwesomeNotifications để xử lý các sự kiện thông báo
   AwesomeNotifications().setListeners(
     onActionReceivedMethod: onActionReceivedMethod,
     onNotificationCreatedMethod: onNotificationCreatedMethod,
@@ -87,30 +61,40 @@ void main() async {
     onDismissActionReceivedMethod: onDismissActionReceivedMethod,
   );
 
+  // Chạy ứng dụng chính
   runApp(const GameNectApp());
 }
 
+// Hàm xử lý khi người dùng tương tác với thông báo (nhấn nút hành động)
+// Được gọi khi người dùng nhấn vào thông báo hoặc nút trên thông báo
 @pragma("vm:entry-point")
 Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
+  // Lấy payload và khóa hành động từ thông báo
   final payload = receivedAction.payload ?? {};
   final actionKey = receivedAction.buttonKeyPressed;
   
+  // Ghi log để debug
   developer.log('Notification action: $actionKey, payload: $payload', name: 'Notification');
 
+  // Nếu là thông báo cuộc gọi
   if (payload['type'] == 'call') {
     final matchId = payload['matchId'] ?? '';
     final peerUserId = payload['peerUserId'] ?? '';
 
+    // Nếu nhấn chấp nhận cuộc gọi
     if (actionKey == 'accept') {
       developer.log('Accept call', name: 'Notification');
       await _handleAcceptCall(matchId, peerUserId);
+    // Nếu nhấn từ chối cuộc gọi
     } else if (actionKey == 'decline') {
       developer.log('Decline call', name: 'Notification');
       await _handleDeclineCall(matchId);
+    // Nếu chỉ nhấn vào thông báo (không phải nút hành động)
     } else {
       _showIncomingCallDialog(matchId, peerUserId);
     }
   }
+  // Nếu là thông báo chat
   else if (payload['type'] == 'chat') {
     final matchId = payload['matchId'] ?? '';
     final peerUserId = payload['peerUserId'] ?? '';
@@ -118,14 +102,17 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
     developer.log('Navigate to chat: $matchId', name: 'Notification');
     
     try {
+      // Lấy thông tin người dùng từ Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(peerUserId)
           .get();
           
       if (userDoc.exists && userDoc.data() != null) {
+        // Tạo đối tượng UserModel từ dữ liệu
         final peerUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
         
+        // Điều hướng đến màn hình chat
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (_) => ChatScreen(
@@ -139,10 +126,12 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
       developer.log('Error: $e', name: 'Notification');
     }
   }
+  // Nếu là thông báo phản ứng với moment
   else if (payload['type'] == 'moment_reaction') {
     final momentId = payload['momentId'] ?? '';
     final reactorUserId = payload['reactorUserId'] ?? '';
     developer.log('Navigate to moment: $momentId', name: 'Notification');
+    // Điều hướng đến màn hình moments với đối số
     navigatorKey.currentState?.pushNamed(
       '/moments',
       arguments: {'momentId': momentId}
@@ -150,28 +139,34 @@ Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
   }
 }
 
+// Hàm xử lý khi thông báo được tạo
 @pragma("vm:entry-point")
 Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
   developer.log('Notification created: ${receivedNotification.id}', name: 'Notification');
 }
 
+// Hàm xử lý khi thông báo được hiển thị
 @pragma("vm:entry-point")
 Future<void> onNotificationDisplayedMethod(ReceivedNotification receivedNotification) async {
   developer.log('Notification displayed: ${receivedNotification.id}', name: 'Notification');
 }
 
+// Hàm xử lý khi thông báo bị bỏ qua
 @pragma("vm:entry-point")
 Future<void> onDismissActionReceivedMethod(ReceivedAction receivedAction) async {
   developer.log('Notification dismissed: ${receivedAction.id}', name: 'Notification');
 }
 
+// Hàm xử lý chấp nhận cuộc gọi từ thông báo
 Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
   try {
+    // Cập nhật trạng thái cuộc gọi trong Firestore
     await FirebaseFirestore.instance
         .collection('calls')
         .doc(matchId)
         .set({'answered': true, 'status': 'accepted'}, SetOptions(merge: true));
 
+    // Lấy thông tin người dùng đối phương
     final peerDoc = await FirebaseFirestore.instance
         .collection('users')
         .doc(peerUserId)
@@ -180,6 +175,7 @@ Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
     if (peerDoc.exists && peerDoc.data() != null) {
       final peerUser = UserModel.fromMap(peerDoc.data()!, peerDoc.id);
 
+      // Điều hướng đến màn hình video call
       navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (_) => VideoCallScreen(
@@ -197,10 +193,12 @@ Future<void> _handleAcceptCall(String matchId, String peerUserId) async {
   }
 }
 
+// Hàm xử lý từ chối cuộc gọi từ thông báo
 Future<void> _handleDeclineCall(String matchId) async {
   final currentUserId = FirebaseAuth.instance.currentUser?.uid;
   if (currentUserId == null) return;
   
+  // Cập nhật trạng thái cuộc gọi trong Firestore
   await FirebaseFirestore.instance
       .collection('calls')
       .doc(matchId)
@@ -210,6 +208,7 @@ Future<void> _handleDeclineCall(String matchId) async {
         'endedAt': DateTime.now().toIso8601String(),
       }, SetOptions(merge: true));
   
+  // Thêm tin nhắn cuộc gọi bị từ chối vào Firestore
   await FirestoreService().addCallMessage(
     matchId: matchId,
     senderId: currentUserId,
@@ -218,6 +217,7 @@ Future<void> _handleDeclineCall(String matchId) async {
   );
 }
 
+// Hàm hiển thị dialog cuộc gọi đến khi nhấn vào thông báo
 void _showIncomingCallDialog(String matchId, String peerUserId) async {
   final context = navigatorKey.currentContext;
   if (context == null) {
@@ -225,6 +225,7 @@ void _showIncomingCallDialog(String matchId, String peerUserId) async {
     return;
   }
 
+  // Lấy thông tin người dùng từ Firestore
   final userDoc = await FirebaseFirestore.instance
       .collection('users')
       .doc(peerUserId)
@@ -238,6 +239,7 @@ void _showIncomingCallDialog(String matchId, String peerUserId) async {
   final peerUsername = userDoc.data()!['username'] ?? '';
   final peerAvatarUrl = userDoc.data()!['avatarUrl'] ?? '';
 
+  // Hiển thị dialog cuộc gọi đến
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -248,6 +250,7 @@ void _showIncomingCallDialog(String matchId, String peerUserId) async {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Avatar người gọi
             CircleAvatar(
               radius: 36,
               backgroundImage: peerAvatarUrl.isNotEmpty
@@ -256,16 +259,20 @@ void _showIncomingCallDialog(String matchId, String peerUserId) async {
               child: peerAvatarUrl.isEmpty ? Icon(Icons.person, size: 36) : null,
             ),
             const SizedBox(height: 16),
+            // Tiêu đề
             Text('Cuộc gọi đến từ', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
             const SizedBox(height: 4),
+            // Tên người gọi
             Text(
               peerUsername,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepOrange),
             ),
             const SizedBox(height: 24),
+            // Các nút hành động
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
+                // Nút chấp nhận
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
@@ -278,6 +285,7 @@ void _showIncomingCallDialog(String matchId, String peerUserId) async {
                     await _handleAcceptCall(matchId, peerUserId);
                   },
                 ),
+                // Nút từ chối
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -299,15 +307,18 @@ void _showIncomingCallDialog(String matchId, String peerUserId) async {
   );
 }
 
+// Widget chính của ứng dụng GameNect
 class GameNectApp extends StatelessWidget {
   const GameNectApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // MultiProvider để cung cấp các provider cho toàn bộ ứng dụng
     return MultiProvider(
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => LocationProvider()),
+        // AuthProvider phụ thuộc vào LocationProvider
         ChangeNotifierProxyProvider<LocationProvider, local.AuthProvider>(
           create: (context) {
             final authProvider = local.AuthProvider();
@@ -332,6 +343,7 @@ class GameNectApp extends StatelessWidget {
       child: MaterialApp(
         title: 'GameNect',
         debugShowCheckedModeBanner: false,
+        // Cấu hình theme của ứng dụng
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
           useMaterial3: true,
@@ -363,17 +375,19 @@ class GameNectApp extends StatelessWidget {
             fillColor: Colors.grey[100],
           ),
         ),
+        // Route ban đầu
         initialRoute: '/',
+        // Định nghĩa các routes
         routes: {
           '/': (context) => const AuthWrapper(),
           '/login': (context) => LoginScreen(),
           '/home': (context) => const UserApp(),
           '/profile': (context) => ProfileScreen(),
           '/phone-login': (context) => const PhoneLoginScreen(),
-          '/home_profile': (context) => const HomeProfileScreen(),
           '/email-login': (context) => const EmailLoginScreen(),
           '/admin-test-users': (context) => const AdminTestUsersScreen(),
           '/moments': (context) => const UserApp(initialRoute: '/main'),
+          // Route cho chat với arguments
           '/chat': (context) {
             final args = ModalRoute.of(context)!.settings.arguments as Map;
             return ChatScreen(
@@ -381,6 +395,7 @@ class GameNectApp extends StatelessWidget {
               peerUser: args['peerUser'] as UserModel,
             );
           },
+          // Route cho video call với arguments
           '/video_call': (context) {
             final args = ModalRoute.of(context)!.settings.arguments as Map;
             return VideoCallScreen(
@@ -392,6 +407,7 @@ class GameNectApp extends StatelessWidget {
             );
           },
         },
+        // Xử lý route động cho Firebase Auth
         onGenerateRoute: (settings) {
           final name = settings.name ?? '';
           if (name.startsWith('/__/auth')) {
@@ -402,6 +418,7 @@ class GameNectApp extends StatelessWidget {
           }
           return null;
         },
+        // Xử lý route không xác định
         onUnknownRoute: (settings) => MaterialPageRoute(
           builder: (_) => Scaffold(
             backgroundColor: Colors.orange.shade50,
@@ -419,6 +436,7 @@ class GameNectApp extends StatelessWidget {
             ),
           ),
         ),
+        // Cấu hình localization cho tiếng Việt
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -429,22 +447,27 @@ class GameNectApp extends StatelessWidget {
           Locale('en', 'US'),
         ],
         locale: const Locale('vi', 'VN'),
+        // Sử dụng navigator key toàn cục
         navigatorKey: navigatorKey,
       ),
     );
   }
 }
 
+// Widget bao bọc để xử lý trạng thái xác thực
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Lấy AuthService từ provider
     final AuthService authService = Provider.of<AuthService>(context, listen: false);
 
+    // Lắng nghe thay đổi trạng thái xác thực
     return StreamBuilder<User?>(
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
+        // Nếu đang chờ kết nối
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             backgroundColor: Colors.white,
@@ -463,6 +486,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
+        // Nếu có lỗi
         if (snapshot.hasError) {
           return Scaffold(
             backgroundColor: Colors.white,
@@ -493,15 +517,66 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
+        // Nếu có người dùng đăng nhập
         if (snapshot.hasData && snapshot.data != null) {
           developer.log('User logged in: ${snapshot.data!.uid}', name: 'Auth');
           
+          // Sau khi build xong, thực hiện các tác vụ sau đăng nhập
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            try {
+              // Lấy FCM token
+              final fcmToken = await NotificationController().getFirebaseToken();
+              developer.log('FCM Token retrieved after login: $fcmToken', name: 'Auth');
+              
+              // Tiếp tục tải dữ liệu
+              final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+              final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+              final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+              final matchProvider = Provider.of<MatchProvider>(context, listen: false);
+              final momentProvider = Provider.of<MomentProvider>(context, listen: false);
+
+              // Cập nhật vị trí người dùng
+              await locationProvider.updateUserLocation(snapshot.data!.uid);
+
+              // Tải hồ sơ người dùng nếu chưa có
+              if (profileProvider.userData == null) {
+                await profileProvider.loadUserProfile();
+              }
+
+              // Tải cài đặt vị trí từ dữ liệu người dùng
+              if (profileProvider.userData != null) {
+                locationProvider.loadSettingsFromUser(profileProvider.userData!);
+              }
+
+              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+              if (currentUserId != null) {
+                // Tải danh sách match và thiết lập listener cho tin nhắn và cuộc gọi
+                final matches = await matchProvider.fetchMatchedUsersWithMatchId(currentUserId);
+                for (var match in matches) {
+                  final matchId = match['matchId'] as String;
+                  final peerUser = match['user'] as UserModel;
+                  chatProvider.messagesStream(matchId, peerUser).listen((_) {});
+                  chatProvider.listenForIncomingCalls(matchId, peerUser);
+                }
+
+                developer.log('Starting moment reactions listener...', name: 'Auth');
+                // Thiết lập listener cho moments
+                await momentProvider.listenMoments(currentUserId);
+                developer.log('Moment listener started', name: 'Auth');
+              }
+            } catch (e) {
+              developer.log('Error getting FCM token: $e', name: 'Auth');
+            }
+          });
+          
+          // Kiểm tra vai trò người dùng từ Firestore
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
                 .collection('users')
                 .doc(snapshot.data!.uid)
                 .get(),
             builder: (context, userSnapshot) {
+              // Nếu đang chờ
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return Scaffold(
                   backgroundColor: Colors.white,
@@ -518,6 +593,7 @@ class AuthWrapper extends StatelessWidget {
                 );
               }
 
+              // Nếu có lỗi hoặc không có dữ liệu
               if (userSnapshot.hasError) {
                 return LoginScreen();
               }
@@ -532,60 +608,23 @@ class AuthWrapper extends StatelessWidget {
                 return LoginScreen();
               }
 
+              // Kiểm tra xem có phải admin không
               final isAdmin = userData['isAdmin'] ?? false;
 
               if (isAdmin == true) {
-                developer.log('🔑 ADMIN DETECTED', name: 'Auth');
+                developer.log('ADMIN DETECTED', name: 'Auth');
                 return const AdminApp();
               }
 
-              developer.log('👥 Regular user detected', name: 'Auth');
+              developer.log('Regular user detected', name: 'Auth');
 
-              // ⭐ QUAN TRỌNG: BẮT ĐẦU LẮNG NGHE NGAY KHI ĐĂNG NHẬP
-              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                try {
-                  final locationProvider = Provider.of<LocationProvider>(context, listen: false);
-                  final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-                  final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-                  final matchProvider = Provider.of<MatchProvider>(context, listen: false);
-                  final momentProvider = Provider.of<MomentProvider>(context, listen: false); // ⭐ THÊM
-
-                  await locationProvider.updateUserLocation(snapshot.data!.uid);
-
-                  if (profileProvider.userData == null) {
-                    await profileProvider.loadUserProfile();
-                  }
-
-                  if (profileProvider.userData != null) {
-                    locationProvider.loadSettingsFromUser(profileProvider.userData!);
-                  }
-
-                  final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                  if (currentUserId != null) {
-                    // Lắng nghe chat + calls
-                    final matches = await matchProvider.fetchMatchedUsersWithMatchId(currentUserId);
-                    for (var match in matches) {
-                      final matchId = match['matchId'] as String;
-                      final peerUser = match['user'] as UserModel;
-                      chatProvider.messagesStream(matchId, peerUser).listen((_) {});
-                      chatProvider.listenForIncomingCalls(matchId, peerUser);
-                    }
-
-                    // ⭐⭐⭐ LẮNG NGHE MOMENTS (để nhận thông báo reactions)
-                    developer.log('🎬 Starting moment reactions listener...', name: 'Auth');
-                    await momentProvider.listenMoments(currentUserId);
-                    developer.log('✅ Moment listener started', name: 'Auth');
-                  }
-                } catch (e) {
-                  developer.log('Error in postFrameCallback: $e', name: 'Auth');
-                }
-              });
-
+              // Trả về ứng dụng người dùng thông thường
               return const UserApp();
             },
           );
         }
 
+        // Nếu không có người dùng đăng nhập
         developer.log('No user logged in', name: 'Auth');
         return LoginScreen();
       },

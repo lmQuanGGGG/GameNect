@@ -9,25 +9,34 @@ import 'package:logger/logger.dart';
 
 final _log = Logger();
 
+// SubscriptionProvider quản lý trạng thái và logic liên quan đến việc mua, kích hoạt, kiểm tra và khôi phục gói premium cho người dùng.
 class SubscriptionProvider with ChangeNotifier {
+  // Biến trạng thái đang tải dữ liệu
   bool _isLoading = false;
+  // Biến lưu loại gói premium đã chọn
   String? _selectedPlan;
 
+  // Getter trả về trạng thái loading
   bool get isLoading => _isLoading;
+  // Getter trả về loại gói đã chọn
   String? get selectedPlan => _selectedPlan;
 
+  // Lấy thông tin cấu hình PayOS từ file .env
   static String get _payOSClientId => dotenv.env['PAYOS_CLIENT_ID'] ?? '';
   static String get _payOSApiKey => dotenv.env['PAYOS_API_KEY'] ?? '';
   static String get _payOSChecksumKey => dotenv.env['PAYOS_CHECKSUM_KEY'] ?? '';
 
+  // Hàm chọn loại gói premium
   void selectPlan(String plan) {
     _selectedPlan = plan;
     notifyListeners();
   }
 
+  // Danh sách các gói premium lấy từ Firestore
   List<Map<String, dynamic>> _plans = [];
   List<Map<String, dynamic>> get plans => _plans;
 
+  // Hàm lấy danh sách các gói premium đang hoạt động từ Firestore
   Future<void> fetchPlans() async {
     final snap = await FirebaseFirestore.instance
         .collection('premium_plans')
@@ -41,6 +50,7 @@ class SubscriptionProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Hàm lấy giá của gói premium theo loại gói
   int getPlanPrice(String planType) {
     final plan = _plans.firstWhere(
       (p) => p['planType'] == planType,
@@ -49,6 +59,7 @@ class SubscriptionProvider with ChangeNotifier {
     return plan['price'] ?? (planType == 'yearly' ? 507000 : 84500);
   }
 
+  // Hàm thực hiện mua gói premium, tạo đơn hàng trên Firestore và gọi API PayOS để lấy link thanh toán
   Future<Map<String, dynamic>?> purchasePlan(String planType) async {
     _isLoading = true;
     notifyListeners();
@@ -59,6 +70,7 @@ class SubscriptionProvider with ChangeNotifier {
       final amount = getPlanPrice(planType);
       final orderCode = DateTime.now().millisecondsSinceEpoch;
 
+      // Tạo đơn hàng trên Firestore với trạng thái pending
       await FirebaseFirestore.instance.collection('orders').doc(orderCode.toString()).set({
         'userId': userId,
         'planType': planType,
@@ -68,6 +80,7 @@ class SubscriptionProvider with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Gọi hàm tạo thanh toán PayOS
       final payment = await _createPayOSPayment(
         orderCode: orderCode,
         amount: amount,
@@ -81,6 +94,7 @@ class SubscriptionProvider with ChangeNotifier {
     }
   }
 
+  // Hàm tạo thanh toán PayOS, trả về link thanh toán và orderCode
   Future<Map<String, dynamic>> _createPayOSPayment({
     required int orderCode,
     required int amount,
@@ -90,7 +104,7 @@ class SubscriptionProvider with ChangeNotifier {
       throw Exception('Missing PayOS credentials (.env)');
     }
 
-    // Netlify URL
+    // URL trả về khi thanh toán thành công hoặc hủy
     final baseUrl = 'https://incandescent-pavlova-a73522.netlify.app/';
     final returnUrl = '$baseUrl/payment/success?orderCode=$orderCode';
     final cancelUrl = '$baseUrl/payment/cancel?orderCode=$orderCode';
@@ -104,7 +118,7 @@ class SubscriptionProvider with ChangeNotifier {
       'returnUrl': returnUrl,
     };
 
-    // Ký HMAC SHA256 theo thứ tự key alphabet
+    // Tạo chữ ký HMAC SHA256 theo thứ tự key alphabet để xác thực với PayOS
     final sortedKeys = body.keys.toList()..sort();
     final dataStr = sortedKeys.map((k) => '$k=${body[k]}').join('&');
     final sig = Hmac(sha256, utf8.encode(_payOSChecksumKey)).convert(utf8.encode(dataStr)).toString();
@@ -126,7 +140,7 @@ class SubscriptionProvider with ChangeNotifier {
     };
   }
 
-  // Polling: dùng GET để lấy status = PAID
+  // Hàm kiểm tra trạng thái thanh toán của đơn hàng qua API PayOS
   Future<String> checkPaymentStatus(int orderCode) async {
     try {
       final url = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$orderCode');
@@ -144,6 +158,7 @@ class SubscriptionProvider with ChangeNotifier {
     }
   }
 
+  // Hàm kích hoạt premium cho user khi thanh toán thành công, cập nhật thông tin lên Firestore
   Future<bool> activatePremium(String userId, String planType, int orderCode) async {
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
@@ -162,6 +177,7 @@ class SubscriptionProvider with ChangeNotifier {
     }
   }
 
+  // Hàm khôi phục lại trạng thái premium nếu user đã từng mua thành công
   Future<void> restorePurchase() async {
     _isLoading = true;
     notifyListeners();

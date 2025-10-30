@@ -11,12 +11,16 @@ const {setGlobalOptions} = require("firebase-functions");
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {defineSecret} = require("firebase-functions/params");
+const pushNotifications = require('./index1');
 
 admin.initializeApp();
 
 const payosChecksumKey = defineSecret("PAYOS_CHECKSUM_KEY");
 
 setGlobalOptions({ maxInstances: 10 });
+exports.sendMessageNotification = pushNotifications.sendMessageNotification;
+exports.sendCallNotification = pushNotifications.sendCallNotification;
+exports.sendMomentReactionNotification = pushNotifications.sendMomentReactionNotification;
 
 // PAYOS WEBHOOK
 exports.payosWebhook = onRequest(

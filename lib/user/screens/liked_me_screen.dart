@@ -258,7 +258,6 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     }
 
     final freeLimit = 3; // FREE chỉ xem 3 người
-    final visibleCount = isPremium ? _likedMeUsers.length : freeLimit;
     final hasMore = _likedMeUsers.length > freeLimit;
 
     return ListView.builder(

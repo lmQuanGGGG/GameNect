@@ -7,6 +7,11 @@ import '../core/services/auth_service.dart';
 import 'screens/user_management_screen.dart';
 import 'screens/subscription_config_screen.dart';
 
+// Widget AdminApp là giao diện tổng cho admin.
+// Quản lý các chức năng: xem thống kê doanh thu, quản lý gói Premium, quản lý người dùng.
+// Sử dụng BottomNavigationBar để chuyển đổi giữa các màn hình chức năng.
+// Mỗi màn hình là một widget riêng biệt, được lưu trong danh sách _screens.
+
 class AdminApp extends StatefulWidget {
   const AdminApp({super.key});
 
@@ -15,14 +20,17 @@ class AdminApp extends StatefulWidget {
 }
 
 class _AdminAppState extends State<AdminApp> {
+  // Biến lưu chỉ số màn hình hiện tại đang được chọn trên thanh điều hướng dưới cùng.
   int _selectedIndex = 0;
 
+  // Danh sách các màn hình chức năng, mỗi phần tử là một widget màn hình.
   final List<Widget> _screens = [
-    const AdminDashboard(),
-    const SubscriptionConfigScreen(),
-    const UserManagementScreen(),
+    const AdminDashboard(), // Màn hình thống kê doanh thu
+    const SubscriptionConfigScreen(), // Màn hình quản lý gói Premium
+    const UserManagementScreen(), // Màn hình quản lý người dùng
   ];
 
+  // Danh sách tiêu đề cho từng màn hình, dùng để hiển thị trên AppBar.
   final List<String> _titles = [
     'Thống kê doanh thu',
     'Quản lý gói Premium',
@@ -31,6 +39,7 @@ class _AdminAppState extends State<AdminApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Sử dụng MaterialApp để khởi tạo theme và cấu hình app cho admin.
     return MaterialApp(
       title: 'GameNect Admin',
       debugShowCheckedModeBanner: false,
@@ -52,8 +61,10 @@ class _AdminAppState extends State<AdminApp> {
       home: Scaffold(
         extendBody: true,
         appBar: AppBar(
+          // Hiển thị tiêu đề tương ứng với màn hình đang chọn.
           title: Text(_titles[_selectedIndex]),
           actions: [
+            // Nút đăng xuất nằm ở góc phải AppBar, gọi hàm signOut từ AuthService khi bấm.
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () async {
@@ -65,7 +76,9 @@ class _AdminAppState extends State<AdminApp> {
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
+        // Hiển thị nội dung màn hình chức năng tương ứng với chỉ số đã chọn.
         body: _screens[_selectedIndex],
+        // Thanh điều hướng dưới cùng cho phép chuyển đổi giữa các chức năng quản trị.
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
@@ -91,6 +104,7 @@ class _AdminAppState extends State<AdminApp> {
             showUnselectedLabels: true,
             elevation: 0,
             type: BottomNavigationBarType.fixed,
+            // Khi bấm vào một mục, cập nhật chỉ số màn hình đang chọn để hiển thị nội dung mới.
             onTap: (index) => setState(() => _selectedIndex = index),
             items: const [
               BottomNavigationBarItem(
@@ -113,6 +127,11 @@ class _AdminAppState extends State<AdminApp> {
   }
 }
 
+// Widget AdminDashboard là màn hình thống kê doanh thu.
+// Cho phép admin chọn năm, tháng để xem doanh thu theo từng khoảng thời gian.
+// Hiển thị tổng doanh thu năm, tổng doanh thu tháng, các biểu đồ doanh thu theo tháng, theo ngày.
+// Dữ liệu doanh thu được lấy từ Firestore collection 'orders' với điều kiện status = 'success'.
+
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -121,9 +140,12 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  // Biến lưu năm và tháng đang chọn để lọc doanh thu.
   int selectedYear = DateTime.now().year;
   int selectedMonth = DateTime.now().month;
 
+  // Hàm lấy thống kê doanh thu từng ngày trong tháng đã chọn.
+  // Trả về tổng doanh thu, tổng số gói bán ra và danh sách doanh thu từng ngày.
   Future<Map<String, dynamic>> _fetchDailyRevenueStats(int year, int month) async {
     final snap = await FirebaseFirestore.instance
         .collection('orders')
@@ -135,6 +157,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     Map<String, int> dayRevenue = {};
     Map<String, int> daySold = {};
 
+    // Duyệt qua từng đơn hàng, lọc theo năm và tháng đã chọn.
     for (var doc in snap.docs) {
       final data = doc.data();
       final amountRaw = data['amount'];
@@ -144,6 +167,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           : (data['createdAt'] is DateTime ? data['createdAt'] as DateTime : null);
       if (createdAt == null || createdAt.year != year || createdAt.month != month) continue;
 
+      // Tạo key ngày dạng dd/MM/yyyy để lưu doanh thu từng ngày.
       final dayKey = '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/$year';
       dayRevenue[dayKey] = (dayRevenue[dayKey] ?? 0) + amount;
       daySold[dayKey] = (daySold[dayKey] ?? 0) + 1;
@@ -152,7 +176,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       totalSold += 1;
     }
 
-    // Sắp xếp ngày tăng dần
+    // Sắp xếp danh sách ngày tăng dần để hiển thị biểu đồ đúng thứ tự.
     final days = dayRevenue.keys.toList()
       ..sort((a, b) => a.compareTo(b));
 
@@ -169,6 +193,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     };
   }
 
+  // Hàm lấy thống kê doanh thu từng tháng trong năm đã chọn.
+  // Trả về danh sách doanh thu và số lượng gói bán ra của từng tháng.
   Future<List<Map<String, dynamic>>> _fetchYearlyRevenueStats(int year) async {
     final snap = await FirebaseFirestore.instance
         .collection('orders')
@@ -178,6 +204,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     Map<int, int> monthRevenue = {}; // key: tháng, value: doanh thu
     Map<int, int> monthSold = {};
 
+    // Duyệt qua từng đơn hàng, lọc theo năm đã chọn.
     for (var doc in snap.docs) {
       final data = doc.data();
       final amountRaw = data['amount'];
@@ -192,7 +219,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       monthSold[month] = (monthSold[month] ?? 0) + 1;
     }
 
-    // Đảm bảo đủ 12 tháng
+    // Đảm bảo danh sách đủ 12 tháng, nếu tháng nào không có doanh thu thì gán bằng 0.
     return List.generate(12, (i) {
       final m = i + 1;
       return {
@@ -203,6 +230,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
   }
 
+  // Hàm lấy tổng doanh thu của năm đã chọn.
+  // Trả về tổng doanh thu và tổng số gói bán ra trong năm.
   Future<Map<String, dynamic>> _fetchYearRevenue(int year) async {
     final snap = await FirebaseFirestore.instance
         .collection('orders')
@@ -212,6 +241,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     int totalRevenue = 0;
     int totalSold = 0;
 
+    // Duyệt qua từng đơn hàng, lọc theo năm đã chọn.
     for (var doc in snap.docs) {
       final data = doc.data();
       final amountRaw = data['amount'];
@@ -231,19 +261,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
     };
   }
 
+  // Hàm trả về danh sách các năm để chọn lọc doanh thu.
+  // Mặc định lấy 6 năm gần nhất kể từ năm hiện tại.
   List<int> _getYearList() {
     final now = DateTime.now();
     return List.generate(6, (i) => now.year - i);
   }
 
+  // Hàm trả về danh sách các tháng để chọn lọc doanh thu.
+  // Mặc định lấy đủ 12 tháng trong năm.
   List<int> _getMonthList() => List.generate(12, (i) => i + 1);
 
   @override
   Widget build(BuildContext context) {
+    // Lấy thông tin user hiện tại đang đăng nhập để hiển thị trên dashboard.
     final user = FirebaseAuth.instance.currentUser;
 
     return Stack(
       children: [
+        // Tạo nền gradient cho toàn bộ màn hình dashboard.
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -260,6 +296,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Thẻ hiển thị thông tin admin đang đăng nhập, gồm tên, email, UID.
                   _GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,6 +330,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ),
                   const SizedBox(height: 32),
+                  // Dropdown chọn năm và tháng để lọc doanh thu.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -332,6 +370,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  // Hiển thị tổng doanh thu năm đã chọn bằng thẻ GlassStatCard.
                   FutureBuilder<Map<String, dynamic>>(
                     future: _fetchYearRevenue(selectedYear),
                     builder: (context, snapshot) {
@@ -341,13 +380,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       final stats = snapshot.data!;
                       return _GlassStatCard(
                         title: 'Tổng doanh thu năm $selectedYear',
-                        value: '${stats['totalRevenue'] ~/ 1000}K VNĐ',
+                        value: '${(stats['totalRevenue'] / 1000).toStringAsFixed(3)} K VNĐ',
                         icon: Icons.bar_chart_rounded,
                         color: Colors.deepOrange,
                       );
                     },
                   ),
                   const SizedBox(height: 12),
+                  // Hiển thị biểu đồ doanh thu theo tháng trong năm đã chọn.
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: _fetchYearlyRevenueStats(selectedYear),
                     builder: (context, snapshot) {
@@ -368,7 +408,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _MonthlyRevenueLineChart(yearly: yearly), // Biểu đồ line
+                          _MonthlyRevenueLineChart(yearly: yearly), // Biểu đồ đường doanh thu theo tháng
                           const SizedBox(height: 24),
                           Text(
                             'Thống kê doanh thu tháng $selectedMonth/$selectedYear',
@@ -379,12 +419,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _YearlyRevenueBarChart(yearly: yearly),   // Biểu đồ bar
+                          _YearlyRevenueBarChart(yearly: yearly),   // Biểu đồ cột doanh thu theo tháng
                         ],
                       );
                     },
                   ),
+                  const SizedBox(height: 12),
+                  // Hiển thị tổng doanh thu của tháng đã chọn bằng thẻ GlassStatCard.
+                  FutureBuilder<Map<String, dynamic>>(
+                    future: _fetchDailyRevenueStats(selectedYear, selectedMonth),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final stats = snapshot.data!;
+                      return _GlassStatCard(
+                        title: 'Tổng doanh thu tháng $selectedMonth/$selectedYear',
+                        value: '${(stats['totalRevenue'] / 1000).toStringAsFixed(3)} K VNĐ',
+                        icon: Icons.stacked_bar_chart,
+                        color: Colors.orange,
+                      );
+                    },
+                  ),
                   const SizedBox(height: 32),
+                  // Hiển thị biểu đồ doanh thu từng ngày trong tháng đã chọn.
                   FutureBuilder<Map<String, dynamic>>(
                     future: _fetchDailyRevenueStats(selectedYear, selectedMonth),
                     builder: (context, snapshot) {
@@ -405,11 +463,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _DailyRevenueBarChart(daily: daily), // Biểu đồ bar từng ngày
+                          _DailyRevenueBarChart(daily: daily), // Biểu đồ cột doanh thu từng ngày
                         ],
                       );
                     },
-                  ),
+                  ), 
                 ],
               ),
             ),
@@ -480,13 +538,13 @@ class _DailyRevenueBarChart extends StatelessWidget {
               x: i,
               barRods: [
                 BarChartRodData(
-                  toY: (revenue ~/ 1000).toDouble(),
+                  toY: double.parse((revenue / 1000).toStringAsFixed(3)),
                   color: Colors.deepOrangeAccent,
                   width: 18,
                   borderRadius: BorderRadius.circular(8),
                   backDrawRodData: BackgroundBarChartRodData(
                     show: true,
-                    toY: ((maxRevenue * 1.2) ~/ 1000 + 1).toDouble(),
+                    toY: double.parse(((maxRevenue * 1.2) / 1000).toStringAsFixed(3)),
                     color: Colors.white.withValues(alpha: 0.07),
                   ),
                 ),
@@ -508,7 +566,7 @@ class _MonthlyRevenueLineChart extends StatelessWidget {
   Widget build(BuildContext context) {
     if (yearly.isEmpty) return const SizedBox();
 
-    final maxRevenue = yearly.map((m) => m['revenue'] as int).reduce((a, b) => a > b ? a : b);
+    yearly.map((m) => m['revenue'] as int).reduce((a, b) => a > b ? a : b);
     return Container(
       height: 220,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -562,7 +620,7 @@ class _MonthlyRevenueLineChart extends StatelessWidget {
             LineChartBarData(
               spots: List.generate(yearly.length, (i) {
                 final revenue = yearly[i]['revenue'] as int;
-                return FlSpot(i.toDouble(), (revenue ~/ 1000).toDouble());
+                return FlSpot(i.toDouble(), double.parse((revenue / 1000).toStringAsFixed(3)));
               }),
               isCurved: true,
               color: Colors.deepOrangeAccent, 
@@ -616,7 +674,6 @@ class _GlassStatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
-    super.key,
   });
 
   @override
@@ -675,6 +732,7 @@ class _GlassStatCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _GlassMonthRevenueCard extends StatelessWidget {
   final String month;
   final int revenue;
@@ -684,7 +742,6 @@ class _GlassMonthRevenueCard extends StatelessWidget {
     required this.month,
     required this.revenue,
     required this.sold,
-    super.key,
   });
 
   @override
@@ -713,7 +770,7 @@ class _GlassMonthRevenueCard extends StatelessWidget {
           ),
           const Spacer(),
           Text(
-            '${revenue ~/ 1000}K VNĐ',
+            '${(revenue / 1000).toStringAsFixed(3)} K VNĐ',
             style: const TextStyle(
               fontSize: 15,
               color: Colors.deepOrangeAccent,
@@ -795,13 +852,13 @@ class _YearlyRevenueBarChart extends StatelessWidget {
               x: i,
               barRods: [
                 BarChartRodData(
-                  toY: (revenue ~/ 1000).toDouble(),
+                  toY: double.parse((revenue / 1000).toStringAsFixed(3)),
                   color: Colors.deepOrangeAccent,
                   width: 18,
                   borderRadius: BorderRadius.circular(8),
                   backDrawRodData: BackgroundBarChartRodData(
                     show: true,
-                    toY: ((maxRevenue * 1.2) ~/ 1000 + 1).toDouble(),
+                    toY: double.parse(((maxRevenue * 1.2) / 1000).toStringAsFixed(3)),
                     color: Colors.white.withValues(alpha: 0.07),
                   ),
                 ),
