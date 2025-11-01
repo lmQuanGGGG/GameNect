@@ -30,6 +30,9 @@ dependencies:
   firebase_storage: ^12.4.9
   google_sign_in: ^6.2.1
   flutter_facebook_auth: ^7.0.1
+  awesome_notifications: ^0.10.1
+  awesome_notifications_core: ^0.10.0
+  awesome_notifications_fcm: ^0.10.1
 
   # State Management & HTTP
   provider: ^6.1.2
@@ -55,7 +58,14 @@ dependencies:
   path_provider: ^2.0.15
   #log
   logger: ^2.2.0
+  #Payment
+  crypto: ^3.0.3
+  url_launcher: ^6.2.1
+  flutter_web_browser: ^0.17.1
 
+  fl_chart: ^0.65.0
+  record: ^6.1.1
+  just_audio: ^0.9.36
   # Location
   geolocator: ^10.1.0
   geocoding: ^2.1.1

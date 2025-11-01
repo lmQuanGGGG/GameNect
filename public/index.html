@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GameNect Payment</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 400px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    p {
+      font-size: 16px;
+      opacity: 0.9;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+    .loader {
+      width: 50px;
+      height: 50px;
+      margin: 0 auto;
+      border: 5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .status {
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: rgba(255,255,255,0.15);
+      border-radius: 20px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="title">Đang xử lý thanh toán...</h1>
+    <p id="message">Vui lòng chờ trong giây lát</p>
+    <div class="loader" id="loader"></div>
+    <div class="status" id="status" style="display:none;"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const orderCode = params.get('orderCode');
+    const isSuccess = window.location.pathname.includes('success');
+    const isCancel = window.location.pathname.includes('cancel');
+
+    if (orderCode) {
+      if (isSuccess) {
+        document.getElementById('title').textContent = 'Thanh toán thành công!';
+        document.getElementById('message').textContent = 'Đang chuyển về ứng dụng...';
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('status').style.display = 'block';
+        document.getElementById('status').textContent = `Mã giao dịch: ${orderCode}`;
+        setTimeout(() => {
+          window.location.href = 'gamenect://payment/success' + window.location.search;
+        }, 1500);
+      } else if (isCancel) {
+        document.getElementById('title').textContent = 'Đã hủy thanh toán';
+        document.getElementById('message').textContent = 'Quay lại ứng dụng để thử lại';
+        document.getElementById('loader').style.display = 'none';
+        setTimeout(() => {
+          window.location.href = 'gamenect://payment/cancel' + window.location.search;
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          window.location.href = 'gamenect://payment/success' + window.location.search;
+        }, 2000);
+      }
+    } else {
+      document.getElementById('title').textContent = 'Lỗi';
+      document.getElementById('message').textContent = 'Không tìm thấy thông tin giao dịch';
+      document.getElementById('loader').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+//import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../../core/providers/moment_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
@@ -11,10 +13,17 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:logger/logger.dart';
 import 'package:image/image.dart' as img;
-import '../../core/providers/moment_provider.dart';
 import '../../core/utils/video_thumbnail_helper.dart';
 import 'dart:developer' as developer;
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import '../../core/services/firestore_service.dart'; // THÊM dòng này
+import 'subscription_screen.dart'; // THÊM dòng này
+
+// Import widgets
+import '../widgets/glass_icon_button.dart';
+import '../widgets/zoom_preset_button.dart';
+import '../widgets/recording_indicator.dart';
+import '../widgets/glass_button.dart';
+import '../widgets/preview_button.dart';
 
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
@@ -382,49 +391,45 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Thay thế _buildGlassIconButton
+  Widget _buildGlassIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return GlassIconButton(icon: icon, onPressed: onPressed);
+  }
+
+  // Thay thế _buildZoomPreset
+  Widget _buildZoomPreset(String label, double zoom) {
+    return ZoomPresetButton(
+      label: label,
+      zoom: zoom,
+      currentZoom: _currentZoom,
+      onZoomChanged: _setZoomPreset,
+    );
+  }
+
+  // Thay thế _buildGlassButton
   Widget _buildGlassButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.deepOrange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: Colors.deepOrange, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return GlassButton(icon: icon, label: label, onTap: onTap);
+  }
+
+  // Thay thế _buildPreviewButton
+  Widget _buildPreviewButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    required bool isPrimary,
+  }) {
+    return PreviewButton(
+      icon: icon,
+      label: label,
+      onPressed: onPressed,
+      isPrimary: isPrimary,
     );
   }
 
@@ -445,24 +450,33 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   final userId = FirebaseAuth.instance.currentUser?.uid;
   if (userId == null) return;
 
+  // THÊM: Kiểm tra giới hạn trước khi hỏi caption
+  try {
+    final canPost = await FirestoreService().canPostMoment(userId);
+    if (!canPost) {
+      await _showPremiumUpsellDialog();
+      return;
+    }
+  } catch (e) {
+    developer.log('Check limit error: $e', name: 'CameraCapture');
+    // Nếu lỗi check, vẫn cho tiếp tục (fallback an toàn)
+  }
+
+  // Hỏi chú thích
   final caption = await _showCaptionDialog();
   if (caption == null) return;
 
+  // Hiện loading
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-      child: const Center(
-        child: CircularProgressIndicator(color: Colors.deepOrange),
-      ),
-    ),
+    builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
   );
 
   try {
     String? mediaUrl;
     String? thumbnailUrl;
-    
+
     if (_isVideo) {
       // Upload video
       final videoRef = FirebaseStorage.instance
@@ -470,66 +484,169 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
           .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
       await videoRef.putFile(File(_capturedMedia!.path));
       mediaUrl = await videoRef.getDownloadURL();
-      
-      // Upload thumbnail nếu có
+
+      // Upload thumbnail (nếu đã generate)
       if (_localThumbnailPath != null) {
-        thumbnailUrl = await VideoThumbnailHelper.uploadThumbnail(_localThumbnailPath!, userId);
+        final thumbRef = FirebaseStorage.instance
+            .ref()
+            .child('moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await thumbRef.putFile(File(_localThumbnailPath!));
+        thumbnailUrl = await thumbRef.getDownloadURL();
       }
     } else {
-      // Upload image
-      XFile fileToUpload = _capturedMedia!;
+      // Ảnh: lật nếu camera trước
+      XFile imageToUpload = _capturedMedia!;
       if (_isFrontCamera) {
-        fileToUpload = await _flipImageIfFrontCamera(_capturedMedia!);
+        imageToUpload = await _flipImageIfFrontCamera(_capturedMedia!);
       }
-      
+
       final imageRef = FirebaseStorage.instance
           .ref()
           .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await imageRef.putFile(File(fileToUpload.path));
+      await imageRef.putFile(File(imageToUpload.path));
       mediaUrl = await imageRef.getDownloadURL();
     }
 
-    // THAY ĐỔI: Lấy danh sách userIds (không phải matchIds)
-    final provider = Provider.of<MomentProvider>(context, listen: false);
-    final matchedUserIds = await provider.getMatchedUserIds(userId);
-    
-    // Thêm chính mình vào danh sách
-    final visibleToUserIds = <String>{userId, ...matchedUserIds};
-    
-    developer.log('Posting moment visible to: $visibleToUserIds', name: 'CameraCapture');
+    // Lấy danh sách userIds đã match
+    final momentProvider = Provider.of<MomentProvider>(context, listen: false);
+    final matchedUserIds = await momentProvider.getMatchedUserIds(userId);
 
-    // Post moment trực tiếp với userIds
-    await FirebaseFirestore.instance.collection('moments').add({
-      'userId': userId,
-      'mediaUrl': mediaUrl,
-      'isVideo': _isVideo,
-      'thumbnailUrl': thumbnailUrl,
-      'createdAt': FieldValue.serverTimestamp(),
-      'matchIds': visibleToUserIds.toList(), // Lưu userIds trực tiếp
-      'reactions': [],
-      'replies': [],
-      'caption': caption.isEmpty ? null : caption,
-    });
+    // Đăng moment
+    await momentProvider.postMoment(
+      userId: userId,
+      mediaUrl: mediaUrl,
+      isVideo: _isVideo,
+      matchIds: matchedUserIds,
+      caption: caption.isEmpty ? null : caption,
+      thumbnailUrl: thumbnailUrl,
+    );
 
-    if (mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
-      Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã đăng khoảnh khắc!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(); // đóng loading
+    Navigator.of(context).pop(true); // quay lại
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã đăng khoảnh khắc!'), backgroundColor: Colors.green),
+    );
   } catch (e) {
     developer.log('Error uploading moment: $e', name: 'CameraCapture', error: e);
-    if (mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(); // đóng loading
+    
+    // THÊM: nếu lỗi LIMIT_EXCEEDED thì hiện popup
+    final msg = e.toString();
+    if (msg.contains('LIMIT_EXCEEDED')) {
+      await _showPremiumUpsellDialog();
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: $e')),
       );
     }
   }
+}
+
+// THÊM HÀM MỚI (đặt trước _showCaptionDialog)
+Future<void> _showPremiumUpsellDialog() async {
+  if (!mounted) return;
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierColor: Colors.black.withValues(alpha: 0.7),
+    builder: (ctx) => BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            child: Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.deepOrange.withValues(alpha: 0.2),
+                    Colors.black.withValues(alpha: 0.85),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 56),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Nâng cấp Premium',
+                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Bạn đã đăng đủ 20 khoảnh khắc trong tháng này!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, height: 1.5),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Nâng cấp để đăng không giới hạn 🔥',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                            ),
+                          ),
+                          child: Text('Để sau', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepOrange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 8,
+                            shadowColor: Colors.deepOrange.withValues(alpha: 0.5),
+                          ),
+                          child: const Text('Nâng cấp ngay', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
   Future<String?> _showCaptionDialog() async {
@@ -793,52 +910,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
                     ),
                   ),
 
-                  // Recording indicator
+                  // Recording indicator - thay thế bằng widget
                   if (_isRecording)
                     Positioned(
                       top: MediaQuery.of(context).padding.top + 120,
                       left: 0,
                       right: 0,
                       child: Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.8),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    '${_recordingSeconds}s / 15s',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                        child: RecordingIndicator(seconds: _recordingSeconds),
                       ),
                     ),
 
@@ -1030,69 +1109,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     );
   }
 
-  Widget _buildGlassIconButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.3),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2),
-              width: 1.5,
-            ),
-          ),
-          child: IconButton(
-            icon: Icon(icon, color: Colors.white, size: 24),
-            onPressed: onPressed,
-            padding: EdgeInsets.zero,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildZoomPreset(String label, double zoom) {
-    final isActive = (_currentZoom - zoom).abs() < 0.3;
-    
-    return GestureDetector(
-      onTap: () => _setZoomPreset(zoom),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? Colors.white.withValues(alpha: 0.3)
-                  : Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: isActive ? 0.4 : 0.2),
-                width: 1.5,
-              ),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // ...existing code...
 
   Widget _buildPreviewScreen() {
     return Scaffold(
@@ -1184,6 +1201,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
                     onPressed: () {
                       // Xóa thumbnail local
                       if (_localThumbnailPath != null) {
+                        // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
                       }
                       setState(() {
@@ -1222,6 +1240,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
                     label: 'Chụp lại',
                     onPressed: () {
                       if (_localThumbnailPath != null) {
+                        // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
                       }
                       setState(() {
@@ -1246,57 +1265,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     );
   }
 
-  Widget _buildPreviewButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-    required bool isPrimary,
-  }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-            decoration: BoxDecoration(
-              color: isPrimary
-                  ? Colors.deepOrange
-                  : Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: isPrimary
-                    ? Colors.deepOrange.withValues(alpha: 0.5)
-                    : Colors.white.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _recordingTimer?.cancel();
@@ -1306,6 +1274,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     
     // Xóa thumbnail local
     if (_localThumbnailPath != null) {
+      // ignore: body_might_complete_normally_catch_error
       File(_localThumbnailPath!).delete().catchError((_) {});
     }
     

@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Lớp MatchStatus định nghĩa các trạng thái của một lần ghép đôi (match).
+// Các trạng thái gồm: pending (chờ xác nhận), partial (một bên xác nhận), confirmed (tất cả xác nhận), cancelled (bị hủy), expired (quá hạn chưa xác nhận đủ).
 class MatchStatus {
   static const String pending = 'pending';          // Vừa ghép, chờ xác nhận
   static const String partial = 'partial';          // Một bên xác nhận
@@ -8,23 +10,26 @@ class MatchStatus {
   static const String expired = 'expired';          // Quá hạn chưa xác nhận đủ
 }
 
+// Lớp MatchModel lưu thông tin một lần ghép đôi giữa các user.
+// Bao gồm danh sách user, tên game, thời điểm ghép, trạng thái xác nhận, trạng thái hoạt động, các mốc thời gian liên quan.
 class MatchModel {
-  String id;
-  List<String> userIds;
-  String game;
-  DateTime matchedAt;
-  bool isActive;
-  Map<String, bool> confirmations;
+  String id;                           // Id của lần ghép (document id trong Firestore)
+  List<String> userIds;                // Danh sách id các user tham gia ghép
+  String game;                         // Tên game được ghép
+  DateTime matchedAt;                  // Thời điểm ghép đôi
+  bool isActive;                       // Trạng thái hoạt động của lần ghép
+  Map<String, bool> confirmations;     // Map lưu trạng thái xác nhận của từng user (userId: true/false)
 
-  // --- Trạng thái mới ---
-  String status;                // pending / partial / confirmed / cancelled / expired
-  String? cancelReason;         // Lý do hủy (nếu có)
-  DateTime createdAt;
-  DateTime updatedAt;
-  DateTime? confirmedAt;        // Khi đạt confirmed
-  DateTime? cancelledAt;        // Khi bị hủy
-  DateTime? expiresAt;          // Hạn xác nhận (optional)
+  // Các trường trạng thái mới
+  String status;                       // Trạng thái hiện tại của lần ghép (pending, partial, confirmed, cancelled, expired)
+  String? cancelReason;                // Lý do hủy ghép (nếu có)
+  DateTime createdAt;                  // Thời điểm tạo lần ghép
+  DateTime updatedAt;                  // Thời điểm cập nhật lần ghép gần nhất
+  DateTime? confirmedAt;               // Thời điểm tất cả xác nhận
+  DateTime? cancelledAt;               // Thời điểm bị hủy
+  DateTime? expiresAt;                 // Hạn xác nhận (nếu có)
 
+  // Hàm khởi tạo đối tượng MatchModel với các tham số truyền vào.
   MatchModel({
     required this.id,
     required this.userIds,
@@ -42,7 +47,12 @@ class MatchModel {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
-  // Cập nhật status dựa trên confirmations
+  // Hàm tính toán lại trạng thái của lần ghép dựa trên xác nhận của các user.
+  // Nếu bị hủy thì giữ nguyên trạng thái cancelled.
+  // Nếu quá hạn xác nhận mà chưa đủ xác nhận thì chuyển sang expired và tắt hoạt động.
+  // Nếu chưa ai xác nhận thì trạng thái là pending.
+  // Nếu một phần xác nhận thì trạng thái là partial.
+  // Nếu tất cả xác nhận thì trạng thái là confirmed và lưu thời điểm xác nhận.
   void computeStatus() {
     if (status == MatchStatus.cancelled) return;
     if (expiresAt != null && DateTime.now().isAfter(expiresAt!) && status != MatchStatus.confirmed) {
@@ -66,6 +76,8 @@ class MatchModel {
     }
   }
 
+  // Chuyển đối tượng MatchModel thành Map để lưu vào Firestore.
+  // Các trường thời gian được chuyển sang dạng chuỗi ISO8601.
   Map<String, dynamic> toMap() {
     return {
       'userIds': userIds,
@@ -83,6 +95,8 @@ class MatchModel {
     };
   }
 
+  // Hàm hỗ trợ chuyển đổi dữ liệu thời gian từ Firestore về kiểu DateTime.
+  // Nếu là Timestamp thì chuyển sang DateTime, nếu là chuỗi thì parse, nếu null thì trả về thời điểm hiện tại.
   static DateTime _parseTime(dynamic v) {
     if (v == null) return DateTime.now();
     if (v is Timestamp) return v.toDate();
@@ -90,6 +104,8 @@ class MatchModel {
     return DateTime.tryParse(v.toString()) ?? DateTime.now();
   }
 
+  // Hàm hỗ trợ chuyển đổi dữ liệu thời gian nullable từ Firestore về kiểu DateTime?.
+  // Nếu là Timestamp thì chuyển sang DateTime, nếu là chuỗi thì parse, nếu null thì trả về null.
   static DateTime? _parseNullable(dynamic v) {
     if (v == null) return null;
     if (v is Timestamp) return v.toDate();
@@ -97,6 +113,8 @@ class MatchModel {
     return DateTime.tryParse(v.toString());
   }
 
+  // Hàm tạo đối tượng MatchModel từ Map lấy từ Firestore.
+  // Truyền vào map dữ liệu và id document.
   factory MatchModel.fromMap(Map<String, dynamic> map, String id) {
     return MatchModel(
       id: id,
@@ -115,6 +133,8 @@ class MatchModel {
     );
   }
 
+  // Hàm copyWith cho phép tạo bản sao của MatchModel với một số trường thay đổi.
+  // Các trường không truyền vào sẽ giữ nguyên giá trị cũ.
   MatchModel copyWith({
     List<String>? userIds,
     String? game,

@@ -1,19 +1,27 @@
+// File này định nghĩa màn hình chính cho việc tìm kiếm và match người dùng trong ứng dụng GameNect.
+// Người dùng có thể swipe qua các profile được đề xuất, like hoặc dislike, và tạo match khi có sự tương tác lẫn nhau.
+// Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import '../../core/providers/match_provider.dart';
+import '../../core/providers/profile_provider.dart';
 //import '../../core/models/user_model.dart';
 import '../../core/widgets/profile_card.dart'; // Thay vì user_card.dart
 import '../../core/services/firestore_service.dart';
 import 'match_list_screen.dart';
+import 'subscription_screen.dart';
 
+// Lớp chính của màn hình match, sử dụng CardSwiper để người dùng swipe qua các profile
 class MatchScreen extends StatefulWidget {
   const MatchScreen({super.key});
+
   @override
   State<MatchScreen> createState() => _MatchScreenState();
 }
 
+// Trạng thái của MatchScreen, quản lý việc tải dữ liệu đề xuất và xử lý swipe
 class _MatchScreenState extends State<MatchScreen> {
   late MatchProvider matchProvider;
   final CardSwiperController controller = CardSwiperController();
@@ -22,6 +30,7 @@ class _MatchScreenState extends State<MatchScreen> {
   void initState() {
     super.initState();
     matchProvider = Provider.of<MatchProvider>(context, listen: false);
+    // Sau khi build xong, tải dữ liệu đề xuất match
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
@@ -29,9 +38,12 @@ class _MatchScreenState extends State<MatchScreen> {
           context,
           listen: false,
         );
+        // Lấy thông tin user hiện tại
         final userModel = await firestoreService.getUser(firebaseUser.uid);
+        // Lấy danh sách tất cả user để tạo đề xuất
         final candidateUsers = await firestoreService.getAllUsers();
         if (userModel != null) {
+          // Tải danh sách đề xuất dựa trên user hiện tại và danh sách candidate
           await matchProvider.fetchRecommendations(userModel, candidateUsers);
           if (mounted) {
             setState(() {});
@@ -47,6 +59,7 @@ class _MatchScreenState extends State<MatchScreen> {
     super.dispose();
   }
 
+  // Hiển thị dialog khi có match xảy ra
   void _showMatchDialog(
     BuildContext context,
     String username,
@@ -92,6 +105,7 @@ class _MatchScreenState extends State<MatchScreen> {
               ),
               onPressed: () {
                 Navigator.pop(context); // Đóng dialog
+                // Điều hướng đến màn hình danh sách match
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -113,8 +127,9 @@ class _MatchScreenState extends State<MatchScreen> {
   @override
   Widget build(BuildContext context) {
     final users = matchProvider.recommendations;
-
+    
     return Scaffold(
+      // AppBar với logo và các nút hành động
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -125,8 +140,7 @@ class _MatchScreenState extends State<MatchScreen> {
             const Padding(
               padding: EdgeInsets.only(left: 12.0),
               child: Icon(
-                Icons
-                    .sports_esports, // hoặc CupertinoIcons.game_controller_solid
+                Icons.sports_esports,
                 color: Colors.deepOrange,
                 size: 26,
               ),
@@ -143,28 +157,91 @@ class _MatchScreenState extends State<MatchScreen> {
           ],
         ),
         actions: [
+          // Hiển thị badge Premium hoặc nút nâng cấp dựa trên trạng thái user
+          Consumer<ProfileProvider>(
+            builder: (context, provider, _) {
+              final isPremium = provider.userData?.isPremium == true;
+              if (isPremium) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.amber, Colors.orange.shade600],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen()),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Colors.deepOrange,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Nâng cấp',
+                    style: TextStyle(
+                      color: Colors.deepOrange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                );
+              }
+            },
+          ),
+          // Nút cài đặt để điều chỉnh vị trí và các tùy chọn match
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepOrange,
                 shape: const CircleBorder(),
-                padding: const EdgeInsets.all(
-                  0,
-                ), // giảm xuống 0 để hình tròn nhỏ lại
-                minimumSize: const Size(
-                  30,
-                  30,
-                ), // đặt kích thước nhỏ hơn mặc định
+                padding: const EdgeInsets.all(0),
+                minimumSize: const Size(30, 30),
                 elevation: 0,
               ),
               onPressed: () async {
+                // Điều hướng đến màn hình cài đặt vị trí
                 final result = await Navigator.pushNamed(
                   context,
                   '/location-settings',
                 );
                 if (result == true) {
-                  // Gọi lại fetchRecommendations để load dữ liệu mới
+                  // Nếu có thay đổi, tải lại dữ liệu đề xuất
                   final firebaseUser = FirebaseAuth.instance.currentUser;
                   if (firebaseUser != null) {
                     final firestoreService = Provider.of<FirestoreService>(
@@ -188,7 +265,7 @@ class _MatchScreenState extends State<MatchScreen> {
               child: const Icon(
                 Icons.settings,
                 color: Colors.white,
-                size: 20, // giữ nguyên hoặc tăng lên nếu muốn
+                size: 20,
               ),
             ),
           ),
@@ -203,6 +280,7 @@ class _MatchScreenState extends State<MatchScreen> {
               child: CardSwiper(
                 controller: controller,
                 cardsCount: users.length,
+                // Xây dựng từng card profile
                 cardBuilder:
                     (
                       context,
@@ -211,16 +289,16 @@ class _MatchScreenState extends State<MatchScreen> {
                       verticalOffsetPercentage,
                     ) {
                       if (index < 0 || index >= users.length) {
-                        return const SizedBox(); // hoặc widget rỗng
+                        return const SizedBox(); // Trả về widget rỗng nếu index không hợp lệ
                       }
                       return ProfileCard(user: users[index]);
                     },
-                padding: EdgeInsets.zero, // THÊM DÒNG NÀY nếu CardSwiper hỗ trợ
+                padding: EdgeInsets.zero, // Loại bỏ padding nếu CardSwiper hỗ trợ
                 numberOfCardsDisplayed: users.length < 3
                     ? users.length
-                    : 3, // Sửa dòng này
-                isLoop: false,
-                // Sửa lại onSwipe callback
+                    : 3, // Hiển thị tối đa 3 card chồng lên nhau
+                isLoop: false, // Không lặp lại danh sách
+                // Xử lý sự kiện swipe
                 onSwipe: (
                   int previousIndex,
                   int? currentIndex,
@@ -237,14 +315,15 @@ class _MatchScreenState extends State<MatchScreen> {
 
                   if (currentUserId != null) {
                     if (direction == CardSwiperDirection.right) {
-                      // Lưu LIKE vào swipe_history
+                      // Swipe phải: like user
+                      // Lưu lịch sử swipe vào Firestore
                       await firestoreService.saveSwipeHistory(
                         userId: currentUserId,
                         targetUserId: user.id,
                         action: 'like',
                       );
 
-                      // Kiểm tra mutual like
+                      // Kiểm tra xem có match lẫn nhau không
                       final isMutual = await firestoreService
                           .checkMutualLike(
                             userId: currentUserId,
@@ -252,6 +331,7 @@ class _MatchScreenState extends State<MatchScreen> {
                           );
 
                       if (isMutual) {
+                        // Tạo match mới
                         await firestoreService.createNewMatch(
                           userIds: [currentUserId, user.id],
                           game: 'Tên game',
@@ -277,7 +357,8 @@ class _MatchScreenState extends State<MatchScreen> {
                         }
                       }
                     } else if (direction == CardSwiperDirection.left) {
-                      // Lưu DISLIKE vào swipe_history
+                      // Swipe trái: dislike user
+                      // Lưu lịch sử swipe vào Firestore
                       await firestoreService.saveSwipeHistory(
                         userId: currentUserId,
                         targetUserId: user.id,
@@ -287,6 +368,7 @@ class _MatchScreenState extends State<MatchScreen> {
                   }
                   return true;
                 },
+                // Khi hết danh sách đề xuất
                 onEnd: () {
                   ScaffoldMessenger.of(
                     context,

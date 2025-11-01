@@ -42,10 +42,12 @@ class _MainScreenState extends State<MainScreen> {
 
           return BottomNavigationBar(
             currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            selectedItemColor: Colors.deepOrange,
-            unselectedItemColor: Colors.grey,
-            type: BottomNavigationBarType.fixed,
+  onTap: (index) => setState(() => _currentIndex = index),
+  selectedItemColor: Colors.deepOrange,  // <-- Giữ deepOrange cho selected
+  unselectedItemColor: Colors.grey.shade600,  // <-- Xám tối hơn cho unselected
+  type: BottomNavigationBarType.fixed,
+  backgroundColor: Colors.white,  // <-- Giữ trắng để tinh tế, phù hợp với UI sạch
+  elevation: 4, 
             items: [
               const BottomNavigationBarItem(
                 icon: Icon(Icons.sports_esports),
@@ -118,147 +120,147 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Stream<Map<String, int>> _getBadgeCountsStream(String currentUserId) {
-  if (currentUserId.isEmpty) {
-    return Stream.value({'likes': 0, 'messages': 0, 'moments': 0});
-  }
+    if (currentUserId.isEmpty) {
+      return Stream.value({'likes': 0, 'messages': 0, 'moments': 0});
+    }
 
-  // Kết hợp 2 streams: matches và moments
-  final matchesStream = FirebaseFirestore.instance
-      .collection('matches')
-      .where('userIds', arrayContains: currentUserId)
-      .where('status', isEqualTo: 'confirmed')
-      .snapshots();
+    // Kết hợp 2 streams: matches và moments
+    final matchesStream = FirebaseFirestore.instance
+        .collection('matches')
+        .where('userIds', arrayContains: currentUserId)
+        .where('status', isEqualTo: 'confirmed')
+        .snapshots();
 
-  final momentsStream = FirebaseFirestore.instance
-      .collection('moments')
-      .where('matchIds', arrayContains: currentUserId)
-      .snapshots();
+    final momentsStream = FirebaseFirestore.instance
+        .collection('moments')
+        .where('matchIds', arrayContains: currentUserId)
+        .snapshots();
 
-  // Combine 2 streams
-  return matchesStream.asyncExpand((matchesSnapshot) {
-    return momentsStream.asyncMap((momentsSnapshot) async {
-      // 1. Đếm lượt thích mới (chưa match VÀ chưa cancelled)
-      final likeSnapshot = await FirebaseFirestore.instance
-          .collection('swipe_history')
-          .where('targetUserId', isEqualTo: currentUserId)
-          .where('action', isEqualTo: 'like')
-          .get();
-
-      // Lấy danh sách user đã match (confirmed)
-      final matchedUserIds = <String>{};
-      for (var doc in matchesSnapshot.docs) {
-        final userIds = List<String>.from(doc['userIds'] ?? []);
-        matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
-      }
-
-      // Lấy danh sách user đã cancelled
-      final cancelledSnapshot = await FirebaseFirestore.instance
-          .collection('matches')
-          .where('userIds', arrayContains: currentUserId)
-          .where('status', isEqualTo: 'cancelled')
-          .get();
-
-      final cancelledUserIds = <String>{};
-      for (var doc in cancelledSnapshot.docs) {
-        final userIds = List<String>.from(doc['userIds'] ?? []);
-        cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
-      }
-
-      // Đếm chỉ những user chưa match VÀ chưa cancelled
-      final newLikesCount = likeSnapshot.docs.where((doc) {
-        final userId = doc['userId'];
-        return !matchedUserIds.contains(userId) && !cancelledUserIds.contains(userId);
-      }).length;
-
-      // 2. Đếm tin nhắn chưa đọc
-      int unreadMessagesCount = 0;
-      for (var matchDoc in matchesSnapshot.docs) {
-        final matchData = matchDoc.data();
-        final lastMessageTime = matchData['lastMessageTime'];
-        final lastMessageSenderId = matchData['lastMessageSenderId'];
-        final lastSeen = matchData['lastSeen_$currentUserId'];
-
-        if (lastMessageTime != null &&
-            lastMessageSenderId != null &&
-            lastMessageSenderId != currentUserId) {
-          
-          DateTime? lastMsgTime;
-          if (lastMessageTime is Timestamp) {
-            lastMsgTime = lastMessageTime.toDate();
-          } else if (lastMessageTime is String) {
-            lastMsgTime = DateTime.tryParse(lastMessageTime);
-          }
-
-          DateTime? lastSeenTime;
-          if (lastSeen is Timestamp) {
-            lastSeenTime = lastSeen.toDate();
-          } else if (lastSeen is String) {
-            lastSeenTime = DateTime.tryParse(lastSeen);
-          }
-
-          if (lastMsgTime != null) {
-            if (lastSeenTime == null || lastMsgTime.isAfter(lastSeenTime)) {
-              unreadMessagesCount++;
-            }
-          }
-        }
-      }
-
-      // 3. Đếm moments mới chưa xem (dùng momentsSnapshot từ stream)
-      int newMomentsCount = 0;
-      
-      try {
-        // Lấy thời gian xem moments lần cuối
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUserId)
+    // Combine 2 streams
+    return matchesStream.asyncExpand((matchesSnapshot) {
+      return momentsStream.asyncMap((momentsSnapshot) async {
+        // 1. Đếm lượt thích mới (chưa match VÀ chưa cancelled)
+        final likeSnapshot = await FirebaseFirestore.instance
+            .collection('swipe_history')
+            .where('targetUserId', isEqualTo: currentUserId)
+            .where('action', isEqualTo: 'like')
             .get();
-        
-        DateTime? lastSeenMoments;
-        if (userDoc.exists) {
-          final lastSeen = userDoc.data()?['lastSeenMoments'];
-          if (lastSeen is Timestamp) {
-            lastSeenMoments = lastSeen.toDate();
-          } else if (lastSeen is String) {
-            lastSeenMoments = DateTime.tryParse(lastSeen);
+
+        // Lấy danh sách user đã match (confirmed)
+        final matchedUserIds = <String>{};
+        for (var doc in matchesSnapshot.docs) {
+          final userIds = List<String>.from(doc['userIds'] ?? []);
+          matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
+        }
+
+        // Lấy danh sách user đã cancelled
+        final cancelledSnapshot = await FirebaseFirestore.instance
+            .collection('matches')
+            .where('userIds', arrayContains: currentUserId)
+            .where('status', isEqualTo: 'cancelled')
+            .get();
+
+        final cancelledUserIds = <String>{};
+        for (var doc in cancelledSnapshot.docs) {
+          final userIds = List<String>.from(doc['userIds'] ?? []);
+          cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
+        }
+
+        // Đếm chỉ những user chưa match VÀ chưa cancelled
+        final newLikesCount = likeSnapshot.docs.where((doc) {
+          final userId = doc['userId'];
+          return !matchedUserIds.contains(userId) && !cancelledUserIds.contains(userId);
+        }).length;
+
+        // 2. Đếm tin nhắn chưa đọc
+        int unreadMessagesCount = 0;
+        for (var matchDoc in matchesSnapshot.docs) {
+          final matchData = matchDoc.data();
+          final lastMessageTime = matchData['lastMessageTime'];
+          final lastMessageSenderId = matchData['lastMessageSenderId'];
+          final lastSeen = matchData['lastSeen_$currentUserId'];
+
+          if (lastMessageTime != null &&
+              lastMessageSenderId != null &&
+              lastMessageSenderId != currentUserId) {
+            
+            DateTime? lastMsgTime;
+            if (lastMessageTime is Timestamp) {
+              lastMsgTime = lastMessageTime.toDate();
+            } else if (lastMessageTime is String) {
+              lastMsgTime = DateTime.tryParse(lastMessageTime);
+            }
+
+            DateTime? lastSeenTime;
+            if (lastSeen is Timestamp) {
+              lastSeenTime = lastSeen.toDate();
+            } else if (lastSeen is String) {
+              lastSeenTime = DateTime.tryParse(lastSeen);
+            }
+
+            if (lastMsgTime != null) {
+              if (lastSeenTime == null || lastMsgTime.isAfter(lastSeenTime)) {
+                unreadMessagesCount++;
+              }
+            }
           }
         }
 
-        // Lọc moments từ snapshot
-        if (lastSeenMoments != null) {
-          newMomentsCount = momentsSnapshot.docs.where((doc) {
-            final data = doc.data();
-            final userId = data['userId'];
-            final createdAt = data['createdAt'];
-            
-            // Bỏ qua moments của chính mình
-            if (userId == currentUserId) return false;
-            
-            // So sánh thời gian
-            if (createdAt is Timestamp) {
-              return createdAt.toDate().isAfter(lastSeenMoments!); // THÊM ! để assert non-null
+        // 3. Đếm moments mới chưa xem
+        int newMomentsCount = 0;
+        
+        try {
+          // Lấy thời gian xem moments lần cuối
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUserId)
+              .get();
+          
+          DateTime? lastSeenMoments;
+          if (userDoc.exists) {
+            final lastSeen = userDoc.data()?['lastSeenMoments'];
+            if (lastSeen is Timestamp) {
+              lastSeenMoments = lastSeen.toDate();
+            } else if (lastSeen is String) {
+              lastSeenMoments = DateTime.tryParse(lastSeen);
             }
-            return false;
-          }).length;
-        } else {
-          // Nếu chưa có lastSeenMoments, đếm tất cả moments (trừ của mình)
-          newMomentsCount = momentsSnapshot.docs
-              .where((doc) => doc.data()['userId'] != currentUserId)
-              .length;
+          }
+
+          // Lọc moments từ snapshot
+          if (lastSeenMoments != null) {
+            newMomentsCount = momentsSnapshot.docs.where((doc) {
+              final data = doc.data();
+              final userId = data['userId'];
+              final createdAt = data['createdAt'];
+              
+              // Bỏ qua moments của chính mình
+              if (userId == currentUserId) return false;
+              
+              // So sánh thời gian
+              if (createdAt is Timestamp) {
+                return createdAt.toDate().isAfter(lastSeenMoments!);
+              }
+              return false;
+            }).length;
+          } else {
+            // Nếu chưa có lastSeenMoments, đếm tất cả moments (trừ của mình)
+            newMomentsCount = momentsSnapshot.docs
+                .where((doc) => doc.data()['userId'] != currentUserId)
+                .length;
+          }
+
+          developer.log('New moments count: $newMomentsCount', name: 'MainScreen.Badge');
+        } catch (e) {
+          developer.log('Error counting moments: $e', name: 'MainScreen.Badge', error: e);
+          newMomentsCount = 0;
         }
 
-        developer.log('New moments count: $newMomentsCount', name: 'MainScreen.Badge');
-      } catch (e) {
-        developer.log('Error counting moments: $e', name: 'MainScreen.Badge', error: e);
-        newMomentsCount = 0;
-      }
-
-      return {
-        'likes': newLikesCount,
-        'messages': unreadMessagesCount,
-        'moments': newMomentsCount,
-      };
+        return {
+          'likes': newLikesCount,
+          'messages': unreadMessagesCount,
+          'moments': newMomentsCount,
+        };
+      });
     });
-  });
   }
 }

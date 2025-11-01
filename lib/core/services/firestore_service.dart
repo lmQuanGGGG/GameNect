@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+//import '../services/location_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -343,13 +344,27 @@ Future<void> saveSwipeHistory({
   required String action,
 }) async {
   try {
+    final now = DateTime.now();
+    
+    // 1. Log vào swipe_history (giữ 30 ngày, sau đó Firestore tự xóa)
     await _db.collection('swipe_history').add({
       'userId': userId,
       'targetUserId': targetUserId,
-      'action': action, // 'like' hoặc 'dislike'
+      'action': action,
+      'timestamp': FieldValue.serverTimestamp(),
+      'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 60))), // TTL
+    });
+    
+    // 2. Upsert vào swipe_latest (trạng thái mới nhất - query nhanh)
+    final latestDocId = '${userId}_$targetUserId';
+    await _db.collection('swipe_latest').doc(latestDocId).set({
+      'userId': userId,
+      'targetUserId': targetUserId,
+      'action': action,
       'timestamp': FieldValue.serverTimestamp(),
     });
-    developer.log('Đã lưu swipe history: $action', name: 'FirestoreService');
+    
+    developer.log('Đã lưu swipe: $action', name: 'FirestoreService');
   } catch (e) {
     developer.log('Lỗi khi lưu swipe history: $e', name: 'FirestoreService', error: e);
     rethrow;
@@ -527,27 +542,6 @@ Future<void> updateMatchConfirmation({
   }
 }
 
-/// Lấy danh sách matches pending của user (chưa confirm)
-Future<List<MatchModel>> getPendingMatches(String userId) async {
-  try {
-    final snapshot = await _db
-        .collection('matches')
-        .where('userIds', arrayContains: userId)
-        .where('status', whereIn: [MatchStatus.pending, MatchStatus.partial])
-        .where('isActive', isEqualTo: true)
-        .get();
-    
-    final matches = snapshot.docs
-        .map((doc) => MatchModel.fromMap(doc.data(), doc.id))
-        .toList();
-    
-    developer.log('User có ${matches.length} match pending', name: 'FirestoreService');
-    return matches;
-  } catch (e) {
-    developer.log('Lỗi khi lấy pending matches: $e', name: 'FirestoreService', error: e);
-    return [];
-  }
-}
 
 /// Stream theo dõi matches của user
 Stream<List<MatchModel>> getUserMatchesStream(String userId) {
@@ -595,20 +589,20 @@ Future<void> sendMessage(String matchId, String text) async {
       .add({
         'senderId': userId,
         'text': text,
-        'timestamp': FieldValue.serverTimestamp(), // DÙNG serverTimestamp
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'text', // ← THÊM FIELD NÀY
       });
 
-  // Cập nhật lastMessage vào matches - DÙNG serverTimestamp
+  // Cập nhật lastMessage vào matches
   await FirebaseFirestore.instance
       .collection('matches')
       .doc(matchId)
       .update({
         'lastMessage': text,
-        'lastMessageTime': FieldValue.serverTimestamp(), // SỬA ĐÂY
+        'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSenderId': userId,
       });
 }
-
 Future<void> sendMessageWithMedia({
   required String matchId,
   required String text,
@@ -626,7 +620,7 @@ Future<void> sendMessageWithMedia({
         'text': text,
         'mediaUrl': mediaUrl,
         'isVideo': isVideo,
-        'timestamp': FieldValue.serverTimestamp(), // DÙNG serverTimestamp
+        'timestamp': FieldValue.serverTimestamp(),
       });
 
   await FirebaseFirestore.instance
@@ -639,6 +633,52 @@ Future<void> sendMessageWithMedia({
         'lastIsVideo': isVideo,
         'lastMessageSenderId': userId,
       });
+}
+
+Future<void> sendMediaWithNotify({
+  required String matchId,
+  required String mediaUrl,
+  bool isVideo = false,
+  String? caption,
+  UserModel? peerUser,
+}) async {
+  final userId = FirebaseAuth.instance.currentUser?.uid;
+
+  // Tạo message mới
+  await FirebaseFirestore.instance
+      .collection('chats')
+      .doc(matchId)
+      .collection('messages')
+      .add({
+        'senderId': userId,
+        'mediaUrl': mediaUrl,
+        'isVideo': isVideo,
+        'caption': caption,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'media',
+      });
+
+  // Cập nhật lastMessage cho match
+  await FirebaseFirestore.instance
+      .collection('matches')
+      .doc(matchId)
+      .update({
+        'lastMessage': isVideo ? 'Đã gửi video' : 'Đã gửi hình ảnh',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMediaUrl': mediaUrl,
+        'lastIsVideo': isVideo,
+        'lastMessageSenderId': userId,
+      });
+
+  // Gửi thông báo push
+  /*if (peerUser != null) {
+    await showMessageNotification(
+      peerUsername: peerUser.username,
+      matchId: matchId,
+      peerUserId: peerUser.id,
+      message: isVideo ? 'Đã gửi video' : 'Đã gửi hình ảnh',
+    );
+  }*/
 }
 
 Future<void> addCallMessage({
@@ -700,39 +740,120 @@ Future<void> addCallMessage({
       });
 }
 
+Future<void> sendVoiceMessage({
+  required String matchId,
+  required String audioUrl,
+  int? duration,
+}) async {
+  final userId = FirebaseAuth.instance.currentUser?.uid;
+  await FirebaseFirestore.instance
+      .collection('chats')
+      .doc(matchId)
+      .collection('messages')
+      .add({
+        'senderId': userId,
+        'audioUrl': audioUrl,
+        'duration': duration,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'voice',
+      });
+  await FirebaseFirestore.instance
+      .collection('matches')
+      .doc(matchId)
+      .update({
+        'lastMessage': 'Đã gửi 1 tin nhắn thoại',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessageSenderId': userId,
+      });
+}
+
+Future<void> reactToMessage({
+  required String matchId,
+  required String messageId,
+  required String emoji,
+}) async {
+  final userId = FirebaseAuth.instance.currentUser?.uid;
+  // 1. Update reactions field như cũ
+  await FirebaseFirestore.instance
+      .collection('chats')
+      .doc(matchId)
+      .collection('messages')
+      .doc(messageId)
+      .update({
+        'reactions': FieldValue.arrayUnion([
+          {'userId': userId, 'emoji': emoji}
+        ])
+      });
+  // 2. Tạo message mới để stream nhận diện và gửi thông báo
+  await FirebaseFirestore.instance
+      .collection('chats')
+      .doc(matchId)
+      .collection('messages')
+      .add({
+        'senderId': userId,
+        'type': 'react',
+        'emoji': emoji,
+        'targetMessageId': messageId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+  // 3. Cập nhật lastMessage cho match
+  await FirebaseFirestore.instance
+      .collection('matches')
+      .doc(matchId)
+      .update({
+        'lastMessage': 'Đã thả cảm xúc $emoji',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessageSenderId': userId,
+      });
+}
+
+
+
 Future<bool> canPostMoment(String userId) async {
   final now = DateTime.now();
   final startOfMonth = DateTime(now.year, now.month, 1);
-  final snap = await FirebaseFirestore.instance
-      .collection('moments')
-      .where('userId', isEqualTo: userId)
-      .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
-      .get();
-  // Lấy trạng thái premium từ user model
+
+  // Kiểm tra premium trước
   final user = await getUser(userId);
   final isPremium = user?.isPremium ?? false;
-  return isPremium || snap.docs.length < 20;
+  if (isPremium) return true;
+
+  // Đếm số moment trong tháng bằng count (nhanh, chính xác)
+  try {
+    final query = _db
+        .collection('moments')
+        .where('userId', isEqualTo: userId)
+        .where('createdAt', isGreaterThanOrEqualTo: startOfMonth);
+
+    final agg = await query.count().get();
+    final total = agg.count ?? 0;
+
+    return total < 20;
+  } catch (e) {
+    developer.log('canPostMoment error: $e', name: 'FirestoreService', error: e);
+    return false;
+  }
 }
 
 Future<void> postMoment({
   required String userId,
   required String mediaUrl,
   required bool isVideo,
-  required List<String> matchIds, // ĐÂY GIỜ LÀ userIds rồi
+  required List<String> matchIds,
   String? caption,
   String? thumbnailUrl,
 }) async {
+  // Kiểm tra giới hạn trước
   if (!await canPostMoment(userId)) {
-    throw Exception('Bạn đã đăng đủ 20 khoảnh khắc tháng này!');
+    throw Exception('LIMIT_EXCEEDED'); // Throw mã lỗi đặc biệt
   }
-  
-  // matchIds parameter giờ ĐÃ LÀ userIds rồi, không cần convert nữa
+
   final visibleToUserIds = <String>{userId, ...matchIds};
-  
+
   developer.log('Posting moment visible to: $visibleToUserIds', name: 'FirestoreService');
-  
+
   try {
-    await FirebaseFirestore.instance.collection('moments').add({
+    await _db.collection('moments').add({
       'userId': userId,
       'mediaUrl': mediaUrl,
       'isVideo': isVideo,

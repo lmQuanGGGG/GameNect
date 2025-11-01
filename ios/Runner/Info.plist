@@ -59,12 +59,10 @@
 		</dict>
 		<!-- Facebook Login -->
 		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>fb696308786784859</string>
-			</array>
+    		<array>
+      		<string>gamenect</string>
+    		</array>
 		</dict>
 		<!-- Phone Auth -->
 		<dict>

@@ -6,6 +6,9 @@ import '../../core/models/user_model.dart';
 import '../../core/providers/match_provider.dart';
 import 'chat_screen.dart';
 import 'dart:ui';
+import 'subscription_screen.dart';
+import '../../core/providers/profile_provider.dart';
+import 'dart:developer' as developer;
 
 class MatchListScreen extends StatefulWidget {
   const MatchListScreen({super.key});
@@ -16,10 +19,29 @@ class MatchListScreen extends StatefulWidget {
 
 class _MatchListScreenState extends State<MatchListScreen> {
   String searchText = '';
+  Stream<List<Map<String, dynamic>>>? _matchStream;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (_currentUserId!.isNotEmpty) {
+      // Tạo stream 1 LẦN duy nhất trong initState
+      _matchStream = Provider.of<MatchProvider>(context, listen: false)
+          .matchedUsersStream(_currentUserId!);
+      
+      developer.log('Stream initialized for user: $_currentUserId', name: 'MatchListScreen');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (_matchStream == null || _currentUserId == null || _currentUserId!.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text('Vui lòng đăng nhập')),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -32,8 +54,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
             const Padding(
               padding: EdgeInsets.only(left: 12.0),
               child: Icon(
-                Icons
-                    .sports_esports, // hoặc CupertinoIcons.game_controller_solid
+                Icons.sports_esports,
                 color: Colors.deepOrange,
                 size: 26,
               ),
@@ -49,16 +70,96 @@ class _MatchListScreenState extends State<MatchListScreen> {
             ),
           ],
         ),
+        actions: [
+          Consumer<ProfileProvider>(
+            builder: (context, provider, _) {
+              final isPremium = provider.userData?.isPremium == true;
+              if (isPremium) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.amber, Colors.orange.shade600],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen()),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Colors.deepOrange,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Nâng cấp',
+                    style: TextStyle(
+                      color: Colors.deepOrange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Provider.of<MatchProvider>(
-          context,
-        ).matchedUsersStream(currentUserId),
+        stream: _matchStream, // Dùng stream đã tạo trong initState
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          // LOG để debug
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            developer.log('Stream waiting...', name: 'MatchListScreen');
             return const Center(child: CircularProgressIndicator());
           }
+
+          if (snapshot.hasError) {
+            developer.log('Stream error: ${snapshot.error}', name: 'MatchListScreen', error: snapshot.error);
+            return Center(child: Text('Lỗi: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData) {
+            developer.log('Stream has no data', name: 'MatchListScreen');
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final matchedData = snapshot.data!;
+          developer.log('Stream data received: ${matchedData.length} matches', name: 'MatchListScreen');
+
           if (matchedData.isEmpty) {
             return const Center(child: Text('Bạn chưa có match nào!'));
           }
@@ -72,6 +173,24 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     searchText.toLowerCase(),
                   );
                 }).toList();
+
+          // SẮP XẾP NGAY TẠI ĐÂY - một lần duy nhất cho avatar list
+          final sortedByMatchTime = [...filteredData];
+          sortedByMatchTime.sort((a, b) {
+            final aTime = a['matchedAt'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime = b['matchedAt'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime);
+          });
+
+          // SẮP XẾP cho chat list theo lastMessageTime
+          final sortedByMessageTime = [...filteredData];
+          sortedByMessageTime.sort((a, b) {
+            final aTime = a['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime = b['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime);
+          });
+
+          developer.log('Sorted by message time: ${sortedByMessageTime.map((m) => '${(m['user'] as UserModel).username}: ${m['lastMessageTime']}')}', name: 'MatchListScreen');
 
           return ListView(
             padding: EdgeInsets.zero,
@@ -98,22 +217,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   height: 90,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: filteredData.length,
+                    itemCount: sortedByMatchTime.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 16),
                     itemBuilder: (context, index) {
-                      final sortedMatchList = [...filteredData];
-                      sortedMatchList.sort((a, b) {
-                        final aTime =
-                            a['matchedAt'] ??
-                            DateTime.fromMillisecondsSinceEpoch(0);
-                        final bTime =
-                            b['matchedAt'] ??
-                            DateTime.fromMillisecondsSinceEpoch(0);
-                        return bTime.compareTo(aTime);
-                      });
-                      final user = sortedMatchList[index]['user'] as UserModel;
-                      final matchId =
-                          sortedMatchList[index]['matchId'] as String;
+                      final user = sortedByMatchTime[index]['user'] as UserModel;
+                      final matchId = sortedByMatchTime[index]['matchId'] as String;
 
                       return GestureDetector(
                         onTap: () {
@@ -352,85 +460,71 @@ class _MatchListScreenState extends State<MatchListScreen> {
               ),
               const Divider(height: 1),
               // Danh sách chat dọc - SẮP XẾP THEO lastMessageTime
-              ...(() {
-                final sortedChatList = [...filteredData];
-                sortedChatList.sort((a, b) {
-                  final aTime =
-                      a['lastMessageTime'] ??
-                      DateTime.fromMillisecondsSinceEpoch(0);
-                  final bTime =
-                      b['lastMessageTime'] ??
-                      DateTime.fromMillisecondsSinceEpoch(0);
-                  return bTime.compareTo(aTime);
-                });
-                return List.generate(sortedChatList.length, (index) {
-                  final matchId = sortedChatList[index]['matchId'] as String;
-                  final user = sortedChatList[index]['user'] as UserModel;
-                  final lastMessage =
-                      sortedChatList[index]['lastMessage'] as String?;
-                  final lastMessageTime =
-                      sortedChatList[index]['lastMessageTime'] as DateTime?;
+              ...sortedByMessageTime.map((item) {
+                final matchId = item['matchId'] as String;
+                final user = item['user'] as UserModel;
+                final lastMessage = item['lastMessage'] as String?;
+                final lastMessageTime = item['lastMessageTime'] as DateTime?;
 
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ChatScreen(matchId: matchId, peerUser: user),
-                        ),
-                      );
-                    },
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        radius: 28,
-                        backgroundImage:
-                            user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider(user.avatarUrl!)
-                            : null,
-                        child: user.avatarUrl == null
-                            ? const Icon(Icons.person, size: 28)
-                            : null,
+                return InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ChatScreen(matchId: matchId, peerUser: user),
                       ),
-                      title: Text(
-                        user.username,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.normal,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${user.age} tuổi • ${user.location}',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          if (lastMessage != null)
-                            Text(
-                              lastMessage,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                      trailing: lastMessageTime != null
-                          ? Text(
-                              _formatTime(lastMessageTime),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            )
+                    );
+                  },
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      radius: 28,
+                      backgroundImage:
+                          user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                          ? CachedNetworkImageProvider(user.avatarUrl!)
+                          : null,
+                      child: user.avatarUrl == null
+                          ? const Icon(Icons.person, size: 28)
                           : null,
                     ),
-                  );
-                });
-              })(),
+                    title: Text(
+                      user.username,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${user.age} tuổi • ${user.location}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        if (lastMessage != null)
+                          Text(
+                            lastMessage,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                    trailing: lastMessageTime != null
+                        ? Text(
+                            _formatTime(lastMessageTime),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          )
+                        : null,
+                  ),
+                );
+              }).toList(),
             ],
           );
         },

@@ -5,26 +5,38 @@ import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../services/notification_service.dart';
 
+// ChatProvider quản lý trạng thái và logic liên quan đến chat, sử dụng ChangeNotifier để cập nhật UI khi dữ liệu thay đổi.
 class ChatProvider with ChangeNotifier {
+  // Danh sách các tin nhắn trong cuộc trò chuyện
   List<Map<String, dynamic>> _messages = [];
+  // Biến kiểm tra trạng thái đang tải dữ liệu
   bool _isLoading = false;
+  // Id của người dùng hiện tại
   String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  // Kiểm tra trạng thái đối phương có đang nhập tin nhắn không
   bool _isPeerTyping = false;
+  // Thông tin người dùng hiện tại
   UserModel? _currentUser;
 
-  // Thêm biến này để lưu lại id/timestamp tin nhắn đã thông báo
+  // Lưu lại id/timestamp của tin nhắn đã gửi thông báo để tránh gửi lặp lại
   Map<String, String> _lastNotifiedMessageId = {};
 
+  // Getter trả về danh sách tin nhắn
   List<Map<String, dynamic>> get messages => _messages;
+  // Getter trả về trạng thái loading
   bool get isLoading => _isLoading;
+  // Getter trả về trạng thái đối phương đang nhập
   bool get isPeerTyping => _isPeerTyping;
+  // Getter trả về thông tin người dùng hiện tại
   UserModel? get currentUser => _currentUser;
 
+  // Setter cập nhật trạng thái đối phương đang nhập và thông báo cho UI
   set isPeerTyping(bool value) {
     _isPeerTyping = value;
     notifyListeners();
   }
 
+  // Hàm lấy danh sách tin nhắn từ Firestore, cập nhật trạng thái loading và thông báo cho UI
   Future<void> fetchMessages(String matchId) async {
     _isLoading = true;
     notifyListeners();
@@ -33,6 +45,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Hàm gửi tin nhắn văn bản, gọi FirestoreService để gửi, sau đó cập nhật lại danh sách tin nhắn
   Future<void> sendMessage(String matchId, String text, {UserModel? peerUser}) async {
     _isLoading = true;
     notifyListeners();
@@ -40,13 +53,65 @@ class ChatProvider with ChangeNotifier {
     await fetchMessages(matchId);
     _isLoading = false;
     notifyListeners();
-
-    // XÓA hoặc COMMENT dòng này để không tự gửi thông báo cho chính mình
-    // if (peerUser != null) {
-    //   await handleMessageNotification(matchId, text, peerUser);
-    // }
   }
 
+  // Hàm gửi tin nhắn thoại, gọi FirestoreService để gửi, cập nhật lại tin nhắn, đồng thời gửi thông báo push cho đối phương nếu có
+  Future<void> sendVoiceMessage(
+    String matchId,
+    String audioUrl, {
+    int? duration,
+    UserModel? peerUser,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    await FirestoreService().sendVoiceMessage(
+      matchId: matchId,
+      audioUrl: audioUrl,
+      duration: duration,
+    );
+    await fetchMessages(matchId);
+    _isLoading = false;
+    notifyListeners();
+
+    // Gửi thông báo push cho đối phương nếu có
+    if (peerUser != null) {
+      await handleMessageNotification(
+        matchId,
+        'Đã gửi 1 tin nhắn thoại',
+        peerUser,
+      );
+    }
+  }
+
+  // Hàm gửi cảm xúc (emoji) cho một tin nhắn, gọi FirestoreService để xử lý
+  Future<void> reactToMessage(String matchId, String messageId, String emoji) async {
+  await FirestoreService().reactToMessage(
+    matchId: matchId,
+    messageId: messageId,
+    emoji: emoji,
+  );
+  notifyListeners();
+}
+
+Future<void> sendMediaWithNotify(
+  String matchId,
+  String mediaUrl, {
+  bool isVideo = false,
+  String? caption,
+  UserModel? peerUser,
+}) async {
+  await FirestoreService().sendMediaWithNotify(
+    matchId: matchId,
+    mediaUrl: mediaUrl,
+    isVideo: isVideo,
+    caption: caption,
+    peerUser: peerUser,
+  );
+  await fetchMessages(matchId);
+  notifyListeners();
+}
+
+  // Hàm gửi tin nhắn văn bản kèm media (ảnh/video)
   Future<void> sendMessageWithMedia(
     String matchId,
     String text, {
@@ -61,6 +126,7 @@ class ChatProvider with ChangeNotifier {
     );
   }
 
+  // Hàm trả về stream danh sách tin nhắn, đồng thời kiểm tra nếu có tin nhắn mới từ đối phương thì gửi thông báo, tránh gửi lặp lại bằng cách kiểm tra id/timestamp
   Stream<List<Map<String, dynamic>>> messagesStream(String matchId, UserModel peerUser) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     return FirestoreService().messagesStream(matchId).map((messages) {
@@ -71,15 +137,25 @@ class ChatProvider with ChangeNotifier {
         if (lastMsg['senderId'] != currentUserId &&
             msgId != null &&
             _lastNotifiedMessageId[matchId] != msgId) {
-          handleMessageNotification(matchId, lastMsg['text'] ?? '', peerUser);
-          _lastNotifiedMessageId[matchId] = msgId;
+            String notifyText = '';
+            if (lastMsg['type'] == 'voice') {
+              notifyText = 'Đã gửi 1 tin nhắn thoại';
+            } else if (lastMsg['type'] == 'media') {
+              notifyText = 'Đã gửi 1 hình ảnh/video';
+            } else if (lastMsg['type'] == 'react') {
+              notifyText = 'Đã thả cảm xúc';
+            } else {
+              notifyText = lastMsg['text'] ?? '';
+            }
+            handleMessageNotification(matchId, notifyText, peerUser);
+            _lastNotifiedMessageId[matchId] = msgId;
         }
       }
       return messages;
     });
   }
 
-  // Hàm lắng nghe cuộc gọi đến và hiển thị thông báo
+  // Hàm lắng nghe cuộc gọi đến qua Firestore, nếu có cuộc gọi mới từ đối phương thì hiển thị thông báo cuộc gọi
   void listenForIncomingCalls(String matchId, UserModel peerUser) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
@@ -91,14 +167,13 @@ class ChatProvider with ChangeNotifier {
         .listen((doc) {
       final data = doc.data();
       
-      // Kiểm tra nếu có cuộc gọi mới từ người khác (không phải mình gọi)
-      // và chưa được trả lời
+      // Kiểm tra nếu có cuộc gọi mới từ người khác (không phải mình gọi) và chưa được trả lời
       if (data != null &&
           data['callerId'] != currentUserId &&
           data['status'] == 'active' &&
           (data['answered'] != true)) {
         
-        // HIỂN THỊ THÔNG BÁO CUỘC GỌI
+        // Hiển thị thông báo cuộc gọi
         showCallNotification(
           peerUsername: peerUser.username,
           matchId: matchId,
@@ -108,7 +183,7 @@ class ChatProvider with ChangeNotifier {
     });
   }
 
-  // Hàm xác nhận đã nhận cuộc gọi
+  // Hàm xác nhận đã nhận cuộc gọi, cập nhật trạng thái cuộc gọi trên Firestore
   Future<void> answerCall(String matchId) async {
     await FirebaseFirestore.instance
         .collection('calls')
@@ -117,7 +192,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Hàm kết thúc cuộc gọi
+  // Hàm kết thúc cuộc gọi, ghi lại thông tin cuộc gọi (thời lượng, trạng thái) vào Firestore
   Future<void> endCall(String matchId, int duration, {bool missed = false, bool declined = false}) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     await FirestoreService().addCallMessage(
@@ -130,21 +205,13 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Hàm helper format duration
-  String _formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    if (minutes > 0) {
-      return '$minutes phút $secs giây';
-    }
-    return '$secs giây';
-  }
-
+  // Hàm lấy thông tin người dùng hiện tại từ Firestore
   Future<void> fetchCurrentUser() async {
     _currentUser = await FirestoreService().getCurrentUser();
     notifyListeners();
   }
 
+  // Hàm cập nhật trạng thái đang nhập tin nhắn của người dùng hiện tại lên Firestore
   Future<void> setTyping(String matchId, {required bool isTyping}) async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     await FirebaseFirestore.instance
@@ -153,6 +220,7 @@ class ChatProvider with ChangeNotifier {
         .set({'${currentUserId}_typing': isTyping}, SetOptions(merge: true));
   }
 
+  // Hàm trả về stream trạng thái đang nhập tin nhắn của đối phương
   Stream<bool> peerTypingStream(String matchId, String peerUserId) {
     return FirebaseFirestore.instance
         .collection('chats')
@@ -161,8 +229,8 @@ class ChatProvider with ChangeNotifier {
         .map((doc) => doc.data()?['${peerUserId}_typing'] == true);
   }
 
+  // Hàm gửi thông báo khi nhận tin nhắn mới
   Future<void> handleMessageNotification(String matchId, String text, UserModel peerUser) async {
-    // Khi nhận tin nhắn mới
     await showMessageNotification(
       peerUsername: peerUser.username,
       matchId: matchId,
@@ -171,8 +239,8 @@ class ChatProvider with ChangeNotifier {
     );
   }
 
+  // Hàm gửi thông báo khi có cuộc gọi đến
   Future<void> handleCallNotification(String matchId, UserModel peerUser) async {
-    // Khi có cuộc gọi đến
     await showCallNotification(
       peerUsername: peerUser.username,
       matchId: matchId,

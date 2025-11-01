@@ -6,13 +6,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/providers/moment_provider.dart';
 import 'camera_capture_screen.dart';
 import 'package:video_player/video_player.dart';
-import 'dart:developer';
+//import 'dart:developer';
 import '../../core/services/firestore_service.dart';
 import '../../core/models/user_model.dart';
 import '../../core/providers/chat_provider.dart';
 import 'dart:ui';
 import 'dart:developer' as developer;
+//import 'package:flutter/services.dart';
+import 'package:firebase_storage/firebase_storage.dart'; 
+import '../../core/providers/profile_provider.dart';
+import 'subscription_screen.dart';
 
+// Lớp chính của màn hình moments, sử dụng TabBarView để chuyển đổi giữa các tab
 class MomentScreen extends StatefulWidget {
   const MomentScreen({super.key});
 
@@ -20,6 +25,7 @@ class MomentScreen extends StatefulWidget {
   State<MomentScreen> createState() => _MomentScreenState();
 }
 
+// Trạng thái của MomentScreen, quản lý TabController và trạng thái upload
 class _MomentScreenState extends State<MomentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -32,28 +38,35 @@ class _MomentScreenState extends State<MomentScreen>
     _loadMoments();
   }
 
+  // Phương thức tải moments từ provider, sử dụng stream realtime
   Future<void> _loadMoments() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
       final provider = Provider.of<MomentProvider>(context, listen: false);
-      final matchedUserIds = await provider.getMatchedUserIds(userId);
-      log('Current userId: $userId');
-      log('Matched userIds: $matchedUserIds');
-      await provider.fetchMoments(userId, matchedUserIds);
+      // Sử dụng stream realtime thay vì fetch một lần để cập nhật tự động
+      await provider.listenMoments(userId);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Lấy arguments từ route để xử lý moment cụ thể nếu có
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    final momentId = args?['momentId'];
+    // Nếu có momentId, có thể scroll hoặc mở chi tiết moment đó (chưa implement)
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
+          // TabBarView chứa hai tab: FeedTab và MyMomentsTab
           TabBarView(
             controller: _tabController,
             children: [FeedTab(), MyMomentsTab()],
           ),
-          // Header với logo và tabs
+          // Header với logo và tabs, sử dụng BackdropFilter để làm mờ nền
           Positioned(
             top: 0,
             left: 0,
@@ -64,11 +77,11 @@ class _MomentScreenState extends State<MomentScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
+                      begin: Alignment.topCenter, 
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.7),
-                        Colors.black.withValues(alpha: 0.3),
+                        Colors.deepOrange.withValues(alpha: 0.8), 
+                        const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.6),
                       ],
                     ),
                     border: Border(
@@ -82,7 +95,7 @@ class _MomentScreenState extends State<MomentScreen>
                     bottom: false,
                     child: Column(
                       children: [
-                        // Logo row
+                        // Hàng logo với icon và text
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -93,8 +106,7 @@ class _MomentScreenState extends State<MomentScreen>
                               const Padding(
                                 padding: EdgeInsets.only(left: 12.0),
                                 child: Icon(
-                                  Icons
-                                      .sports_esports, // hoặc CupertinoIcons.game_controller_solid
+                                  Icons.sports_esports,
                                   color: Colors.deepOrange,
                                   size: 26,
                                 ),
@@ -108,10 +120,88 @@ class _MomentScreenState extends State<MomentScreen>
                                   fontSize: 20,
                                 ),
                               ),
+                              const Spacer(),
+                              // Hiển thị badge Premium hoặc nút nâng cấp dựa trên trạng thái user
+                              Consumer<ProfileProvider>(
+                                builder: (context, provider, _) {
+                                  final isPremium =
+                                      provider.userData?.isPremium == true;
+                                  if (isPremium) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.amber,
+                                              Colors.orange.shade600,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(
+                                              Icons.workspace_premium_rounded,
+                                              color: Colors.white,
+                                              size: 18,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Premium',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    return TextButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const SubscriptionScreen(),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.workspace_premium_rounded,
+                                        color: Colors.deepOrange,
+                                        size: 20,
+                                      ),
+                                      label: const Text(
+                                        'Nâng cấp',
+                                        style: TextStyle(
+                                          color: Colors.deepOrange,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
                             ],
                           ),
                         ),
-                        // TabBar
+
+                        // TabBar với hai tab: Khám phá và Của tôi
                         TabBar(
                           controller: _tabController,
                           indicatorColor: Colors.deepOrange,
@@ -138,6 +228,7 @@ class _MomentScreenState extends State<MomentScreen>
               ),
             ),
           ),
+          // Overlay hiển thị khi đang upload
           if (isUploading)
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
@@ -197,6 +288,7 @@ class _MomentScreenState extends State<MomentScreen>
   }
 }
 
+// Widget cho tab "Khám phá", hiển thị moments của tất cả người dùng
 class FeedTab extends StatefulWidget {
   FeedTab({super.key});
 
@@ -204,6 +296,7 @@ class FeedTab extends StatefulWidget {
   State<FeedTab> createState() => _FeedTabState();
 }
 
+// Trạng thái của FeedTab, quản lý PageController và chế độ hiển thị
 class _FeedTabState extends State<FeedTab> {
   final PageController _pageController = PageController();
   bool isGridMode = false;
@@ -211,21 +304,23 @@ class _FeedTabState extends State<FeedTab> {
   @override
   void initState() {
     super.initState();
-    // Đánh dấu đã xem moment
+    // Đánh dấu đã xem moments khi vào tab
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
         try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .set({
-                'lastSeenMoments': FieldValue.serverTimestamp(), // THAY ĐỔI: Dùng serverTimestamp
-              }, SetOptions(merge: true)); // THAY ĐỔI: Thêm merge: true
-        
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'lastSeenMoments':
+                FieldValue.serverTimestamp(), // THAY ĐỔI: Dùng serverTimestamp
+          }, SetOptions(merge: true)); // THAY ĐỔI: Thêm merge: true
+
           developer.log('Updated lastSeenMoments', name: 'FeedTab');
         } catch (e) {
-          developer.log('Error updating lastSeenMoments: $e', name: 'FeedTab', error: e);
+          developer.log(
+            'Error updating lastSeenMoments: $e',
+            name: 'FeedTab',
+            error: e,
+          );
         }
       }
     });
@@ -256,6 +351,7 @@ class _FeedTabState extends State<FeedTab> {
               }
 
               if (isGridMode) {
+                // Hiển thị dạng lưới
                 return GridView.builder(
                   padding: const EdgeInsets.fromLTRB(8, 70, 8, 8),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -271,6 +367,7 @@ class _FeedTabState extends State<FeedTab> {
                   },
                 );
               } else {
+                // Hiển thị dạng PageView dọc
                 return PageView.builder(
                   controller: _pageController,
                   scrollDirection: Axis.vertical,
@@ -286,7 +383,7 @@ class _FeedTabState extends State<FeedTab> {
             },
           ),
         ),
-        // Toggle button
+        // Nút chuyển đổi chế độ hiển thị
         Positioned(
           top: topPadding + 12,
           right: 16,
@@ -329,6 +426,7 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
+  // Xây dựng item trong grid view
   Widget _buildGridItem(BuildContext context, dynamic moment, String userId) {
     return GestureDetector(
       onTap: () => _showMomentDetail(context, moment, userId),
@@ -337,8 +435,9 @@ class _FeedTabState extends State<FeedTab> {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // Hiển thị ảnh hoặc thumbnail của video
             CachedNetworkImage(
-              // Dùng thumbnail nếu là video, không thì dùng mediaUrl
+              // Sử dụng thumbnail nếu là video, không thì dùng mediaUrl
               imageUrl: (moment.isVideo && moment.thumbnailUrl != null)
                   ? moment.thumbnailUrl!
                   : moment.mediaUrl,
@@ -373,7 +472,7 @@ class _FeedTabState extends State<FeedTab> {
                 ),
               ),
             ),
-            // Gradient overlay
+            // Gradient overlay để làm tối phần dưới
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -406,7 +505,7 @@ class _FeedTabState extends State<FeedTab> {
                   ),
                 ),
               ),
-            // User info
+            // Thông tin user ở dưới
             Positioned(
               left: 12,
               right: 12,
@@ -480,7 +579,7 @@ class _FeedTabState extends State<FeedTab> {
                 },
               ),
             ),
-            // Reaction badge
+            // Badge hiển thị số lượng reactions
             if (moment.reactions.isNotEmpty)
               Positioned(
                 top: 10,
@@ -527,6 +626,7 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
+  // Lấy thông tin user từ Firestore
   Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
     final doc = await FirebaseFirestore.instance
         .collection('users')
@@ -535,6 +635,7 @@ class _FeedTabState extends State<FeedTab> {
     return doc.exists ? doc.data() : null;
   }
 
+  // Xây dựng trạng thái trống khi không có moments
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -581,11 +682,36 @@ class _FeedTabState extends State<FeedTab> {
               ),
             ),
           ),
+          const SizedBox(height: 24),
+          // Nút để đăng moments mới
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            icon: const Icon(Icons.camera_alt_rounded),
+            label: const Text(
+              'Đăng khoảnh khắc',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
+              );
+              // Xử lý kết quả upload nếu cần
+            },
+          ),
         ],
       ),
     );
   }
 
+  // Hiển thị chi tiết moment trong modal bottom sheet
   void _showMomentDetail(
     BuildContext context,
     dynamic moment,
@@ -633,9 +759,11 @@ class _FeedTabState extends State<FeedTab> {
   }
 }
 
+// Widget cho tab "Của tôi", hiển thị moments của user hiện tại
 class MyMomentsTab extends StatelessWidget {
   const MyMomentsTab({super.key});
 
+  // Xóa moment với xác nhận
   Future<void> _deleteMoment(BuildContext context, String momentId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -670,10 +798,33 @@ class MyMomentsTab extends StatelessWidget {
 
     if (confirm == true) {
       try {
+        // Lấy URL media/thumbnail để xóa trên Storage nếu cần
+        final doc = await FirebaseFirestore.instance
+            .collection('moments')
+            .doc(momentId)
+            .get();
+        final data = doc.data() ?? {};
+        final mediaUrl = data['mediaUrl'] as String?;
+        final thumbUrl = data['thumbnailUrl'] as String?;
+
+        // Xóa document trên Firestore
         await FirebaseFirestore.instance
             .collection('moments')
             .doc(momentId)
             .delete();
+
+        // Thử xóa file trên Storage (bỏ qua lỗi nếu không có quyền)
+        try {
+          if (mediaUrl != null && mediaUrl.startsWith('http')) {
+            await FirebaseStorage.instance.refFromURL(mediaUrl).delete();
+          }
+          if (thumbUrl != null && thumbUrl.startsWith('http')) {
+            await FirebaseStorage.instance.refFromURL(thumbUrl).delete();
+          }
+        } catch (_) {
+          // Bỏ qua lỗi Storage
+        }
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -685,15 +836,7 @@ class MyMomentsTab extends StatelessWidget {
               ),
             ),
           );
-          final userId = FirebaseAuth.instance.currentUser?.uid;
-          if (userId != null) {
-            final provider = Provider.of<MomentProvider>(
-              context,
-              listen: false,
-            );
-            final matchedUserIds = await provider.getMatchedUserIds(userId);
-            await provider.fetchMoments(userId, matchedUserIds);
-          }
+          // Provider đang listen realtime nên UI tự cập nhật
         }
       } catch (e) {
         if (context.mounted) {
@@ -782,8 +925,9 @@ class MyMomentsTab extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
+                    // Hiển thị ảnh hoặc thumbnail
                     CachedNetworkImage(
-                      // Dùng thumbnail nếu là video, không thì dùng mediaUrl
+                      // Sử dụng thumbnail nếu là video, không thì dùng mediaUrl
                       imageUrl: (moment.isVideo && moment.thumbnailUrl != null)
                           ? moment.thumbnailUrl!
                           : moment.mediaUrl,
@@ -871,6 +1015,7 @@ class MyMomentsTab extends StatelessWidget {
     );
   }
 
+  // Hiển thị chi tiết moment trong modal
   void _showMomentDetail(
     BuildContext context,
     dynamic moment,
@@ -911,6 +1056,7 @@ class MyMomentsTab extends StatelessWidget {
   }
 }
 
+// Widget hiển thị chi tiết một moment với các nút tương tác
 class MomentCard extends StatelessWidget {
   final dynamic moment;
   final String currentUserId;
@@ -921,6 +1067,7 @@ class MomentCard extends StatelessWidget {
     required this.currentUserId,
   });
 
+  // Lấy thông tin user từ Firestore
   Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
     final doc = await FirebaseFirestore.instance
         .collection('users')
@@ -945,24 +1092,31 @@ class MomentCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // Hiển thị ảnh hoặc video
               moment.isVideo
                   ? VideoPlayerWidget(videoUrl: moment.mediaUrl)
-                  : CachedNetworkImage(
-                      imageUrl: moment.mediaUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.deepOrange,
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Icon(
-                          Icons.error_outline,
-                          color: Colors.white,
-                          size: 50,
+                  : Container(
+                      color: Colors.black, // nền để letterbox/pillarbox
+                      child: Center(
+                        child: CachedNetworkImage(
+                          imageUrl: moment.mediaUrl,
+                          fit: BoxFit.contain, // Giữ tỉ lệ không crop
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.deepOrange,
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => const Center(
+                            child: Icon(
+                              Icons.error_outline,
+                              color: Colors.white,
+                              size: 50,
+                            ),
+                          ),
                         ),
                       ),
                     ),
+              // Gradient overlay để làm tối các cạnh
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -977,6 +1131,7 @@ class MomentCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // Thông tin user và caption ở trên
               Positioned(
                 left: 20,
                 right: 20,
@@ -1054,6 +1209,7 @@ class MomentCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                    // Hiển thị reactions nếu có
                     if (moment.reactions.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Wrap(
@@ -1156,9 +1312,9 @@ class MomentCard extends StatelessWidget {
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
+                            height: 56, // Chiều cao cố định
                             padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                              horizontal: 10,
+                              horizontal: 10, // Bỏ vertical để giữ đúng 56
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.25),
@@ -1175,13 +1331,18 @@ class MomentCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                // Quick emoji buttons - chỉ 3 emoji
-                                ...['❤️', '😂']
-                                    .map(
-                                      (emoji) => GestureDetector(
+                            // Cho phép cuộn ngang để tránh tràn
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Quick emoji buttons
+                                  ...['❤️', '😂'].map(
+                                    (emoji) => Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: GestureDetector(
                                         onTap: () {
                                           Provider.of<MomentProvider>(
                                             context,
@@ -1198,7 +1359,9 @@ class MomentCard extends StatelessWidget {
                                               content: Text(
                                                 emoji,
                                                 textAlign: TextAlign.center,
-                                                style: TextStyle(fontSize: 24),
+                                                style: const TextStyle(
+                                                  fontSize: 24,
+                                                ),
                                               ),
                                               duration: const Duration(
                                                 milliseconds: 600,
@@ -1213,7 +1376,8 @@ class MomentCard extends StatelessWidget {
                                         },
                                         child: Container(
                                           width: 40,
-                                          height: 40,
+                                          height:
+                                              40, // đảm bảo nhỏ hơn 56 để cân đối
                                           decoration: BoxDecoration(
                                             color: Colors.white.withValues(
                                               alpha: 0.15,
@@ -1230,42 +1394,42 @@ class MomentCard extends StatelessWidget {
                                           ),
                                         ),
                                       ),
-                                    )
-                                    .toList(),
-                                // Nút mở full picker
-                                GestureDetector(
-                                  onTap: () => _showReactionPicker(
-                                    context,
-                                    moment.id,
-                                    currentUserId,
+                                    ),
                                   ),
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.15,
+                                  // Nút mở full picker
+                                  GestureDetector(
+                                    onTap: () => _showReactionPicker(
+                                      context,
+                                      moment.id,
+                                      currentUserId,
+                                    ),
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        shape: BoxShape.circle,
                                       ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.add_rounded,
-                                      color: Colors.white,
-                                      size: 22,
+                                      child: const Icon(
+                                        Icons.add_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Nút Camera giữa
+                    // Nút Camera giữa (đã là 56x56, giữ nguyên)
                     GestureDetector(
                       onTap: () async {
-                        // Mở camera để reply
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -1317,9 +1481,10 @@ class MomentCard extends StatelessWidget {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                             child: Container(
+                              height:
+                                  56, // Chiều cao cố định bằng với ô emoji
                               padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                                horizontal: 16,
+                                horizontal: 16, // Bỏ vertical để giữ đúng 56
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.25),
@@ -1339,14 +1504,14 @@ class MomentCard extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
-                                children: [
+                                children: const [
                                   Icon(
                                     Icons.chat_bubble_outline_rounded,
                                     color: Colors.white,
                                     size: 20,
                                   ),
-                                  const SizedBox(width: 6),
-                                  const Flexible(
+                                  SizedBox(width: 6),
+                                  Flexible(
                                     child: Text(
                                       'Gửi',
                                       style: TextStyle(
@@ -1375,6 +1540,7 @@ class MomentCard extends StatelessWidget {
     );
   }
 
+  // Định dạng thời gian hiển thị
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
     final diff = now.difference(dateTime);
@@ -1385,6 +1551,7 @@ class MomentCard extends StatelessWidget {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 
+  // Thả cảm xúc nhanh bằng double tap
   void _quickReact(BuildContext context, String momentId, String userId) {
     Provider.of<MomentProvider>(
       context,
@@ -1405,6 +1572,7 @@ class MomentCard extends StatelessWidget {
     );
   }
 
+  // Dialog reply với media (placeholder)
   void _showReplyWithMediaDialog(
     BuildContext context,
     String momentId,
@@ -1412,7 +1580,7 @@ class MomentCard extends StatelessWidget {
     Map mediaResult,
   ) {
     // Placeholder cho reply với media từ camera
-    // Bạn có thể implement logic này sau
+    // Có thể implement logic này sau
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Tính năng reply bằng ảnh/video đang phát triển'),
@@ -1423,6 +1591,7 @@ class MomentCard extends StatelessWidget {
     );
   }
 
+  // Hiển thị picker emoji đầy đủ
   void _showReactionPicker(
     BuildContext context,
     String momentId,
@@ -1509,6 +1678,7 @@ class MomentCard extends StatelessWidget {
     );
   }
 
+  // Dialog gửi tin nhắn reply
   void _showReplyDialog(BuildContext context, String momentId, String userId) {
     final controller = TextEditingController();
     showDialog(
@@ -1676,11 +1846,12 @@ class MomentCard extends StatelessWidget {
               ),
             ),
           ),
-        )
         ),
-      );
+      ),
+    );
   }
 
+  // Hiển thị danh sách người đã thả cảm xúc
   void _showReactionUsers(BuildContext context, List reactions) {
     showModalBottomSheet(
       context: context,
@@ -1813,6 +1984,7 @@ class MomentCard extends StatelessWidget {
   }
 }
 
+// Widget phát video với điều khiển play/pause
 class VideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
 
@@ -1822,6 +1994,7 @@ class VideoPlayerWidget extends StatefulWidget {
   State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
 }
 
+// Trạng thái của VideoPlayerWidget
 class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   late VideoPlayerController _videoController;
   bool _isInitialized = false;
@@ -1849,52 +2022,52 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _videoController.value.isPlaying
-              ? _videoController.pause()
-              : _videoController.play();
-        });
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _videoController.value.size.width,
-              height: _videoController.value.size.height,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: AspectRatio(
+            aspectRatio: _videoController.value.aspectRatio,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _videoController.value.isPlaying
+                      ? _videoController.pause()
+                      : _videoController.play();
+                });
+              },
               child: VideoPlayer(_videoController),
             ),
           ),
-          if (!_videoController.value.isPlaying)
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(50),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 2,
-                      ),
+        ),
+
+        // Overlay play button khi video đang pause
+        if (!_videoController.value.isPlaying)
+          Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 2,
                     ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 60,
-                    ),
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 60,
                   ),
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 

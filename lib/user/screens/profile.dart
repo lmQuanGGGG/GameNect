@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:gamenect_new/core/widgets/profile_card.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/location_provider.dart';
 import '../../core/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_profile_screen.dart';
 import 'edit_profile_screen.dart';
 import 'location_settings_screen.dart';
 import 'package:logging/logging.dart';
+import 'subscription_screen.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -20,22 +21,82 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final Logger _logger = Logger('ProfilePage');
   
+  Widget _buildPremiumPromoCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.deepOrange.withValues(alpha: 0.12),
+            Colors.orange.withValues(alpha: 0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.5), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Nâng cấp Premium',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black87),
+          ),
+          const SizedBox(height: 8),
+          _featureRow('Xem ai đã thích bạn'),
+          const SizedBox(height: 6),
+          _featureRow('Đăng khoảnh khắc không giới hạn'),
+          const SizedBox(height: 6),
+          _featureRow('Hoàn tác lượt vuốt, super like tăng khả năng kết nối'),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text('Nâng cấp ngay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _featureRow(String text) {
+    return Row(
+      children: [
+        const Icon(Icons.check_circle, size: 18, color: Colors.deepOrange),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(color: Colors.black87))),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    // Gọi loadUserProfile khi widget được khởi tạo
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().loadUserProfile();
     });
   }
 
-  // Test location permission
   Future<void> _testLocationPermission() async {
     final locationProvider = Provider.of<LocationProvider>(context, listen: false);
     
     _logger.info('Test: Bắt đầu request location permission...');
     
-    // Request permission
     final hasPermission = await locationProvider.requestLocationPermission();
     
     if (!hasPermission) {
@@ -52,7 +113,6 @@ class _ProfilePageState extends State<ProfilePage> {
     
     _logger.info('Test: Đã có permission, đang lấy vị trí...');
     
-    // Get current location
     final success = await locationProvider.getCurrentLocation();
     
     if (mounted) {
@@ -67,7 +127,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
         
-        // Update location to Firestore
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           await locationProvider.updateUserLocation(user.uid);
@@ -89,6 +148,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Consumer<ProfileProvider>(
       builder: (context, provider, child) {
+        final isPremium = provider.userData?.isPremium ?? false;
+        
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.white,
@@ -117,6 +178,68 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             actions: [
+              // THÊM: Premium Button/Badge
+              if (isPremium)
+                // Hiển thị badge Premium nếu đã đăng ký
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.amber, Colors.orange.shade600],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                // Hiển thị nút Nâng cấp nếu chưa Premium
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Colors.deepOrange,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Nâng cấp',
+                    style: TextStyle(
+                      color: Colors.deepOrange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              
+              // Settings Menu
               PopupMenuButton<String>(
                 icon: const Icon(
                   CupertinoIcons.settings,
@@ -125,7 +248,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 onSelected: (value) async {
                   if (value == 'logout') {
-                    // Show confirmation dialog
                     final shouldLogout = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -194,28 +316,34 @@ class _ProfilePageState extends State<ProfilePage> {
               : SingleChildScrollView(
                   child: Column(
                     children: [
-                      // Ảnh đại diện và nút chỉnh sửa
                       Stack(
                         children: [
+                          // Khi bấm vào avatar, mở màn hình mới hiển thị ProfileCard 
                           GestureDetector(
                             onTap: () {
-                              // Mở HomeProfileScreen để xem trước
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      HomeProfileScreen(userId: provider.userData!.id),
+                                  builder: (_) => Scaffold(
+                                    appBar: AppBar(
+                                      title: Text(provider.userData!.username),
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.deepOrange,
+                                    ),
+                                    backgroundColor: Colors.white,
+                                    body: Center(
+                                      child: ProfileCard(
+                                        user: provider.userData!,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               );
                             },
                             child: Container(
-                              height:
-                                  MediaQuery.of(context).size.width *
-                                  0.8,
+                              height: MediaQuery.of(context).size.width * 0.8,
                               width: MediaQuery.of(context).size.width * 0.8,
-                              margin: EdgeInsets.all(
-                                MediaQuery.of(context).size.width * 0.1,
-                              ),
+                              margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.1),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 boxShadow: [
@@ -227,15 +355,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ],
                                 image: DecorationImage(
                                   image: NetworkImage(
-                                    provider.userData!.avatarUrl ??
-                                        'https://via.placeholder.com/400',
+                                    provider.userData!.avatarUrl ?? 'https://via.placeholder.com/400',
                                   ),
                                   fit: BoxFit.cover,
                                 ),
                               ),
                             ),
                           ),
-                          // Nút chỉnh sửa
                           Positioned(
                             bottom: 16,
                             right: 16,
@@ -257,7 +383,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ],
                       ),
-                      // Thông tin cơ bản
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -281,7 +406,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             const SizedBox(height: 16),
                             
-                            // THÊM PHẦN NÀY - Location Info
                             Consumer<LocationProvider>(
                               builder: (context, locationProvider, child) {
                                 return Card(
@@ -313,7 +437,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 12),
                                         
-                                        // Current Location
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -331,7 +454,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 8),
                                         
-                                        // Max Distance
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -350,7 +472,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 8),
                                         
-                                        // Age Range - THÊM MỚI
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -369,7 +490,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 16),
                                         
-                                        // Buttons Row
                                         Row(
                                           children: [
                                             Expanded(
@@ -444,7 +564,10 @@ class _ProfilePageState extends State<ProfilePage> {
                             
                             const SizedBox(height: 16),
                             
-                            // Game yêu thích
+                            if (!isPremium) _buildPremiumPromoCard(),
+
+                            const SizedBox(height: 16),
+                            
                             _buildSection(
                               'Game yêu thích',
                               Wrap(
@@ -462,7 +585,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            // Thông tin game
                             _buildSection(
                               'Thống kê',
                               Column(
@@ -483,11 +605,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       
-                      // === THÊM PHẦN NÀY Ở CUỐI ===
                       const SizedBox(height: 24),
                       
-                      // Admin Test Users Button
-                      Padding(
+                      /*Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: ElevatedButton.icon(
                           onPressed: () {
@@ -506,7 +626,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       
-                      const SizedBox(height: 32), // Bottom padding
+                      const SizedBox(height: 32),*/
                     ],
                   ),
                 ),

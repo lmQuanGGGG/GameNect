@@ -16,15 +16,14 @@ class VideoCallScreen extends StatefulWidget {
   final String peerUserId;
   final String peerUsername;
   final String? peerAvatarUrl;
-  final bool isVoiceCall; // THÊM
-
+  final bool isVoiceCall; 
   const VideoCallScreen({
     super.key,
     required this.channelName,
     required this.peerUserId,
     required this.peerUsername,
     this.peerAvatarUrl,
-    this.isVoiceCall = false, // THÊM
+    this.isVoiceCall = false,
   });
 
   @override
@@ -36,7 +35,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   int? _remoteUid;
   bool _isInitialized = false;
   bool _isJoined = false;
-  DateTime? _callStartTime; // Thêm biến này
+  DateTime? _callStartTime; 
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _isFrontCamera = true;
@@ -236,7 +235,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
-  // Sửa hàm _leaveChannel:
+ 
   Future<void> _leaveChannel() async {
     _callTimeoutTimer?.cancel();
     _callStatusSubscription?.cancel();

@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="gamenect_new"
         android:name="${applicationName}"
@@ -7,6 +8,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:showOnLockScreen="true"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -20,6 +22,9 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+              <meta-data
+    android:name="com.google.firebase.messaging.default_notification_channel_id"
+    android:value="gamenect_channel" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -31,7 +36,17 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3"/>
             </intent-filter>
-            
+            <!-- Deep link PayOS: gamenect://payment/... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="gamenect" android:host="payment"/>
+            </intent-filter>
+             <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <!-- Google Sign-In meta-data -->
         <meta-data
@@ -57,7 +72,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" /> 
     <!-- Quyền truy cập thư viện ảnh -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -80,5 +95,14 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="google"/>
         </intent>
+         <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        
     </queries>
 </manifest>
