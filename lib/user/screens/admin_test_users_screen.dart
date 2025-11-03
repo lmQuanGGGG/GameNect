@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../scripts/create_test_users.dart';
 
+// Màn hình admin để tạo và quản lý test users
+// Giúp tạo hàng loạt users giả để test các tính năng như matching, chat, location
 class AdminTestUsersScreen extends StatefulWidget {
   const AdminTestUsersScreen({super.key});
 
@@ -23,9 +25,11 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
     super.dispose();
   }
 
+  // Xử lý tạo nhiều test users cùng lúc
   Future<void> _handleCreateUsers() async {
     final count = int.tryParse(_countController.text) ?? 0;
     
+    // Validate số lượng trong khoảng cho phép
     if (count <= 0 || count > 500) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -43,6 +47,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
     });
 
     try {
+      // Gọi hàm tạo users và đợi kết quả
       final users = await _createTestUsers.createMultipleUsers(count);
       
       setState(() {
@@ -76,7 +81,9 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
     }
   }
 
+  // Xóa tất cả test users khỏi hệ thống
   Future<void> _handleDeleteTestUsers() async {
+    // Hiển thị dialog xác nhận trước khi xóa
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -128,9 +135,11 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
     }
   }
 
+  // Copy danh sách users vào clipboard để lưu lại hoặc chia sẻ
   void _copyUsersList() {
     if (_createdUsers.isEmpty) return;
 
+    // Format dữ liệu thành bảng dễ đọc
     final buffer = StringBuffer();
     buffer.writeln('Email | Password | Tên | Thành phố | Games');
     buffer.writeln('-' * 80);
@@ -164,7 +173,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Info card
+            // Card hiển thị thông tin hướng dẫn
             Card(
               color: Colors.blue.shade50,
               child: Padding(
@@ -204,7 +213,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
 
             const SizedBox(height: 24),
 
-            // Input số lượng
+            // Input nhập số lượng users cần tạo
             TextField(
               controller: _countController,
               keyboardType: TextInputType.number,
@@ -221,7 +230,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
 
             const SizedBox(height: 16),
 
-            // Nút tạo users
+            // Nút bấm để tạo users
             ElevatedButton.icon(
               onPressed: _isCreating ? null : _handleCreateUsers,
               icon: _isCreating
@@ -247,7 +256,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
 
             const SizedBox(height: 12),
 
-            // Nút xóa test users
+            // Nút xóa tất cả test users
             OutlinedButton.icon(
               onPressed: _isCreating ? null : _handleDeleteTestUsers,
               icon: const Icon(Icons.delete_outline),
@@ -263,7 +272,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
 
             const SizedBox(height: 24),
 
-            // Status message
+            // Hiển thị trạng thái đang tạo hoặc đã tạo xong
             if (_statusMessage.isNotEmpty)
               Card(
                 color: _isCreating ? Colors.orange.shade50 : Colors.green.shade50,
@@ -279,7 +288,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
                 ),
               ),
 
-            // Danh sách users đã tạo
+            // Hiển thị danh sách users vừa tạo
             if (_createdUsers.isNotEmpty) ...[
               const SizedBox(height: 24),
               Row(

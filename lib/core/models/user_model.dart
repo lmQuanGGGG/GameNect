@@ -5,23 +5,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
   // Các trường thông tin cá nhân cơ bản
-  String id;                       // Id của user (document id trong Firestore)
-  String username;                 // Tên hiển thị của user
-  List<String> favoriteGames;      // Danh sách game yêu thích
-  String rank;                     // Rank game của user
-  String location;                 // Địa chỉ vị trí hiện tại (chuỗi)
-  int playTime;                    // Tổng thời gian chơi game
-  int winRate;                     // Tỉ lệ thắng
-  int points;                      // Điểm số tổng
-  final String? avatarUrl;         // Đường dẫn avatar
-  final List<String> additionalPhotos; // Danh sách ảnh bổ sung
-  String gender;                   // Giới tính
-  int age;                         // Tuổi
-  int height;                      // Chiều cao
-  String bio;                      // Giới thiệu bản thân
-  List<String> interests;          // Danh sách sở thích khác
-  String lookingFor;               // Mong muốn tìm kiếm (bạn chơi game, bạn đời...)
-  String gameStyle;                // Phong cách chơi game (Casual, Tryhard...)
+  String id;                       
+  String username;                 
+  List<String> favoriteGames;      
+  String rank;                     
+  String location;                
+  int playTime;                   
+  int winRate;                     
+  int points;                     
+  final String? avatarUrl;         
+  final List<String> additionalPhotos; 
+  String gender;                   
+  int age;                         
+  int height;                      
+  String bio;                      
+  List<String> interests;          
+  String lookingFor;               
+  String gameStyle;                
 
   // Trường ngày sinh
   final DateTime dateOfBirth;

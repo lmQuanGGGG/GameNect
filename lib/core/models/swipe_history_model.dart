@@ -1,15 +1,14 @@
-// core/models/swipe_history_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Lớp SwipeHistory lưu lại lịch sử thao tác swipe (vuốt) của người dùng trên hệ thống.
 // Mỗi lần vuốt sẽ lưu lại ai là người thực hiện, ai là đối tượng bị vuốt, hành động là like hay dislike, và thời điểm thực hiện.
 
 class SwipeHistory {
-  final String id;               // Id của lịch sử swipe (document id trong Firestore)
-  final String userId;           // Id của user thực hiện thao tác swipe
-  final String targetUserId;     // Id của user bị swipe (đối tượng được vuốt)
-  final String action;           // Hành động swipe: 'like' hoặc 'dislike'
-  final DateTime timestamp;      // Thời điểm thực hiện thao tác swipe
+  final String id;              
+  final String userId;          
+  final String targetUserId;     
+  final String action;          
+  final DateTime timestamp;      
 
   // Hàm khởi tạo đối tượng SwipeHistory với các tham số truyền vào.
   SwipeHistory({

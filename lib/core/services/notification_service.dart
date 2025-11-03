@@ -3,7 +3,8 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 
-// Hiển thị thông báo tin nhắn
+// Hiển thị thông báo tin nhắn mới
+// Sử dụng NotificationLayout.Messaging để hiển thị dạng tin nhắn
 Future<void> showMessageNotification({
   required String peerUsername,
   required String matchId,
@@ -12,10 +13,12 @@ Future<void> showMessageNotification({
 }) async {
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
+      // Tạo ID duy nhất dựa trên timestamp để tránh trùng lặp
       id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
       channelKey: 'gamenect_channel',
       title: peerUsername,
       body: message,
+      // Payload chứa dữ liệu để xử lý khi user tap vào notification
       payload: {
         'type': 'chat',
         'matchId': matchId,
@@ -23,6 +26,7 @@ Future<void> showMessageNotification({
       },
       notificationLayout: NotificationLayout.Messaging,
       category: NotificationCategory.Message,
+      // Đánh thức màn hình khi có notification
       wakeUpScreen: true,
     ),
   );
@@ -30,7 +34,8 @@ Future<void> showMessageNotification({
   developer.log('Message notification sent: $peerUsername', name: 'Notification');
 }
 
-// Hiển thị thông báo cuộc gọi (có nút Accept/Decline)
+// Hiển thị thông báo cuộc gọi đến với action buttons
+// User có thể Accept hoặc Decline trực tiếp từ notification
 Future<void> showCallNotification({
   required String peerUsername,
   required String matchId,
@@ -38,6 +43,7 @@ Future<void> showCallNotification({
 }) async {
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
+      // Dùng hashCode của matchId làm ID để cập nhật notification nếu cần
       id: matchId.hashCode,
       channelKey: 'call_channel',
       title: '📞 Cuộc gọi đến',
@@ -50,10 +56,14 @@ Future<void> showCallNotification({
       notificationLayout: NotificationLayout.Default,
       category: NotificationCategory.Call,
       wakeUpScreen: true,
+      // Hiển thị fullscreen để thu hút sự chú ý
       fullScreenIntent: true,
+      // Critical alert để vượt qua chế độ im lặng
       criticalAlert: true,
+      // Khóa notification để không bị vuốt tắt vô tình
       locked: true,
     ),
+    // Thêm hai nút Accept và Decline
     actionButtons: [
       NotificationActionButton(
         key: 'accept',
@@ -73,7 +83,8 @@ Future<void> showCallNotification({
   developer.log('Call notification sent: $peerUsername', name: 'Notification');
 }
 
-// Hiển thị thông báo moment reaction
+// Hiển thị thông báo khi có người react vào moment
+// Dùng để thông báo tương tác xã hội trên moment
 Future<void> showMomentReactionNotification({
   required String momentOwnerId,
   required String reactorUsername,
@@ -100,12 +111,12 @@ Future<void> showMomentReactionNotification({
   developer.log('Moment reaction notification sent', name: 'Notification');
 }
 
-// Hủy notification
+// Hủy một notification cụ thể theo ID
 Future<void> cancelNotification(int id) async {
   await AwesomeNotifications().cancel(id);
 }
 
-// Hủy tất cả notifications
+// Hủy tất cả notifications đang hiển thị
 Future<void> cancelAllNotifications() async {
   await AwesomeNotifications().cancelAll();
 }

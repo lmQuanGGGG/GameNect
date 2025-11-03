@@ -81,7 +81,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             title: const Text(
-              'Cài đặt vị trí',
+              'Cài đặt vị trí & bộ lọc',
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -20,10 +22,84 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gamenect</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-226979979166-ios-1bf27ecb5e4c297631408f</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FacebookAppID</key>
+	<string>696308786784859</string>
+	<key>FacebookClientToken</key>
+	<string>3db010a9809e1afbaf83fb334dc0f653</string>
+	<key>FacebookDisplayName</key>
+	<string>GameNect</string>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<true/>
+	<key>GIDClientID</key>
+	<string>226979979166-9mrboucg21mk4s24butbkcksm4g14sr3.apps.googleusercontent.com</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>google</string>
+		<string>com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3</string>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+		<string>tel</string>
+		<string>sms</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>GameNect cần truy cập camera để gọi video và chụp ảnh đại diện</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GameNect cần microphone để gọi video và trò chuyện thoại</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GameNect cần truy cập thư viện ảnh để chọn ảnh đại diện</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Ứng dụng cần quyền thông báo để gửi thông báo cho bạn.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>location</string>
+		<string>voip</string>
+		<string>audio</string>
+		<string>bluetooth-peripheral</string>
+		<string>external-accessory</string>
+		<string>push-to-talk</string>
+		<string>nearby-interaction</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -41,86 +117,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-
-	<key>CFBundleURLTypes</key>
-	<array>
-		<!-- Google Sign In -->
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3</string>
-			</array>
-		</dict>
-		<!-- Facebook Login -->
-		<dict>
-			<key>CFBundleURLSchemes</key>
-    		<array>
-      		<string>gamenect</string>
-    		</array>
-		</dict>
-		<!-- Phone Auth -->
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>app-1-226979979166-ios-1bf27ecb5e4c297631408f</string>
-			</array>
-		</dict>
-	</array>
-	
-	<key>GIDClientID</key>
-	<string>226979979166-9mrboucg21mk4s24butbkcksm4g14sr3.apps.googleusercontent.com</string>
-
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>google</string>
-		<string>com.googleusercontent.apps.226979979166-9mrboucg21mk4s24butbkcksm4g14sr3</string>
-		<string>fbapi</string>
-		<string>fb-messenger-share-api</string>
-		<string>fbauth2</string>
-		<string>fbshareextension</string>
-		<string>tel</string>
-		<string>sms</string>
-	</array>
-
-	<!-- Facebook Config -->
-	<key>FacebookAppID</key>
-	<string>696308786784859</string>
-	<key>FacebookClientToken</key>
-	<string>3db010a9809e1afbaf83fb334dc0f653</string>
-	<key>FacebookDisplayName</key>
-	<string>GameNect</string>
-
-	<!-- Permissions - GỘP LẠI, KHÔNG TRÙNG! -->
-	<key>NSCameraUsageDescription</key>
-	<string>GameNect cần truy cập camera để gọi video và chụp ảnh đại diện</string>
-	
-	<key>NSMicrophoneUsageDescription</key>
-	<string>GameNect cần microphone để gọi video và trò chuyện thoại</string>
-	
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>GameNect cần truy cập thư viện ảnh để chọn ảnh đại diện</string>
-	
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
-	
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>GameNect cần truy cập vị trí của bạn để tìm người chơi gần bạn</string>
-
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
-	<key>FirebaseMessagingAutoInitEnabled</key>
-	<true/>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>Ứng dụng cần quyền thông báo để gửi thông báo cho bạn.</string>
 </dict>
 </plist>

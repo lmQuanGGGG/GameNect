@@ -18,6 +18,9 @@ import 'package:provider/provider.dart';
 import '../../core/providers/edit_profile_provider.dart';
 import '../../core/providers/location_provider.dart';
 
+// Màn hình tạo/chỉnh sửa hồ sơ cá nhân
+// Cho phép user nhập đầy đủ thông tin: avatar, game yêu thích, thống kê game, thông tin cá nhân
+// Tích hợp RAWG API để tìm kiếm game và lấy vị trí GPS để matching
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -28,6 +31,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Controllers cho các text field
   final _usernameController = TextEditingController();
   final _birthDateController = TextEditingController();
   String? _rank = 'Gà Mờ';
@@ -68,13 +73,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    // Khởi tạo EditProfileProvider sau khi build xong
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EditProfileProvider>().initialize();
-      _loadLocation();
+      _loadLocation(); // Load vị trí GPS
     });
     _initializeData();
   }
 
+  // Load vị trí hiện tại từ GPS
+  // Dùng để matching user gần nhau
   Future<void> _loadLocation() async {
     final locationProvider = Provider.of<LocationProvider>(context, listen: false);
     
@@ -86,14 +94,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     developer.log('Location loaded: ${locationProvider.currentLocation}', name: 'EditProfile');
   }
 
+  // Khởi tạo dữ liệu ban đầu
   Future<void> _initializeData() async {
     try {
-      await _loadUserProfile();
+      await _loadUserProfile(); // Load profile nếu đã có
     } catch (e) {
       developer.log('Error initializing data', name: 'EditProfile', error: e);
     }
   }
 
+  // Tìm kiếm game từ RAWG API
+  // API trả về danh sách game match với query
   Future<void> _searchGames(String query) async {
     if (query.isEmpty) {
       setState(() {
@@ -106,6 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isSearching = true;
     });
     try {
+      // Call RAWG API với query và page_size=10
       final response = await http.get(
         Uri.parse(
           'https://api.rawg.io/api/games?key=$_apiKey&search=$query&page_size=10',
@@ -115,6 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final data = json.decode(response.body);
         final games = data['results'] as List;
         setState(() {
+          // Map kết quả thành list tên game
           _searchResultGames = games
               .map((game) => game['name'] as String)
               .toList();
@@ -127,6 +140,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Load thông tin profile hiện tại của user từ Firestore
+  // Nếu có rồi thì fill vào các field để chỉnh sửa
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -136,7 +151,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         
         if (userData != null) {
           setState(() {
-            _isUpdating = true;
+            _isUpdating = true; // Đánh dấu đang update profile
+            
+            // Fill dữ liệu vào các field
             _usernameController.text = userData.username;
             _rank = userData.rank;
             _favoriteGames = userData.favoriteGames;
@@ -145,6 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _avatarUrl = userData.avatarUrl;
             _additionalPhotoUrls = userData.additionalPhotos;
 
+            // Validate các giá trị từ provider options
             _gender = provider.genderOptions.contains(userData.gender)
                 ? userData.gender
                 : 'Nam';
@@ -155,6 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? userData.gameStyle
                 : 'Casual';
 
+            // Format ngày sinh theo dd/MM/yyyy
             final dateFormat = DateFormat('dd/MM/yyyy');
             _birthDateController.text = dateFormat.format(userData.dateOfBirth);
             _heightController.text = userData.height.toString();
@@ -173,6 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  // Chọn ảnh đại diện từ gallery
   Future<void> _pickAvatar() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -182,6 +202,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Chọn ảnh bổ sung từ gallery
+  // Giới hạn tối đa 4 ảnh
   Future<void> _pickAdditionalPhoto() async {
     final currentPhotoCount = _additionalPhotoUrls.length + _additionalImages.length;
     if (currentPhotoCount >= 4) {
@@ -199,8 +221,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Upload tất cả ảnh (avatar + additional) lên Firebase Storage
+  // Trả về URL để lưu vào Firestore
   Future<void> _uploadImages(String userId) async {
     try {
+      // Upload avatar nếu có chọn ảnh mới
       if (_avatarImage != null) {
         final avatarFileName =
             'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -214,6 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
+      // Upload các ảnh bổ sung mới
       List<String> newPhotoUrls = List.from(_additionalPhotoUrls);
 
       for (int i = 0; i < _additionalImages.length; i++) {
@@ -240,6 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    // Dispose tất cả controllers
     _usernameController.dispose();
     _heightController.dispose();
     _bioController.dispose();
@@ -247,9 +274,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  // Tính tuổi từ ngày sinh
   int _calculateAge(DateTime birthDate) {
     final now = DateTime.now();
     int age = now.year - birthDate.year;
+    // Điều chỉnh nếu chưa qua sinh nhật năm nay
     if (now.month < birthDate.month ||
         (now.month == birthDate.month && now.day < birthDate.day)) {
       age--;
@@ -257,9 +286,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return age;
   }
 
+  // Validate format ngày sinh: dd/MM/yyyy
+  // Kiểm tra ngày hợp lệ và phải đủ 18 tuổi
   bool _isValidDate(String input) {
     if (input.isEmpty) return false;
 
+    // Regex check format dd/MM/yyyy
     final RegExp dateRegex = RegExp(r'^\d{2}/\d{2}/\d{4}$');
     if (!dateRegex.hasMatch(input)) return false;
 
@@ -272,11 +304,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (month < 1 || month > 12) return false;
     if (day < 1 || day > 31) return false;
 
+    // Kiểm tra năm sinh hợp lệ (từ 1950 đến hiện tại - 18)
     final now = DateTime.now();
     final minYear = 1950;
-    final maxYear = now.year - 18;
+    final maxYear = now.year - 18; // Phải đủ 18 tuổi
     if (year < minYear || year > maxYear) return false;
 
+    // Kiểm tra ngày hợp lệ trong tháng (tháng 2 có 28/29 ngày)
     final daysInMonth = DateTime(year, month + 1, 0).day;
     if (day > daysInMonth) return false;
 
@@ -297,6 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: Stack(
         children: [
+          // Background gradient
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -312,6 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
+          // Content với glassmorphism effect
           Align(
             alignment: Alignment.topCenter,
             child: SingleChildScrollView(
@@ -319,6 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 children: [
                   SizedBox(height: kToolbarHeight + 24),
+                  // Container chứa form với glassmorphism
                   ClipRRect(
                     borderRadius: BorderRadius.circular(28),
                     child: BackdropFilter(
@@ -350,6 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // Header: Thông tin cá nhân
                                     Text(
                                       'Thông tin cá nhân',
                                       style: TextStyle(
@@ -359,6 +397,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     SizedBox(height: 18),
+                                    
+                                    // Avatar picker - CircleAvatar có thể tap để chọn ảnh
                                     Center(
                                       child: GestureDetector(
                                         onTap: _pickAvatar,
@@ -394,6 +434,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     SizedBox(height: 16),
+                                    
+                                    // Section ảnh bổ sung
                                     Text(
                                       'Ảnh bổ sung (tối đa 4)',
                                       style: TextStyle(
@@ -402,13 +444,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     SizedBox(height: 8),
+                                    // Horizontal scroll để hiển thị và thêm ảnh bổ sung
                                     SizedBox(
                                       height: 100,
                                       child: ListView.builder(
                                         scrollDirection: Axis.horizontal,
+                                        // itemCount = số ảnh hiện có + 1 nút Add (nếu chưa đủ 4)
                                         itemCount: _additionalImages.length + _additionalPhotoUrls.length + 
                                           (_additionalImages.length + _additionalPhotoUrls.length < 4 ? 1 : 0),
                                         itemBuilder: (context, index) {
+                                          // Item cuối cùng là nút Add
                                           if (index == _additionalImages.length + _additionalPhotoUrls.length &&
                                               _additionalImages.length + _additionalPhotoUrls.length < 4) {
                                             return GestureDetector(
@@ -426,8 +471,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             );
                                           }
 
+                                          // Các item khác là ảnh đã chọn với nút Edit và Delete
                                           return Stack(
                                             children: [
+                                              // Ảnh preview
                                               GestureDetector(
                                                 onTap: () => _editAdditionalPhoto(index),
                                                 child: Container(
@@ -437,6 +484,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   decoration: BoxDecoration(
                                                     borderRadius: BorderRadius.circular(8),
                                                     image: DecorationImage(
+                                                      // Hiển thị từ URL hoặc File tùy index
                                                       image: index < _additionalPhotoUrls.length
                                                           ? CachedNetworkImageProvider(_additionalPhotoUrls[index])
                                                           : FileImage(_additionalImages[index - _additionalPhotoUrls.length]) as ImageProvider,
@@ -445,6 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   ),
                                                 ),
                                               ),
+                                              // Nút Delete ở góc trên
                                               Positioned(
                                                 top: 4,
                                                 right: 12,
@@ -464,6 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   ),
                                                 ),
                                               ),
+                                              // Nút Edit ở góc dưới
                                               Positioned(
                                                 bottom: 4,
                                                 right: 12,
@@ -489,6 +539,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     SizedBox(height: 16),
+                                    
+                                    // TextField: Tên người dùng
                                     TextFormField(
                                       controller: _usernameController,
                                       decoration: InputDecoration(
@@ -504,6 +556,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           : null,
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // Dropdown: Chọn rank game
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
@@ -528,6 +582,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 16),
+                                    
+                                    // Section: Game yêu thích
                                     Text(
                                       "Game yêu thích (tối đa 5)",
                                       style: TextStyle(
@@ -536,6 +592,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     SizedBox(height: 8),
+                                    
+                                    // TextField: Tìm kiếm game từ RAWG API
                                     TextFormField(
                                       decoration: InputDecoration(
                                         hintText: "Tìm kiếm game...",
@@ -546,9 +604,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         filled: true,
                                         fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
-                                      onChanged: _searchGames,
+                                      onChanged: _searchGames, // Gọi API khi user gõ
                                     ),
                                     SizedBox(height: 8),
+                                    
+                                    // MultiSelectDialogField: Chọn nhiều game từ danh sách
+                                    // Hiển thị kết quả search hoặc hot games
                                     MultiSelectDialogField<String>(
                                       items:
                                           (_isSearching &&
@@ -582,6 +643,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           fontSize: 16,
                                         ),
                                       ),
+                                      // Callback khi chọn/bỏ chọn game
                                       onSelectionChanged: (selectedList) {
                                         if (selectedList.length > 5) {
                                           ScaffoldMessenger.of(
@@ -596,6 +658,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           selectedList.removeLast();
                                         }
                                       },
+                                      // Callback khi confirm chọn
                                       onConfirm: (results) {
                                         if (results.length > 5) {
                                           ScaffoldMessenger.of(
@@ -625,6 +688,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           : null,
                                     ),
                                     SizedBox(height: 16),
+                                    
+                                    // TextField: Thời gian chơi game/ngày
                                     TextFormField(
                                       initialValue: _playTime.toString(),
                                       decoration: InputDecoration(
@@ -652,6 +717,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // TextField: Tỷ lệ thắng (%)
                                     TextFormField(
                                       initialValue: _winRate.toString(),
                                       decoration: InputDecoration(
@@ -683,6 +750,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 16),
+                                    
+                                    // Header: Thông tin cá nhân
                                     Text(
                                       'Thông tin cá nhân',
                                       style: TextStyle(
@@ -692,6 +761,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // Dropdown: Giới tính
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
@@ -716,6 +787,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // TextField: Ngày sinh với format dd/MM/yyyy
                                     TextFormField(
                                       controller: _birthDateController,
                                       decoration: InputDecoration(
@@ -743,6 +816,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         }
                                         return null;
                                       },
+                                      // Tự động thêm dấu "/" khi nhập
                                       onChanged: (value) {
                                         if (value.length == 2 &&
                                             !value.contains('/')) {
@@ -770,6 +844,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // TextField: Chiều cao
                                     TextFormField(
                                       controller: _heightController,
                                       decoration: InputDecoration(
@@ -793,6 +869,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // TextField: Bio - giới thiệu bản thân
                                     TextFormField(
                                       controller: _bioController,
                                       decoration: InputDecoration(
@@ -804,9 +882,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fillColor: Colors.white.withValues(alpha: 0.85),
                                       ),
                                       maxLines: 3,
-                                      maxLength: 200,
+                                      maxLength: 200, // Giới hạn 200 ký tự
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // MultiSelectDialogField: Chọn sở thích khác
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return MultiSelectDialogField<String>(
@@ -838,6 +918,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // Dropdown: Mục đích tìm kiếm
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
@@ -862,6 +944,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 14),
+                                    
+                                    // Dropdown: Phong cách chơi game
                                     Consumer<EditProfileProvider>(
                                       builder: (context, provider, child) {
                                         return DropdownButtonFormField<String>(
@@ -886,9 +970,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                     ),
                                     SizedBox(height: 24),
+                                    
+                                    // Nút Lưu/Cập nhật hồ sơ
                                     Center(
                                       child: ElevatedButton(
                                         onPressed: () async {
+                                          // Validate form và các field bắt buộc
                                           if (_formKey.currentState!.validate() &&
                                               _rank != null &&
                                               _favoriteGames.isNotEmpty) {
@@ -898,7 +985,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 setState(() {
                                                   _isLoading = true;
                                                 });
+                                                
+                                                // Upload tất cả ảnh lên Firebase Storage
                                                 await _uploadImages(user.uid);
+                                                
+                                                // Parse ngày sinh từ string dd/MM/yyyy
                                                 final dateParts =
                                                     _birthDateController.text.split('/');
                                                 final birthDate = DateTime(
@@ -907,17 +998,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   int.parse(dateParts[0]),
                                                 );
 
+                                                // Lấy vị trí GPS từ LocationProvider
                                                 final locationProvider = Provider.of<LocationProvider>(
                                                   context,
                                                   listen: false,
                                                 );
                                                 
+                                                // Nếu chưa có location thì lấy từ GPS
                                                 if (locationProvider.currentLocation == null) {
                                                   developer.log('Đang lấy location từ GPS...', name: 'EditProfile');
                                                   await locationProvider.getCurrentLocation();
                                                   await locationProvider.updateUserLocation(user.uid);
                                                 }
 
+                                                // Format location text để hiển thị
                                                 final locationText = locationProvider.currentLocation ?? 
                                                                     locationProvider.address ?? 
                                                                     locationProvider.city ?? 
@@ -927,6 +1021,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 developer.log('Full address: ${locationProvider.address}', name: 'EditProfile');
                                                 developer.log('City: ${locationProvider.city}', name: 'EditProfile');
 
+                                                // Tạo UserModel với tất cả thông tin
                                                 UserModel newUser = UserModel(
                                                   id: user.uid,
                                                   username: _usernameController.text,
@@ -937,6 +1032,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   winRate: _winRate,
                                                   avatarUrl: _avatarUrl,
                                                   additionalPhotos: _additionalPhotoUrls,
+                                                  // Lưu tọa độ GPS để matching theo khoảng cách
                                                   latitude: locationProvider.latitude,
                                                   longitude: locationProvider.longitude,
                                                   address: locationProvider.address,
@@ -952,6 +1048,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   gameStyle: _gameStyle,
                                                 );
                                                 
+                                                // Lưu vào Firestore
                                                 await _firestoreService.addUser(newUser);
                                                 
                                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -964,7 +1061,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   ),
                                                 );
 
-                                                // Sau khi lưu/chỉnh sửa, chuyển sang màn hình hiển thị ProfileCard giống UserManagementScreen
+                                                // Sau khi lưu, chuyển sang màn hình xem profile card
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(
@@ -1044,14 +1141,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Chỉnh sửa ảnh bổ sung tại index
+  // Cho phép user chọn ảnh mới thay thế
   Future<void> _editAdditionalPhoto(int index) async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         if (index < _additionalPhotoUrls.length) {
+          // Xóa URL cũ và thêm file mới vào list để upload
           _additionalPhotoUrls.removeAt(index);
           _additionalImages.add(File(pickedFile.path));
         } else {
+          // Thay thế file cũ
           _additionalImages[index - _additionalPhotoUrls.length] = File(
             pickedFile.path,
           );
@@ -1060,6 +1161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Xóa ảnh bổ sung tại index
   void _removeAdditionalPhoto(int index) {
     setState(() {
       if (index < _additionalPhotoUrls.length) {

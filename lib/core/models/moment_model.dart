@@ -5,16 +5,16 @@ import 'dart:convert';
 // Một moment có thể là ảnh hoặc video, kèm caption, danh sách match liên quan, danh sách reactions và replies.
 
 class MomentModel {
-  final String id;                           // Id của moment (document id trong Firestore)
-  final String userId;                       // Id của user đã đăng moment
-  final String mediaUrl;                     // Đường dẫn file media (ảnh hoặc video)
-  final String? thumbnailUrl;                // Đường dẫn thumbnail (nếu là video)
-  final bool isVideo;                        // Moment này là video hay không
-  final DateTime createdAt;                  // Thời điểm tạo moment
-  final List<String> matchIds;               // Danh sách id các match liên quan đến moment này
-  final List<Map<String, dynamic>> reactions;// Danh sách các cảm xúc (reaction) của user khác
-  final List<Map<String, dynamic>> replies;  // Danh sách các bình luận (reply) của user khác
-  final String? caption;                     // Nội dung caption của moment
+  final String id;                           
+  final String userId;                       
+  final String mediaUrl;                     
+  final String? thumbnailUrl;                
+  final bool isVideo;                        
+  final DateTime createdAt;                  
+  final List<String> matchIds;               
+  final List<Map<String, dynamic>> reactions;
+  final List<Map<String, dynamic>> replies;  
+  final String? caption;                     
 
   // Hàm khởi tạo đối tượng MomentModel với các tham số truyền vào.
   MomentModel({

@@ -233,7 +233,7 @@ class MatchProvider with ChangeNotifier {
   // Lấy lịch sử dislike, giới hạn số lượng theo loại tài khoản
   Future<void> fetchDislikeHistory(UserModel currentUser, BuildContext context) async {
     try {
-      final isPremium = currentUser.isPremium;
+      final isPremium = currentUser.isPremium ?? false;
       final limit = isPremium ? 1000 : 10;
       final dislikeHistory = await FirestoreService().getDislikeHistory(currentUser.id, limit: limit);
 

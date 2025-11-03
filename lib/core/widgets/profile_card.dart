@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/models/user_model.dart';
 
+// Widget hiển thị card thông tin chi tiết của user
+// Bao gồm ảnh đại diện, thông tin cá nhân, game stats và sở thích
 class ProfileCard extends StatefulWidget {
   final UserModel user;
   const ProfileCard({super.key, required this.user});
@@ -20,7 +22,9 @@ class _ProfileCardState extends State<ProfileCard> {
     super.dispose();
   }
 
+  // Xây dựng gallery ảnh với PageView để vuốt xem nhiều ảnh
   Widget _buildPhotoGallery() {
+    // Gộp avatar và additional photos thành một list
     List<String> allPhotos = [];
     if (widget.user.avatarUrl != null && widget.user.avatarUrl!.isNotEmpty) {
       allPhotos.add(widget.user.avatarUrl!);
@@ -29,8 +33,8 @@ class _ProfileCardState extends State<ProfileCard> {
       allPhotos.addAll(widget.user.additionalPhotos);
     }
 
-    // Tỉ lệ 3:4 (width:height)
-    final double cardWidth = MediaQuery.of(context).size.width; // SÁT VIỀN
+    // Tỉ lệ 3:4 để hiển thị đẹp như card Tinder
+    final double cardWidth = MediaQuery.of(context).size.width;
     final double cardHeight = cardWidth * 4 / 3;
 
     if (allPhotos.isEmpty) {
@@ -60,6 +64,7 @@ class _ProfileCardState extends State<ProfileCard> {
         height: cardHeight,
         child: Stack(
           children: [
+            // PageView cho phép vuốt qua lại giữa các ảnh
             PageView.builder(
               controller: _pageController,
               itemCount: allPhotos.length,
@@ -79,7 +84,7 @@ class _ProfileCardState extends State<ProfileCard> {
                 });
               },
             ),
-            // Indicator giữ nguyên
+            // Indicator hiển thị vị trí ảnh hiện tại
             Positioned(
               top: 16,
               left: 0,
@@ -103,13 +108,13 @@ class _ProfileCardState extends State<ProfileCard> {
                 ),
               ),
             ),
-            // XÓA 2 Positioned chứa IconButton chuyển hướng
           ],
         ),
       ),
     );
   }
 
+  // Xây dựng card hiển thị số liệu game như play time và win rate
   Widget _buildStatCard(String title, String value, String unit, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -185,7 +190,7 @@ class _ProfileCardState extends State<ProfileCard> {
     );
   }
 
-  // Hàm hiển thị danh sách game yêu thích
+  // Hiển thị danh sách game yêu thích dưới dạng tags màu cam
   Widget _buildGameTags(List<String> games) {
     return Wrap(
       spacing: 10,
@@ -194,13 +199,13 @@ class _ProfileCardState extends State<ProfileCard> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.deepOrange.withOpacity(0.12), // Nền cam nhạt
+            color: Colors.deepOrange.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             game,
             style: const TextStyle(
-              color: Colors.deepOrange, // Chữ cam
+              color: Colors.deepOrange,
               fontWeight: FontWeight.w600,
               fontSize: 15,
             ),
@@ -210,7 +215,7 @@ class _ProfileCardState extends State<ProfileCard> {
     );
   }
 
-  // Hàm hiển thị danh sách sở thích khác
+  // Hiển thị danh sách sở thích khác dưới dạng tags màu xanh
   Widget _buildInterestTags(List<String> interests) {
     return Wrap(
       spacing: 10,
@@ -219,13 +224,13 @@ class _ProfileCardState extends State<ProfileCard> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.12), // Nền xanh nhạt
+            color: Colors.blue.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             interest,
             style: const TextStyle(
-              color: Colors.blue, // Chữ xanh
+              color: Colors.blue,
               fontWeight: FontWeight.w600,
               fontSize: 15,
             ),
@@ -239,20 +244,20 @@ class _ProfileCardState extends State<ProfileCard> {
   Widget build(BuildContext context) {
     final user = widget.user;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12), // hoặc 0 nếu muốn vuông
+      borderRadius: BorderRadius.circular(12),
       child: Stack(
         children: [
-          // Nền blur
+          // Nền blur để tạo hiệu ứng frosted glass
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.65), // nền bán trong suốt
+                color: Colors.white.withValues(alpha: 0.65),
                 borderRadius: BorderRadius.circular(30),
               ),
             ),
           ),
-          // Nội dung card
+          // Nội dung card cuộn được
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,6 +268,7 @@ class _ProfileCardState extends State<ProfileCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Hiển thị tên và rank
                       Row(
                         children: [
                           Expanded(
@@ -292,6 +298,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      // Thông tin cơ bản như tuổi chiều cao giới tính
                       _buildInfoSection('Thông tin cơ bản', [
                         _buildInfoRow(Icons.cake, 'Tuổi', '${user.age} tuổi'),
                         _buildInfoRow(Icons.height, 'Chiều cao', '${user.height} cm'),
@@ -300,6 +307,7 @@ class _ProfileCardState extends State<ProfileCard> {
                           _buildInfoRow(Icons.location_on, 'Khoảng cách', '${user.distanceKm!.toStringAsFixed(1)} km'),
                       ]),
                       const SizedBox(height: 24),
+                      // Hiển thị play time và win rate dưới dạng card
                       Row(
                         children: [
                           Expanded(
@@ -322,6 +330,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      // Hiển thị bio nếu có
                       if (user.bio.isNotEmpty) ...[
                         _buildInfoSection('Giới thiệu', [
                           Padding(
@@ -337,12 +346,14 @@ class _ProfileCardState extends State<ProfileCard> {
                         ]),
                         const SizedBox(height: 24),
                       ],
+                      // Thông tin về game như phong cách và mục đích
                       _buildInfoSection('Thông tin game', [
                         _buildInfoRow(Icons.gamepad, 'Phong cách', user.gameStyle),
                         _buildInfoRow(Icons.grade, 'Rank', user.rank),
                         _buildInfoRow(Icons.search, 'Mục đích', user.lookingFor),
                       ]),
                       const SizedBox(height: 24),
+                      // Danh sách game yêu thích
                       Text(
                         'Game yêu thích',
                         style: TextStyle(
@@ -354,6 +365,7 @@ class _ProfileCardState extends State<ProfileCard> {
                       const SizedBox(height: 12),
                       _buildGameTags(user.favoriteGames),
                       const SizedBox(height: 24),
+                      // Danh sách sở thích khác nếu có
                       if (user.interests.isNotEmpty) ...[
                         Text(
                           'Sở thích khác',
@@ -367,6 +379,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         _buildInterestTags(user.interests),
                         const SizedBox(height: 24),
                       ],
+                      // Hiển thị vị trí của user
                       ListTile(
                         leading: Icon(Icons.location_on, color: Colors.deepOrange[400]),
                         title: Text(

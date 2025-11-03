@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../user_app.dart';
 
+// Màn hình đăng nhập và đăng ký bằng email/password
+// Hỗ trợ chuyển đổi giữa chế độ đăng nhập và đăng ký
 class EmailLoginScreen extends StatefulWidget {
   const EmailLoginScreen({super.key});
 
@@ -29,6 +31,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     super.dispose();
   }
 
+  // Validate định dạng email
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Vui lòng nhập email';
@@ -40,6 +43,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     return null;
   }
 
+  // Validate password phải có ít nhất 6 ký tự
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Vui lòng nhập mật khẩu';
@@ -50,6 +54,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     return null;
   }
 
+  // Validate confirm password khớp với password
   String? _validateConfirmPassword(String? value) {
     if (_isSignUp) {
       if (value == null || value.isEmpty) {
@@ -62,6 +67,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     return null;
   }
 
+  // Xử lý submit form đăng nhập hoặc đăng ký
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -130,7 +136,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Icon
+                    // Icon email
                     Container(
                       width: 80,
                       height: 80,
@@ -146,7 +152,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Title
+                    // Title và subtitle
                     Text(
                       _isSignUp
                           ? 'Tạo tài khoản mới'
@@ -169,7 +175,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Email field
+                    // Email field với validation
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -193,7 +199,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Password field
+                    // Password field với nút show/hide
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -228,7 +234,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                       validator: _validatePassword,
                     ),
                     
-                    // Confirm password field (only for sign up)
+                    // Confirm password chỉ hiển thị khi đăng ký
                     if (_isSignUp) ...[
                       const SizedBox(height: 16),
                       TextFormField(
@@ -268,7 +274,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Submit button
+                    // Nút submit với loading state
                     SizedBox(
                       height: 56,
                       child: ElevatedButton(
@@ -302,7 +308,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Toggle between sign in and sign up
+                    // Toggle giữa đăng nhập và đăng ký
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -336,7 +342,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                       ],
                     ),
 
-                    // Error message
+                    // Hiển thị error message nếu có
                     if (authProvider.error != null && !authProvider.isLoading)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),

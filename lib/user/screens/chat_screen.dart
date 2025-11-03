@@ -21,9 +21,14 @@ import 'media_preview_screen.dart';
 import 'voice_preview_screen.dart';
 import '../../user/screens/subscription_screen.dart';
 
+// Màn hình chat giữa 2 user đã match
+// Hỗ trợ gửi text, ảnh, video, voice message, video call/voice call
+// Real-time messaging với Firestore, typing indicator, reactions
+// Glassmorphism UI theo phong cách iMessage iOS
 class ChatScreen extends StatefulWidget {
-  final String matchId;
-  final UserModel peerUser;
+  final String matchId; // ID của match (dùng làm room chat)
+  final UserModel peerUser; // Thông tin user đối phương
+  
   const ChatScreen({super.key, required this.matchId, required this.peerUser});
 
   @override
@@ -35,29 +40,32 @@ class _ChatScreenState extends State<ChatScreen> {
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
-  // Voice recording
-  final AudioRecorder _audioRecorder = AudioRecorder();
-  bool _isRecording = false;
-  String? _recordingPath;
+  // Voice recording state
+  final AudioRecorder _audioRecorder = AudioRecorder(); // Package record để ghi âm
+  bool _isRecording = false; // Trạng thái đang ghi âm
+  String? _recordingPath; // Đường dẫn file âm thanh tạm
 
-  bool isPremium = false; // Thêm biến lưu trạng thái premium
+  bool isPremium = false; // Trạng thái Premium của user hiện tại
 
   @override
   void initState() {
     super.initState();
+    // Sau khi build xong, fetch messages và update lastSeen
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       //final chatProvider = Provider.of<ChatProvider>(context, listen: false);
      //await chatProvider.fetchMessages(widget.matchId);
 
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
+        // Update lastSeen để đánh dấu user đã đọc tin nhắn
         await FirebaseFirestore.instance
             .collection('matches')
             .doc(widget.matchId)
             .set({
               'lastSeen_$userId': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
-        // Lấy trạng thái premium
+        
+        // Kiểm tra trạng thái Premium của user
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(userId)
@@ -71,9 +79,12 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // Request quyền Camera và Microphone để video call
+  // Hiển thị dialog hướng dẫn nếu bị từ chối vĩnh viễn
   Future<bool> _requestCameraAndMicPermissions() async {
     developer.log('Requesting permissions...', name: 'ChatScreen');
 
+    // Request 2 quyền cùng lúc
     Map<Permission, PermissionStatus> statuses = await [
       Permission.camera,
       Permission.microphone,
@@ -86,16 +97,19 @@ class _ChatScreenState extends State<ChatScreen> {
     developer.log('Camera: $cameraStatus', name: 'ChatScreen');
     developer.log('Microphone: $micStatus', name: 'ChatScreen');
 
+    // Cả 2 quyền đều granted -> OK
     if (cameraStatus.isGranted && micStatus.isGranted) {
       developer.log('All permissions granted!', name: 'ChatScreen');
       return true;
     }
 
+    // Nếu bị permanently denied -> hiển thị dialog yêu cầu mở Settings
     if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
       if (!mounted) return false;
 
       developer.log('Permissions permanently denied', name: 'ChatScreen');
 
+      // Dialog hướng dẫn user vào Settings
       final result = await showDialog<bool>(
         context: context,
         builder: (context) => BackdropFilter(
@@ -134,12 +148,14 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
 
+      // Nếu user chọn Mở Cài đặt
       if (result == true) {
         await openAppSettings();
       }
       return false;
     }
 
+    // Nếu bị denied (chưa permanently) -> hiển thị snackbar
     if (cameraStatus.isDenied || micStatus.isDenied) {
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -160,19 +176,22 @@ class _ChatScreenState extends State<ChatScreen> {
     return false;
   }
 
-  // Bắt đầu ghi âm
+  // Bắt đầu ghi âm tin nhắn thoại
+  // Sử dụng package record để ghi âm với encoder AAC
   Future<void> _startRecording() async {
     try {
+      // Kiểm tra quyền microphone
       if (await _audioRecorder.hasPermission()) {
         final directory = await getTemporaryDirectory();
         final path =
             '${directory.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
+        // Bắt đầu ghi âm với config AAC LC
         await _audioRecorder.start(
           const RecordConfig(
-            encoder: AudioEncoder.aacLc,
-            bitRate: 128000,
-            sampleRate: 44100,
+            encoder: AudioEncoder.aacLc, // AAC Low Complexity
+            bitRate: 128000, // 128 kbps
+            sampleRate: 44100, // 44.1 kHz
           ),
           path: path,
         );
@@ -195,78 +214,86 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Dừng và gửi tin nhắn thoại
+  // Dừng ghi âm và hiển thị preview để user nghe lại trước khi gửi
   Future<void> _stopAndSendRecording() async {
-  try {
-    final path = await _audioRecorder.stop();
-    setState(() => _isRecording = false);
+    try {
+      // Dừng ghi âm và lấy path file
+      final path = await _audioRecorder.stop();
+      setState(() => _isRecording = false);
 
-    if (path != null) {
-      final audioPlayer = AudioPlayer();
-      await audioPlayer.setFilePath(path);
-      final duration = audioPlayer.duration?.inSeconds ?? 0;
-      await audioPlayer.dispose();
+      if (path != null) {
+        // Lấy thời lượng audio bằng just_audio
+        final audioPlayer = AudioPlayer();
+        await audioPlayer.setFilePath(path);
+        final duration = audioPlayer.duration?.inSeconds ?? 0;
+        await audioPlayer.dispose();
 
-      // HIỂN THỊ PREVIEW
-      final shouldSend = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VoicePreviewScreen(
-            audioFile: File(path),
-            duration: duration,
-          ),
-        ),
-      );
-
-      if (shouldSend == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text('Đang gửi tin nhắn thoại...'),
-              ],
+        // Hiển thị màn hình preview để user nghe lại và quyết định gửi
+        final shouldSend = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VoicePreviewScreen(
+              audioFile: File(path),
+              duration: duration,
             ),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.black87,
           ),
         );
 
-        final file = File(path);
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('voice_messages')
-            .child('${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}.m4a');
+        // Nếu user bấm Gửi trong preview
+        if (shouldSend == true) {
+          // Hiển thị loading snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Đang gửi tin nhắn thoại...'),
+                ],
+              ),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.black87,
+            ),
+          );
 
-        await storageRef.putFile(file);
-        final downloadUrl = await storageRef.getDownloadURL();
+          // Upload file lên Firebase Storage
+          final file = File(path);
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('voice_messages')
+              .child('${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}.m4a');
 
-        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-        await chatProvider.sendVoiceMessage(
-          widget.matchId,
-          downloadUrl,
-          duration: duration,
-        );
+          await storageRef.putFile(file);
+          final downloadUrl = await storageRef.getDownloadURL();
 
-        await file.delete();
-      } else {
-        await File(path).delete();
+          // Gửi tin nhắn thoại vào Firestore
+          final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+          await chatProvider.sendVoiceMessage(
+            widget.matchId,
+            downloadUrl,
+            duration: duration,
+          );
+
+          // Xóa file tạm
+          await file.delete();
+        } else {
+          // User hủy -> xóa file tạm
+          await File(path).delete();
+        }
       }
+    } catch (e) {
+      developer.log('Error: $e', name: 'ChatScreen', error: e);
     }
-  } catch (e) {
-    developer.log('Error: $e', name: 'ChatScreen', error: e);
   }
-}
 
-  // Hủy ghi âm
+  // Hủy ghi âm (khi user kéo ngón tay ra ngoài)
   Future<void> _cancelRecording() async {
     try {
       await _audioRecorder.stop();
@@ -274,6 +301,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _isRecording = false;
       });
 
+      // Xóa file tạm nếu có
       if (_recordingPath != null) {
         final file = File(_recordingPath!);
         if (await file.exists()) {
@@ -285,90 +313,95 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // Gửi ảnh hoặc video
+  // Kiểm tra Premium trước khi cho phép gửi media
   void _sendMedia(String localPath, {bool isVideo = false, String? caption}) async {
-  if (!isPremium) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-    );
-    return;
-  }
+    // Nếu chưa Premium -> chuyển sang màn hình đăng ký
+    if (!isPremium) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+      );
+      return;
+    }
 
-  try {
-    OverlayEntry? overlayEntry;
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 100,
-        left: MediaQuery.of(context).size.width / 2 - 40,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  color: Color(0xFFFF453A),
-                  strokeWidth: 3,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Đang gửi...',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
+    try {
+      // Hiển thị loading overlay trong khi upload
+      OverlayEntry? overlayEntry;
+      overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          top: MediaQuery.of(context).padding.top + 100,
+          left: MediaQuery.of(context).size.width / 2 - 40,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: Color(0xFFFF453A),
+                    strokeWidth: 3,
                   ),
-                ),
-              ],
+                  SizedBox(height: 8),
+                  Text(
+                    'Đang gửi...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-    
-    Overlay.of(context).insert(overlayEntry);
-
-    final file = File(localPath);
-    final fileName =
-        '${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}${isVideo ? '.mp4' : '.jpg'}';
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child(isVideo ? 'chat_videos' : 'chat_images')
-        .child(fileName);
-
-    await storageRef.putFile(file);
-    final downloadUrl = await storageRef.getDownloadURL();
-
-    // GỌI ĐÚNG HÀM NÀY
-    await Provider.of<ChatProvider>(context, listen: false).sendMediaWithNotify(
-      widget.matchId,
-      downloadUrl,
-      isVideo: isVideo,
-      caption: caption,
-      peerUser: widget.peerUser,
-    );
-
-    overlayEntry.remove();
-
-    developer.log('Media sent: $downloadUrl', name: 'ChatScreen');
-  } catch (e) {
-    developer.log('Error sending media: $e', name: 'ChatScreen', error: e);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi gửi ${isVideo ? 'video' : 'ảnh'}: $e'),
-          backgroundColor: Colors.red,
-        ),
       );
+      
+      Overlay.of(context).insert(overlayEntry);
+
+      // Upload file lên Firebase Storage
+      final file = File(localPath);
+      final fileName =
+          '${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}${isVideo ? '.mp4' : '.jpg'}';
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child(isVideo ? 'chat_videos' : 'chat_images')
+          .child(fileName);
+
+      await storageRef.putFile(file);
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      // Gửi tin nhắn media với notification
+      await Provider.of<ChatProvider>(context, listen: false).sendMediaWithNotify(
+        widget.matchId,
+        downloadUrl,
+        isVideo: isVideo,
+        caption: caption,
+        peerUser: widget.peerUser, // Để gửi push notification
+      );
+
+      overlayEntry.remove();
+
+      developer.log('Media sent: $downloadUrl', name: 'ChatScreen');
+    } catch (e) {
+      developer.log('Error sending media: $e', name: 'ChatScreen', error: e);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi gửi ${isVideo ? 'video' : 'ảnh'}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -381,6 +414,8 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: true,
+      
+      // AppBar với glassmorphism effect
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(100),
         child: ClipRRect(
@@ -411,7 +446,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   child: Row(
                     children: [
-                      // Back button
+                      // Nút Back với glassmorphism
                       ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: BackdropFilter(
@@ -443,10 +478,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       const SizedBox(width: 12),
 
-                      // Avatar + Name
+                      // Avatar + Tên user (tap để xem profile)
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
+                            // Mở màn hình xem ProfileCard của peer user
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -464,6 +500,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // Avatar với shadow và border
                               Container(
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
@@ -501,6 +538,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ),
                               ),
                               const SizedBox(width: 10),
+                              // Tên user
                               Flexible(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -536,27 +574,33 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
 
-                      // Call buttons
+                      // Nút Voice Call và Video Call
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Nút gọi thoại
                           _buildGlassButton(
                             icon: Icons.phone_rounded,
                             onPressed: () async {
+                              // Request quyền microphone
                               final granted = await Permission.microphone
                                   .request();
                               if (granted.isGranted) {
+                                // Tạo document trong collection calls
                                 await FirebaseFirestore.instance
                                     .collection('calls')
                                     .doc(widget.matchId)
                                     .set({
                                       'status': 'active',
                                       'callerId': currentUserId,
+                                      'receiverId': widget.peerUser.id,
                                       'type': 'voice',
                                       'answered': false,
                                       'startedAt': DateTime.now()
                                           .toIso8601String(),
                                     }, SetOptions(merge: true));
+                                
+                                // Mở màn hình gọi thoại
                                 await Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -565,7 +609,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       peerUserId: widget.peerUser.id,
                                       peerUsername: widget.peerUser.username,
                                       peerAvatarUrl: widget.peerUser.avatarUrl,
-                                      isVoiceCall: true,
+                                      isVoiceCall: true, // Đánh dấu là voice call
                                     ),
                                   ),
                                 );
@@ -573,24 +617,29 @@ class _ChatScreenState extends State<ChatScreen> {
                             },
                           ),
                           const SizedBox(width: 8),
+                          // Nút gọi video
                           _buildGlassButton(
                             icon: Icons.videocam_rounded,
                             onPressed: () async {
+                              // Request quyền camera và mic
                               final granted =
                                   await _requestCameraAndMicPermissions();
                               if (granted) {
+                                // Tạo document trong collection calls
                                 await FirebaseFirestore.instance
                                     .collection('calls')
                                     .doc(widget.matchId)
                                     .set({
                                       'status': 'active',
                                       'callerId': currentUserId,
+                                      'receiverId': widget.peerUser.id,
                                       'type': 'video',
                                       'answered': false,
                                       'startedAt': DateTime.now()
                                           .toIso8601String(),
                                     }, SetOptions(merge: true));
 
+                                // Mở màn hình gọi video
                                 await Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -615,9 +664,10 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
+      
       body: Stack(
         children: [
-          // Background image với overlay
+          // Background image với overlay gradient
           Positioned.fill(
             child: Image.network(
               'https://i.pinimg.com/736x/27/0d/d2/270dd2fe9c3765a4dd48486bceba963e.jpg',
@@ -645,6 +695,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
           Column(
             children: [
+              // ListView hiển thị tin nhắn
               Expanded(
                 child: chatProvider.isLoading
                     ? const Center(
@@ -653,6 +704,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       )
                     : StreamBuilder<List<Map<String, dynamic>>>(
+                        // Stream tin nhắn real-time từ Firestore
                         stream: chatProvider.messagesStream(
                           widget.matchId,
                           widget.peerUser,
@@ -660,6 +712,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         builder: (context, snapshot) {
                           final messages = snapshot.data ?? [];
 
+                          // Auto scroll xuống tin nhắn mới nhất
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (_scrollController.hasClients) {
                               _scrollController.animateTo(
@@ -669,9 +722,11 @@ class _ChatScreenState extends State<ChatScreen> {
                               );
                             }
                           });
+                          
+                          // ListView reverse để tin mới nhất ở dưới cùng
                           return ListView.builder(
                             controller: _scrollController,
-                            reverse: true,
+                            reverse: true, // Scroll từ dưới lên
                             padding: const EdgeInsets.only(
                               top: 110,
                               bottom: 8,
@@ -680,11 +735,14 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             itemCount: messages.length,
                             itemBuilder: (context, index) {
+                              // Lấy message từ cuối danh sách
                               final msg = messages[messages.length - 1 - index];
                               final isMe = msg['senderId'] == currentUserId;
                               final avatarUrl = isMe
                                   ? myAvatarUrl
                                   : peerAvatarUrl;
+                              
+                              // Parse timestamp để hiển thị thời gian
                               final timestamp = msg['timestamp'];
                               String timeString = '';
                               if (timestamp != null) {
@@ -700,6 +758,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 }
                               }
 
+                              // Hiển thị bubble tin nhắn với thời gian
                               return Column(
                                 crossAxisAlignment: isMe
                                     ? CrossAxisAlignment.end
@@ -711,6 +770,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     avatarUrl,
                                     timeString,
                                   ),
+                                  // Thời gian gửi tin nhắn
                                   Padding(
                                     padding: EdgeInsets.only(
                                       left: isMe ? 0 : 44,
@@ -741,7 +801,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
               ),
 
-              // Typing indicator
+              // Typing indicator (hiển thị khi peer đang nhập)
               StreamBuilder<bool>(
                 stream: chatProvider.peerTypingStream(
                   widget.matchId,
@@ -781,7 +841,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
 
-              // Input message box
+              // Input box để gửi tin nhắn
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -800,7 +860,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        // Nút cộng
+                        // Nút cộng (+) để gửi ảnh/video
                         Container(
                           width: 36,
                           height: 36,
@@ -816,6 +876,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             icon: const Icon(Icons.add, color: Color(0xFFFF453A), size: 20),
                             onPressed: () async {
                               final picker = ImagePicker();
+                              // Show bottom sheet để chọn ảnh hoặc video
                               final pickedFile = await showModalBottomSheet<XFile?>(
                                 context: context,
                                 builder: (context) => Container(
@@ -850,11 +911,12 @@ class _ChatScreenState extends State<ChatScreen> {
                               );
 
                               if (pickedFile != null) {
+                                // Check xem là video hay ảnh
                                 final isVideo = pickedFile.path.endsWith('.mp4') ||
                                                 pickedFile.path.endsWith('.mov') ||
                                                 pickedFile.path.endsWith('.MOV');
 
-                                // HIỂN THỊ PREVIEW
+                                // Hiển thị màn hình preview trước khi gửi
                                 final caption = await Navigator.push<String>(
                                   context,
                                   MaterialPageRoute(
@@ -865,7 +927,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                 );
 
-                                // Chỉ gửi nếu user bấm "Gửi" (không bấm back)
+                                // Chỉ gửi nếu user bấm "Gửi" (không back)
                                 if (caption != null) {
                                   _sendMedia(pickedFile.path, isVideo: isVideo);
                                 }
@@ -875,7 +937,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         const SizedBox(width: 8),
 
-                        // TextField
+                        // TextField nhập tin nhắn
                         Expanded(
                           child: Container(
                             constraints: const BoxConstraints(maxHeight: 120),
@@ -886,7 +948,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 color: Colors.white,
                                 fontSize: 16,
                               ),
-                              maxLines: null,
+                              maxLines: null, // Cho phép nhiều dòng
                               textInputAction: TextInputAction.newline,
                               decoration: InputDecoration(
                                 hintText: 'iMessage',
@@ -923,6 +985,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 filled: true,
                                 isDense: true,
                               ),
+                              // Update typing indicator khi user gõ
                               onChanged: (text) {
                                 chatProvider.setTyping(
                                   widget.matchId,
@@ -934,12 +997,15 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         const SizedBox(width: 8),
 
-                        // Nút mic/send với recording indicator
+                        // Nút mic/send
+                        // - Nếu TextField rỗng: hiển thị nút mic, giữ lâu để ghi âm
+                        // - Nếu có text: hiển thị nút send, tap để gửi
                         ValueListenableBuilder<TextEditingValue>(
                           valueListenable: _controller,
                           builder: (context, value, child) {
                             final isEmpty = value.text.trim().isEmpty;
                             return GestureDetector(
+                              // Long press để ghi âm (chỉ khi TextField rỗng)
                               onLongPressStart: isEmpty
                                   ? (_) => _startRecording()
                                   : null,
@@ -974,6 +1040,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     size: 20,
                                   ),
                                   onPressed: () async {
+                                    // Nếu có text thì gửi tin nhắn
                                     if (!isEmpty) {
                                       await chatProvider.sendMessage(
                                         widget.matchId,
@@ -1005,6 +1072,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // Widget helper để tạo nút glass (voice call, video call)
   Widget _buildGlassButton({
     required IconData icon,
     required VoidCallback onPressed,
@@ -1034,38 +1102,40 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // Build bubble tin nhắn
+  // Xử lý các loại tin: text, image, video, voice, call
   Widget _buildMessageBubble(
-  Map<String, dynamic> msg,
-  bool isMe,
-  String avatarUrl,
-  String timeString,
-) {
-  // Nếu là tin nhắn của đối phương thì hiện avatar bên trái, giữ nguyên bubble cũ
-  if (!isMe) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 8.0, top: 2),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundImage: avatarUrl.isNotEmpty
-                ? NetworkImage(avatarUrl)
-                : null,
-            backgroundColor: Colors.deepOrange.withOpacity(0.18),
-            child: avatarUrl.isEmpty
-                ? const Icon(Icons.person, color: Colors.white, size: 18)
-                : null,
+    Map<String, dynamic> msg,
+    bool isMe,
+    String avatarUrl,
+    String timeString,
+  ) {
+    // Nếu là tin nhắn của đối phương -> hiện avatar bên trái
+    if (!isMe) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0, top: 2),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundImage: avatarUrl.isNotEmpty
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              backgroundColor: Colors.deepOrange.withOpacity(0.18),
+              child: avatarUrl.isEmpty
+                  ? const Icon(Icons.person, color: Colors.white, size: 18)
+                  : null,
+            ),
           ),
-        ),
-        Flexible(child: _buildMessageBubbleContent(msg, isMe, timeString)), // bubble cũ
-      ],
-    );
-  } else {
-    // Tin nhắn của mình thì giữ nguyên như cũ
-    return _buildMessageBubbleContent(msg, isMe, timeString);
+          Flexible(child: _buildMessageBubbleContent(msg, isMe, timeString)),
+        ],
+      );
+    } else {
+      // Tin nhắn của mình thì không có avatar
+      return _buildMessageBubbleContent(msg, isMe, timeString);
+    }
   }
-}
 
 // Tách phần nội dung bubble cũ ra hàm riêng để dễ bảo trì
 Widget _buildMessageBubbleContent(
@@ -1076,12 +1146,14 @@ Widget _buildMessageBubbleContent(
   final isCall = msg['type'] == 'call';
   final isVoice = msg['type'] == 'voice';
 
+    // Tin nhắn cuộc gọi (missed, declined, ended, cancelled)
     if (isCall) {
       final callStatus = msg['callStatus'] ?? '';
       String callText;
       IconData callIcon;
       Color callColor;
 
+      // Xác định text, icon và màu theo trạng thái cuộc gọi
       switch (callStatus) {
         case 'missed':
           callText = 'Cuộc gọi nhỡ';
@@ -1109,6 +1181,7 @@ Widget _buildMessageBubbleContent(
           callColor = Colors.white;
       }
 
+      // Bubble giữa màn hình cho tin nhắn cuộc gọi
       return Align(
         alignment: Alignment.center,
         child: ClipRRect(
@@ -1162,7 +1235,7 @@ Widget _buildMessageBubbleContent(
       );
     }
 
-    // Voice message bubble
+    // Tin nhắn thoại
     if (isVoice) {
       final audioUrl = msg['audioUrl'] as String?;
       final duration = msg['duration'] as int? ?? 0;
@@ -1173,9 +1246,11 @@ Widget _buildMessageBubbleContent(
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
+          // Gesture để react vào tin nhắn (chỉ với tin nhắn của peer)
           GestureDetector(
             onLongPress: !isMe
                 ? () async {
+                    // Show bottom sheet chọn emoji
                     final emoji = await showModalBottomSheet<String>(
                       context: context,
                       builder: (context) => SizedBox(
@@ -1206,6 +1281,7 @@ Widget _buildMessageBubbleContent(
                 : null,
             onDoubleTap: !isMe
                 ? () async {
+                    // Double tap để react nhanh bằng ❤️
                     await Provider.of<ChatProvider>(
                       context,
                       listen: false,
@@ -1218,6 +1294,7 @@ Widget _buildMessageBubbleContent(
               isMe: isMe,
             ),
           ),
+          // Hiển thị reactions nếu có
           if (reactions.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(
@@ -1253,13 +1330,14 @@ Widget _buildMessageBubbleContent(
       );
     }
 
+    // Tin nhắn thường (text, image, video)
     final mediaUrl = msg['mediaUrl'] as String?;
     final isVideo = msg['isVideo'] == true;
     final text = msg['text'] ?? '';
-
     final reactions = (msg['reactions'] as List?) ?? [];
 
     return GestureDetector(
+      // Long press để chọn emoji react
       onLongPress: !isMe
           ? () async {
               final emoji = await showModalBottomSheet<String>(
@@ -1285,6 +1363,7 @@ Widget _buildMessageBubbleContent(
               }
             }
           : null,
+      // Double tap để react nhanh bằng ❤️
       onDoubleTap: !isMe
           ? () async {
               await Provider.of<ChatProvider>(
@@ -1298,6 +1377,7 @@ Widget _buildMessageBubbleContent(
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
+          // Hiển thị media (ảnh hoặc video) nếu có
           if (mediaUrl != null && mediaUrl.isNotEmpty)
             Container(
               margin: EdgeInsets.only(
@@ -1309,7 +1389,9 @@ Widget _buildMessageBubbleContent(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: isVideo
+                    // Video player bubble
                     ? VideoPlayerBubble(videoUrl: mediaUrl)
+                    // Image bubble
                     : CachedNetworkImage(
                         imageUrl: mediaUrl,
                         fit: BoxFit.cover,
@@ -1331,6 +1413,7 @@ Widget _buildMessageBubbleContent(
                       ),
               ),
             ),
+          // Hiển thị text nếu có
           if (text.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.only(
@@ -1351,6 +1434,7 @@ Widget _buildMessageBubbleContent(
                     horizontal: 16,
                   ),
                   decoration: BoxDecoration(
+                    // Gradient đỏ cho tin nhắn của mình, trắng mờ cho tin nhắn peer
                     gradient: isMe
                         ? LinearGradient(
                             colors: [
@@ -1398,6 +1482,7 @@ Widget _buildMessageBubbleContent(
               ),
             ),
 
+          // Hiển thị reactions nếu có
           if (reactions.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(
@@ -1434,7 +1519,9 @@ Widget _buildMessageBubbleContent(
     );
   }
 
-
+  // Format thời gian hiển thị
+  // Nếu trong ngày hôm nay: HH:mm
+  // Nếu khác ngày: dd/MM/yyyy
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     if (now.difference(time).inDays == 0) {
@@ -1454,7 +1541,8 @@ Widget _buildMessageBubbleContent(
   }
 }
 
-// Widget video bubble
+// Widget video player bubble
+// Hiển thị video với nút play/pause overlay
 class VideoPlayerBubble extends StatefulWidget {
   final String videoUrl;
   const VideoPlayerBubble({super.key, required this.videoUrl});
@@ -1470,6 +1558,7 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
   @override
   void initState() {
     super.initState();
+    // Initialize video player từ URL
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
       ..initialize().then((_) {
         if (mounted) {
@@ -1481,6 +1570,7 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
   @override
   Widget build(BuildContext context) {
     if (!_isReady) {
+      // Hiển thị loading khi video chưa initialize
       return Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1492,11 +1582,13 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
         ),
       );
     }
+    
     return AspectRatio(
       aspectRatio: _controller.value.aspectRatio,
       child: Stack(
         children: [
           VideoPlayer(_controller),
+          // Overlay với nút play/pause
           Positioned.fill(
             child: GestureDetector(
               onTap: () {
@@ -1517,6 +1609,7 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
                     ],
                   ),
                 ),
+                // Nút play chỉ hiển thị khi video không phát
                 child: _controller.value.isPlaying
                     ? const SizedBox.shrink()
                     : Center(
@@ -1559,9 +1652,11 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
   }
 }
 
+// Widget voice message bubble
+// Hiển thị waveform và nút play/pause để phát tin nhắn thoại
 class _VoiceMessageBubble extends StatefulWidget {
   final String audioUrl;
-  final int duration;
+  final int duration; // Thời lượng tính bằng giây
   final bool isMe;
 
   const _VoiceMessageBubble({
@@ -1576,13 +1671,14 @@ class _VoiceMessageBubble extends StatefulWidget {
 }
 
 class _VoiceMessageBubbleState extends State<_VoiceMessageBubble> {
-  late AudioPlayer _player;
+  late AudioPlayer _player; // just_audio player
   bool _isPlaying = false;
 
   @override
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    // Lắng nghe trạng thái play/pause
     _player.playerStateStream.listen((state) {
       setState(() {
         _isPlaying = state.playing;

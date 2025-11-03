@@ -94,10 +94,6 @@ class UserApp extends StatelessWidget {
 }
 
 /// Hiển thị dialog khi có cuộc gọi đến.
-/// - context: context hiện tại để hiển thị dialog và điều hướng
-/// - matchId: id của match/phiên cuộc gọi, được dùng làm channel hoặc nhận diện cuộc gọi
-/// - peerUserId: id của người gọi (để truy vấn thông tin từ Firestore)
-///
 /// Hàm thực hiện:
 /// 1. Truy vấn Firestore để lấy thông tin người gọi (username, avatarUrl)
 /// 2. Hiển thị Dialog không cho dismiss bằng cách bấm ngoài (barrierDismissible: false)

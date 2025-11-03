@@ -10,6 +10,8 @@ import 'subscription_screen.dart';
 import '../../core/providers/profile_provider.dart';
 import 'dart:developer' as developer;
 
+// Màn hình danh sách match và tin nhắn
+// Hiển thị dãy avatar ngang của các match và danh sách chat dọc
 class MatchListScreen extends StatefulWidget {
   const MatchListScreen({super.key});
 
@@ -27,16 +29,24 @@ class _MatchListScreenState extends State<MatchListScreen> {
     super.initState();
     _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (_currentUserId!.isNotEmpty) {
-      // Tạo stream 1 LẦN duy nhất trong initState
+      // Khởi tạo stream để lắng nghe realtime danh sách match
       _matchStream = Provider.of<MatchProvider>(context, listen: false)
           .matchedUsersStream(_currentUserId!);
       
       developer.log('Stream initialized for user: $_currentUserId', name: 'MatchListScreen');
+      
+      // Load profile sau khi frame đầu tiên được build để tránh lỗi
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Provider.of<ProfileProvider>(context, listen: false).loadUserProfile();
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Kiểm tra user đã đăng nhập chưa
     if (_matchStream == null || _currentUserId == null || _currentUserId!.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Vui lòng đăng nhập')),
@@ -71,6 +81,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
           ],
         ),
         actions: [
+          // Hiển thị badge Premium hoặc nút Nâng cấp
           Consumer<ProfileProvider>(
             builder: (context, provider, _) {
               final isPremium = provider.userData?.isPremium == true;
@@ -141,7 +152,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _matchStream, // Dùng stream đã tạo trong initState
         builder: (context, snapshot) {
-          // LOG để debug
+          // Xử lý các trạng thái loading, error, no data
           if (snapshot.connectionState == ConnectionState.waiting) {
             developer.log('Stream waiting...', name: 'MatchListScreen');
             return const Center(child: CircularProgressIndicator());
@@ -164,7 +175,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
             return const Center(child: Text('Bạn chưa có match nào!'));
           }
 
-          // Lọc theo searchText
+          // Lọc theo từ khóa tìm kiếm
           final filteredData = searchText.isEmpty
               ? matchedData
               : matchedData.where((m) {
@@ -174,7 +185,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   );
                 }).toList();
 
-          // SẮP XẾP NGAY TẠI ĐÂY - một lần duy nhất cho avatar list
+          // Sắp xếp theo thời gian match để hiển thị avatar ngang
           final sortedByMatchTime = [...filteredData];
           sortedByMatchTime.sort((a, b) {
             final aTime = a['matchedAt'] ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -182,7 +193,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
             return bTime.compareTo(aTime);
           });
 
-          // SẮP XẾP cho chat list theo lastMessageTime
+          // Sắp xếp theo thời gian tin nhắn cuối để hiển thị danh sách chat
           final sortedByMessageTime = [...filteredData];
           sortedByMessageTime.sort((a, b) {
             final aTime = a['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -195,7 +206,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
           return ListView(
             padding: EdgeInsets.zero,
             children: [
-              // Chữ "Danh sách tương hợp" nhỏ phía trên avatar
+              // Header cho dãy avatar
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 16, bottom: 4),
                 child: Text(
@@ -207,7 +218,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   ),
                 ),
               ),
-              // Dãy avatar ngang - SẮP XẾP THEO matchedAt
+              // Dãy avatar ngang của các match, sắp xếp theo thời gian match
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -224,6 +235,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                       final matchId = sortedByMatchTime[index]['matchId'] as String;
 
                       return GestureDetector(
+                        // Tap để vào chat
                         onTap: () {
                           Navigator.push(
                             context,
@@ -233,6 +245,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                             ),
                           );
                         },
+                        // Long press để unmatch
                         onLongPress: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
@@ -364,6 +377,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            // Avatar với viền gradient
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
@@ -399,6 +413,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
+                            // Tên user
                             SizedBox(
                               width: 60,
                               child: Text(
@@ -446,7 +461,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   },
                 ),
               ),
-              // Chữ "Tin nhắn" nhỏ phía trên danh sách chat
+              // Header cho danh sách tin nhắn
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 12, bottom: 4),
                 child: Text(
@@ -459,7 +474,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                 ),
               ),
               const Divider(height: 1),
-              // Danh sách chat dọc - SẮP XẾP THEO lastMessageTime
+              // Danh sách chat dọc, sắp xếp theo thời gian tin nhắn cuối
               ...sortedByMessageTime.map((item) {
                 final matchId = item['matchId'] as String;
                 final user = item['user'] as UserModel;
@@ -501,6 +516,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                           '${user.age} tuổi • ${user.location}',
                           style: const TextStyle(fontSize: 13),
                         ),
+                        // Hiển thị preview tin nhắn cuối nếu có
                         if (lastMessage != null)
                           Text(
                             lastMessage,
@@ -513,6 +529,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                           ),
                       ],
                     ),
+                    // Hiển thị thời gian tin nhắn cuối
                     trailing: lastMessageTime != null
                         ? Text(
                             _formatTime(lastMessageTime),
@@ -532,6 +549,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
     );
   }
 
+  // Format thời gian hiển thị: hôm nay thì hiện giờ:phút, hôm khác hiện ngày/tháng
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     if (now.difference(time).inDays == 0) {

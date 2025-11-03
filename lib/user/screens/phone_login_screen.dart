@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:intl_phone_number_input/intl_phone_number_input.dart';
 import '../../core/providers/auth_provider.dart';
 
+// Màn hình đăng nhập bằng số điện thoại với OTP
+// Quy trình: Nhập SĐT -> Gửi OTP -> Nhập mã OTP -> Xác thực
+// Sử dụng Firebase Phone Authentication
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
 
@@ -15,10 +18,11 @@ class PhoneLoginScreen extends StatefulWidget {
 class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _otpController = TextEditingController();
-  PhoneNumber _phoneNumber = PhoneNumber(isoCode: 'VN');
-  Timer? _timer;
-  int _timeLeft = 60; // 60 giây
+  PhoneNumber _phoneNumber = PhoneNumber(isoCode: 'VN'); // Mặc định Việt Nam
+  Timer? _timer; // Timer đếm ngược thời gian OTP
+  int _timeLeft = 60; // OTP có hiệu lực 60 giây
 
+  // Bắt đầu đếm ngược timer cho OTP
   void startTimer() {
     _timeLeft = 60;
     _timer?.cancel();
@@ -27,7 +31,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         if (_timeLeft > 0) {
           _timeLeft--;
         } else {
-          timer.cancel();
+          timer.cancel(); // Dừng timer khi hết thời gian
         }
       });
     });
@@ -49,6 +53,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         elevation: 0,
         toolbarHeight: 60,
         titleSpacing: 0,
+        // Logo và tên app
         title: Row(
           children: [
             const Padding(
@@ -81,13 +86,14 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
-                    // Logo và tiêu đề
+                    // Icon điện thoại
                     Icon(
                       CupertinoIcons.phone_circle_fill,
                       size: 80,
                       color: Colors.deepOrange.withValues(alpha: 0.8),
                     ),
                     const SizedBox(height: 24),
+                    // Tiêu đề
                     const Text(
                       'Đăng nhập bằng số điện thoại',
                       style: TextStyle(
@@ -97,6 +103,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    // Mô tả
                     const Text(
                       'Chúng tôi sẽ gửi mã OTP đến số điện thoại của bạn',
                       textAlign: TextAlign.center,
@@ -107,8 +114,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
+                    // Bước 1: Nhập số điện thoại
                     if (!auth.isVerifying) ...[
-                      // Widget nhập số điện thoại
+                      // Widget nhập số điện thoại quốc tế với country picker
                       Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey.shade300),
@@ -127,7 +135,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                           autoValidateMode: AutovalidateMode.onUserInteraction,
                           selectorTextStyle: const TextStyle(color: Colors.black87),
                           initialValue: _phoneNumber,
-                          formatInput: true,
+                          formatInput: true, // Tự động format số điện thoại
                           keyboardType: const TextInputType.numberWithOptions(
                             signed: true,
                             decimal: true,
@@ -140,23 +148,25 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
+                      // Nút gửi OTP
                       ElevatedButton(
                         onPressed: auth.isLoading
                             ? null
                             : () async {
                                 if (_formKey.currentState?.validate() ?? false) {
+                                  // Gửi OTP đến số điện thoại
                                   final success = await auth.sendOTP(
                                     _phoneNumber.phoneNumber ?? '',
                                   );
                                   if (success && mounted) {
-                                    startTimer();
+                                    startTimer(); // Bắt đầu đếm ngược
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text('Đã gửi mã OTP'),
                                         backgroundColor: Colors.green,
                                       ),
                                     );
-                                    auth.setVerifying(true);
+                                    auth.setVerifying(true); // Chuyển sang bước nhập OTP
                                   }
                                 }
                               },
@@ -185,7 +195,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                               ),
                       ),
                     ] else ...[
-                      // Widget nhập OTP
+                      // Bước 2: Nhập mã OTP
                       TextFormField(
                         controller: _otpController,
                         decoration: InputDecoration(
@@ -205,6 +215,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                           ),
                           filled: true,
                           fillColor: Colors.grey.shade50,
+                          // Hiển thị thời gian còn lại ở góc phải
                           suffixIcon: Padding(
                             padding: const EdgeInsets.all(14),
                             child: Text(
@@ -219,7 +230,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         keyboardType: TextInputType.number,
                         style: const TextStyle(
                           fontSize: 16,
-                          letterSpacing: 2,
+                          letterSpacing: 2, // Spacing giữa các số
                         ),
                         validator: (value) {
                           if (value?.isEmpty ?? true) {
@@ -232,6 +243,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         },
                       ),
                       const SizedBox(height: 8),
+                      // Text hiển thị thời gian hiệu lực
                       Text(
                         'Mã OTP có hiệu lực trong $_timeLeft giây',
                         style: TextStyle(
@@ -240,8 +252,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
+                      // Row 2 nút: Gửi lại và Xác nhận
                       Row(
                         children: [
+                          // Nút gửi lại OTP (chỉ active khi hết thời gian)
                           Expanded(
                             child: TextButton(
                               onPressed: _timeLeft == 0 
@@ -251,7 +265,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                                         _phoneNumber.phoneNumber ?? '',
                                       );
                                       if (success && mounted) {
-                                        startTimer();
+                                        startTimer(); // Reset timer
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(
                                             content: Text('Đã gửi lại mã OTP'),
@@ -261,7 +275,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                                       }
                                     }
                                   }
-                                : null,
+                                : null, // Disable khi còn thời gian
                               style: TextButton.styleFrom(
                                 foregroundColor: Colors.deepOrange,
                               ),
@@ -273,6 +287,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 16),
+                          // Nút xác nhận OTP
                           Expanded(
                             child: ElevatedButton(
                               onPressed: auth.isLoading
@@ -280,9 +295,11 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                                   : () async {
                                       if (_formKey.currentState?.validate() ??
                                           false) {
+                                        // Xác thực OTP với Firebase
                                         final success = await auth
                                             .verifyOTP(_otpController.text);
                                         if (success && mounted) {
+                                          // Đăng nhập thành công -> chuyển về home
                                           Navigator.pushReplacementNamed(
                                             context,
                                             '/home',
@@ -318,6 +335,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         ],
                       ),
                     ],
+                    // Hiển thị lỗi nếu có
                     if (auth.error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),

@@ -9,14 +9,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/providers/chat_provider.dart';
 import '../../core/services/firestore_service.dart';
 
+// Lấy App ID của Agora từ file .env
 final agoraAppId = dotenv.env['AGORA_APP_ID'] ?? '';
 
+// Màn hình video call và voice call sử dụng Agora RTC
+// Hỗ trợ cả video call và voice call (chỉ audio)
+// Tự động lưu lịch sử cuộc gọi vào Firestore
 class VideoCallScreen extends StatefulWidget {
-  final String channelName;
-  final String peerUserId;
-  final String peerUsername;
-  final String? peerAvatarUrl;
-  final bool isVoiceCall; 
+  final String channelName; // Tên kênh Agora (thường dùng matchId)
+  final String peerUserId; // ID của người được gọi
+  final String peerUsername; // Tên của người được gọi
+  final String? peerAvatarUrl; // Avatar của người được gọi
+  final bool isVoiceCall; // True nếu là cuộc gọi thoại, false nếu là video call
+  
   const VideoCallScreen({
     super.key,
     required this.channelName,
@@ -31,28 +36,28 @@ class VideoCallScreen extends StatefulWidget {
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
-  RtcEngine? _engine;
-  int? _remoteUid;
-  bool _isInitialized = false;
-  bool _isJoined = false;
-  DateTime? _callStartTime; 
-  bool _isMuted = false;
-  bool _isCameraOff = false;
-  bool _isFrontCamera = true;
-  Timer? _callTimeoutTimer;
+  RtcEngine? _engine; // Agora RTC Engine instance
+  int? _remoteUid; // UID của người dùng remote (người được gọi)
+  bool _isInitialized = false; // Trạng thái engine đã khởi tạo chưa
+  bool _isJoined = false; // Trạng thái đã join channel chưa
+  DateTime? _callStartTime; // Thời gian bắt đầu cuộc gọi
+  bool _isMuted = false; // Trạng thái tắt/bật mic
+  bool _isCameraOff = false; // Trạng thái tắt/bật camera
+  bool _isFrontCamera = true; // Trạng thái camera trước/sau
+  Timer? _callTimeoutTimer; // Timer để timeout cuộc gọi sau 60s
 
-  // Khai báo subscription ở đầu class
+  // Subscription để lắng nghe trạng thái cuộc gọi từ Firestore
   StreamSubscription<DocumentSnapshot>? _callStatusSubscription;
 
-  // Thêm biến để track xem cuộc gọi có được trả lời không
+  // Flag để track xem cuộc gọi có được trả lời không
   bool _callAnswered = false;
 
   @override
   void initState() {
     super.initState();
-    _callStartTime = DateTime.now(); // Lưu thời gian bắt đầu
+    _callStartTime = DateTime.now(); // Lưu thời gian bắt đầu cuộc gọi
 
-    // Lắng nghe trạng thái cuộc gọi
+    // Lắng nghe realtime trạng thái cuộc gọi từ Firestore
     _callStatusSubscription = FirebaseFirestore.instance
         .collection('calls')
         .doc(widget.channelName)
@@ -60,12 +65,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         .listen((doc) {
       final data = doc.data();
       if (data != null) {
-        // Nếu cuộc gọi được trả lời, set flag
+        // Nếu cuộc gọi được trả lời (accepted), set flag
         if (data['answered'] == true || data['status'] == 'accepted') {
           _callAnswered = true;
         }
 
-        // Nếu bị từ chối, tự động thoát KHÔNG hiển thị SnackBar
+        // Nếu bị từ chối (declined), tự động thoát màn hình
         if (data['status'] == 'declined' && mounted) {
           _callTimeoutTimer?.cancel();
           _callStatusSubscription?.cancel();
@@ -81,16 +86,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       if (!_callAnswered && mounted) {
         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
         if (currentUserId != null) {
-          // Lưu cuộc gọi nhỡ
+          // Lưu tin nhắn "Cuộc gọi nhỡ" vào chat
           await FirestoreService().addCallMessage(
             matchId: widget.channelName,
             senderId: currentUserId,
             duration: 0,
-            missed: true,
+            missed: true, // Đánh dấu là cuộc gọi nhỡ
           );
         }
 
-        // Cập nhật trạng thái
+        // Cập nhật trạng thái cuộc gọi trong Firestore
         await FirebaseFirestore.instance
             .collection('calls')
             .doc(widget.channelName)
@@ -99,17 +104,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               'endedAt': DateTime.now().toIso8601String(),
             }, SetOptions(merge: true));
 
+        // Cleanup và thoát màn hình
         await _engine?.leaveChannel();
         await _engine?.release();
         Navigator.pop(context, true);
       }
     });
 
+    // Khởi tạo Agora engine
     _initAgora();
   }
 
+  // Khởi tạo Agora RTC Engine
   Future<void> _initAgora() async {
     try {
+      // Yêu cầu quyền truy cập camera và microphone
       final statuses = await [Permission.microphone, Permission.camera].request();
 
       if (statuses[Permission.microphone] != PermissionStatus.granted ||
@@ -124,17 +133,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         return;
       }
 
+      // Tạo Agora RTC Engine instance
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(RtcEngineContext(appId: agoraAppId));
+      
+      // Nếu là voice call thì chỉ enable audio, còn không thì enable video
       if (widget.isVoiceCall) {
         await _engine!.enableAudio();
       } else {
         await _engine!.enableVideo();
-        await _engine!.startPreview();
+        await _engine!.startPreview(); // Bật preview video của mình
       }
 
+      // Đăng ký event handler để lắng nghe các sự kiện từ Agora
       _engine!.registerEventHandler(
         RtcEngineEventHandler(
+          // Khi join channel thành công
           onJoinChannelSuccess: (connection, elapsed) {
             debugPrint('Local user joined: ${connection.channelId}');
             if (mounted) {
@@ -143,15 +157,17 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               });
             }
           },
+          // Khi có user remote join vào
           onUserJoined: (connection, remoteUid, elapsed) {
             debugPrint('Remote user joined: $remoteUid');
             if (mounted) {
               setState(() {
                 _remoteUid = remoteUid;
-                _callAnswered = true;
+                _callAnswered = true; // Đánh dấu cuộc gọi đã được trả lời
               });
             }
           },
+          // Khi user remote offline (rời kênh)
           onUserOffline: (connection, remoteUid, reason) {
             debugPrint('Remote user offline: $remoteUid');
             if (mounted) {
@@ -160,19 +176,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               });
             }
           },
+          // Khi có lỗi xảy ra
           onError: (err, msg) {
             debugPrint('Agora Error: $err - $msg');
           },
         ),
       );
 
+      // Join vào channel với channelName
       await _engine!.joinChannel(
-        token: '',
+        token: '', // Token để xác thực (để trống nếu không dùng)
         channelId: widget.channelName,
-        uid: 0,
+        uid: 0, // UID = 0 thì Agora tự động generate
         options: const ChannelMediaOptions(
           channelProfile: ChannelProfileType.channelProfileCommunication,
-          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster, // Broadcaster để có thể gửi stream
         ),
       );
 
@@ -192,6 +210,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
+  // Toggle tắt/bật mic
   void _toggleMute() {
     setState(() {
       _isMuted = !_isMuted;
@@ -199,18 +218,20 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _engine?.muteLocalAudioStream(_isMuted);
   }
 
+  // Toggle tắt/bật camera
   void _toggleCamera() {
     setState(() {
       _isCameraOff = !_isCameraOff;
     });
     _engine?.muteLocalVideoStream(_isCameraOff);
     if (_isCameraOff) {
-      _engine?.stopPreview();
+      _engine?.stopPreview(); // Dừng preview khi tắt camera
     } else {
-      _engine?.startPreview();
+      _engine?.startPreview(); // Bật preview khi bật camera
     }
   }
 
+  // Đổi camera trước/sau
   void _switchCamera() {
     setState(() {
       _isFrontCamera = !_isFrontCamera;
@@ -220,12 +241,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
-    _callStatusSubscription?.cancel(); // Hủy subscription
-    _callTimeoutTimer?.cancel();
-    _dispose();
+    _callStatusSubscription?.cancel(); // Hủy subscription Firestore
+    _callTimeoutTimer?.cancel(); // Hủy timer timeout
+    _dispose(); // Cleanup Agora engine
     super.dispose();
   }
 
+  // Cleanup Agora engine
   Future<void> _dispose() async {
     try {
       await _engine?.leaveChannel();
@@ -235,18 +257,18 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
- 
+  // Kết thúc cuộc gọi và lưu lịch sử
   Future<void> _leaveChannel() async {
     _callTimeoutTimer?.cancel();
     _callStatusSubscription?.cancel();
     
-    // Kiểm tra trạng thái cuộc gọi
+    // Tính toán thời lượng cuộc gọi
     if (_callStartTime != null) {
       final duration = DateTime.now().difference(_callStartTime!).inSeconds;
       final currentUserId = FirebaseAuth.instance.currentUser?.uid;
       
       if (_callAnswered) {
-        // Trường hợp đã nghe máy: Lưu "Đã gọi X phút Y giây"
+        // Trường hợp đã nghe máy: Lưu tin nhắn "Đã gọi X phút Y giây"
         await FirebaseFirestore.instance
             .collection('calls')
             .doc(widget.channelName)
@@ -266,7 +288,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           );
         }
       } else {
-        // Trường hợp chưa nghe máy: Lưu "Đã hủy"
+        // Trường hợp chưa nghe máy: Lưu tin nhắn "Đã hủy"
         await FirebaseFirestore.instance
             .collection('calls')
             .doc(widget.channelName)
@@ -282,13 +304,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             duration: 0,
             missed: false,
             declined: false,
-            cancelled: true, // Thêm tham số mới
+            cancelled: true, // Đánh dấu là cuộc gọi bị hủy
           );
         }
       }
     }
 
-    // Cleanup Agora
+    // Cleanup Agora engine và thoát màn hình
     await _engine?.leaveChannel();
     await _engine?.release();
 
@@ -297,7 +319,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
   }
 
-  // Hàm format thời lượng
+  // Format thời lượng thành "X phút Y giây"
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final secs = seconds % 60;
@@ -309,6 +331,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Lắng nghe trạng thái cuộc gọi từ Firestore để tự động thoát khi ended
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('calls').doc(widget.channelName).snapshots(),
       builder: (context, snapshot) {
@@ -319,6 +342,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           });
         }
 
+        // Hiển thị loading khi đang khởi tạo engine
         if (_engine == null || !_isInitialized) {
           return Scaffold(
             backgroundColor: Colors.black,
@@ -339,8 +363,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           backgroundColor: Colors.black,
           body: Stack(
             children: [
+              // UI cho voice call: hiển thị avatar và tên
               if (widget.isVoiceCall)
-                // Hiển thị avatar và tên đối phương khi gọi thoại
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -365,7 +389,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                     ],
                   ),
                 )
+              // UI cho video call: hiển thị video remote và local
               else ...[
+                // Video remote chiếm toàn màn hình
                 Positioned.fill(
                   child: _remoteUid != null
                     ? AgoraVideoView(
@@ -398,7 +424,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         ),
                       ),
                 ),
-                // Video nhỏ của mình
+                // Video local (của mình) ở góc dưới bên phải
                 Positioned(
                   bottom: 100,
                   right: 20,
@@ -428,14 +454,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   ),
                 ),
               ],
-              // Nút điều khiển IG style
+              // Các nút điều khiển ở dưới cùng (Instagram style)
               Positioned(
                 bottom: 40,
                 left: 0,
                 right: 0,
                 child: Column(
                   children: [
-                    // Nút kết thúc gọi
+                    // Nút kết thúc gọi màu đỏ
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
@@ -445,12 +471,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       icon: const Icon(Icons.call_end, color: Colors.white),
                       label: const Text('Kết thúc', style: TextStyle(fontSize: 18, color: Colors.white)),
                       onPressed: () async {
-                        // Gọi hàm _leaveChannel thay vì xử lý trực tiếp ở đây
+                        // Kết thúc cuộc gọi và lưu lịch sử
                         await _leaveChannel();
                       },
                     ),
                     const SizedBox(height: 18),
-                    // Dãy nút IG style
+                    // Dãy nút điều khiển: Mute, Camera, Switch Camera
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -483,6 +509,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     );
   }
 
+  // Widget helper để tạo nút tròn điều khiển
   Widget _buildCircleButton({required IconData icon, required Color color, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,

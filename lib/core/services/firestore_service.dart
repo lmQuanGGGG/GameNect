@@ -11,41 +11,72 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 //import '../services/location_service.dart';
 
+// Lớp dịch vụ quản lý tất cả các thao tác với Firestore và Firebase Storage
+// Bao gồm quản lý user, match, swipe history, moment, chat
 class FirestoreService {
+  // Khởi tạo instance của Firestore để truy cập database
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  // Reference đến collection users để thao tác với dữ liệu người dùng
   final CollectionReference users = FirebaseFirestore.instance.collection('users');
+  // Reference đến collection matches để quản lý các cặp match
   final CollectionReference matches = FirebaseFirestore.instance.collection('matches');
+  // Instance Firebase Storage để upload và quản lý file media
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  // Getter để truy cập Firestore instance từ bên ngoài nếu cần
   FirebaseFirestore get db => _db;
 
+  // Hàm upload ảnh lên Firebase Storage
+  // Tham số image là file ảnh trên thiết bị
+  // userId để tạo thư mục riêng cho từng user
+  // path là đường dẫn con trong thư mục của user
+  // Trả về URL download của ảnh sau khi upload thành công
   Future<String?> uploadImage(File image, String userId, String path) async {
     try {
+      // Tạo reference đến vị trí lưu file trên Storage
+      // Cấu trúc: users/userId/path
       final ref = _storage.ref().child('users/$userId/$path');
+      // Upload file lên Storage
       await ref.putFile(image);
+      // Lấy và trả về URL công khai để truy cập ảnh
       return await ref.getDownloadURL();
     } catch (e) {
+      // Throw exception kèm thông báo lỗi để xử lý ở tầng gọi hàm
       throw Exception('Không thể tải ảnh lên: $e');
     }
   }
 
+  // Thêm hoặc cập nhật thông tin user vào Firestore
+  // Dùng SetOptions merge để không ghi đè toàn bộ document
+  // Chỉ cập nhật các field có trong user.toMap()
   Future<void> addUser(UserModel user) {
     return users.doc(user.id).set(user.toMap(), SetOptions(merge: true));
   }
 
+  // Tạo một match mới trong collection matches
+  // Dùng ID của match làm document ID để dễ truy xuất
   Future<void> createMatch(MatchModel match) {
     return matches.doc(match.id).set(match.toMap());
   }
 
+  // Lấy thông tin user theo ID
+  // Trả về UserModel nếu tìm thấy, null nếu không tồn tại
   Future<UserModel?> getUser(String userId) async {
+    // Lấy document từ Firestore
     DocumentSnapshot doc = await users.doc(userId).get();
+    // Kiểm tra document có tồn tại không
+    // Nếu có thì chuyển đổi data thành UserModel
     return doc.exists
         ? UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)
         : null;
   }
 
+  // Lấy danh sách tất cả users trong hệ thống
+  // Dùng để admin quản lý hoặc load dữ liệu ban đầu
   Future<List<UserModel>> getAllUsers() async {
+    // Lấy tất cả documents trong collection users
     QuerySnapshot snapshot = await users.get();
+    // Chuyển đổi mỗi document thành UserModel và trả về list
     return snapshot.docs
         .map(
           (doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id),
@@ -53,28 +84,37 @@ class FirestoreService {
         .toList();
   }
 
+  // Lấy danh sách các match đang active trong hệ thống
+  // Dùng để hiển thị các cặp đang hoạt động
   Future<List<MatchModel>> getActiveMatches() async {
+    // Query các match có isActive là true
     final snapshot = await FirebaseFirestore.instance
         .collection('matches')
         .where('isActive', isEqualTo: true)
         .get();
 
+    // Chuyển đổi mỗi document thành MatchModel
     return snapshot.docs
         .map((doc) => MatchModel.fromMap(doc.data(), doc.id))
         .toList();
   }
 
+  // Lấy thông tin user hiện đang đăng nhập
+  // Trả về null nếu chưa đăng nhập
   Future<UserModel?> getCurrentUser() async {
+    // Lấy user đang đăng nhập từ FirebaseAuth
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
 
+    // Lấy thông tin chi tiết từ Firestore dựa vào UID
     final doc = await users.doc(user.uid).get();
     return doc.exists
         ? UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)
         : null;
   }
 
-  // Cập nhật thông tin user
+  // Cập nhật toàn bộ thông tin user
+  // Dùng update thay vì set để chỉ cập nhật các field thay đổi
   Future<void> updateUser(UserModel user) async {
     try {
       await _db
@@ -86,7 +126,8 @@ class FirestoreService {
     }
   }
 
-  /// Cập nhật location của user
+  // Cập nhật vị trí địa lý của user
+  // locationData chứa latitude, longitude, address, city
   Future<void> updateUserLocation(
     String userId,
     Map<String, dynamic> locationData,
@@ -100,7 +141,8 @@ class FirestoreService {
     }
   }
 
-  /// Cập nhật max distance cho matching
+  // Cập nhật bán kính tìm kiếm tối đa của user
+  // maxDistance tính bằng km để filter các đề xuất match
   Future<void> updateMaxDistance(String userId, double maxDistance) async {
     try {
       await _db.collection('users').doc(userId).update({
@@ -113,7 +155,9 @@ class FirestoreService {
     }
   }
 
-  /// Cập nhật location settings (maxDistance và showDistance) - METHOD MỚI
+  // Cập nhật các cài đặt vị trí và filter của user
+  // Bao gồm maxDistance, showDistance, minAge, maxAge, interestedInGender
+  // Chỉ cập nhật các field không null để tránh ghi đè dữ liệu cũ
   Future<void> updateLocationSettings(
     String userId, {
     double? maxDistance,
@@ -123,6 +167,7 @@ class FirestoreService {
     String? interestedInGender,
   }) async {
     try {
+      // Tạo map chỉ chứa các field cần cập nhật
       final Map<String, dynamic> updates = {};
       
       if (maxDistance != null) {
@@ -145,6 +190,7 @@ class FirestoreService {
         updates['interestedInGender'] = interestedInGender;
       }
       
+      // Chỉ thực hiện update nếu có ít nhất một field
       if (updates.isNotEmpty) {
         await _db.collection('users').doc(userId).update(updates);
         developer.log('Đã cập nhật location settings: $updates', name: 'FirestoreService');
@@ -157,7 +203,8 @@ class FirestoreService {
     }
   }
 
-  /// Lấy user theo ID
+  // Lấy user theo ID, tương tự getUser nhưng có tên khác
+  // Để tương thích với code cũ hoặc dùng cho mục đích khác
   Future<UserModel?> getUserById(String userId) async {
     try {
       final doc = await _db.collection('users').doc(userId).get();
@@ -173,7 +220,8 @@ class FirestoreService {
     }
   }
 
-  /// Lấy users trong bán kính
+  // Tìm users trong bán kính địa lý xác định
+  // Dùng để tạo danh sách đề xuất match dựa trên khoảng cách
   Future<List<UserModel>> getUsersWithinRadius({
     required double latitude,
     required double longitude,
@@ -184,10 +232,13 @@ class FirestoreService {
     try {
       developer.log('Đang tìm users trong bán kính $radiusKm km...', name: 'FirestoreService');
       
-      // Tính bounds của bán kính
+      // Tính toán bounds của hình chữ nhật bao quanh bán kính
+      // 1 độ latitude tương đương 111 km
       final latDelta = radiusKm / 111.0;
+      // 1 độ longitude phụ thuộc vào vĩ độ hiện tại
       final lonDelta = radiusKm / (111.0 * cos(latitude * pi / 180));
 
+      // Tính giới hạn tối thiểu và tối đa cho latitude và longitude
       final minLat = latitude - latDelta;
       final maxLat = latitude + latDelta;
       final minLon = longitude - lonDelta;
@@ -195,11 +246,14 @@ class FirestoreService {
 
       developer.log('Bounds: lat[$minLat, $maxLat], lon[$minLon, $maxLon]', name: 'FirestoreService');
 
+      // Query users có latitude trong bounds
+      // Firestore chỉ cho phép where trên một field range, nên filter longitude sau
       Query query = _db
           .collection('users')
           .where('latitude', isGreaterThanOrEqualTo: minLat)
           .where('latitude', isLessThanOrEqualTo: maxLat);
       
+      // Loại trừ chính user đang query nếu có
       if (excludeUserId != null) {
         query = query.where('id', isNotEqualTo: excludeUserId);
       }
@@ -208,6 +262,7 @@ class FirestoreService {
 
       developer.log('Tìm thấy ${snapshot.docs.length} users trong bounds', name: 'FirestoreService');
 
+      // Filter thêm longitude và loại bỏ users không có tọa độ
       final users = snapshot.docs
           .map((doc) {
             final data = doc.data() as Map<String, dynamic>?;
@@ -216,10 +271,12 @@ class FirestoreService {
           })
           .whereType<UserModel>()
           .where((user) {
+            // Bỏ qua users không có tọa độ
             if (user.longitude == null || user.latitude == null) {
               return false;
             }
             
+            // Filter longitude trong bounds
             if (user.longitude! < minLon || user.longitude! > maxLon) {
               return false;
             }
@@ -237,7 +294,8 @@ class FirestoreService {
     }
   }
 
-  /// Stream theo dõi thay đổi user
+  // Tạo stream theo dõi thay đổi real-time của user
+  // Dùng để cập nhật UI tự động khi user thay đổi thông tin
   Stream<UserModel?> getUserStream(String userId) {
     return _db
         .collection('users')
@@ -251,7 +309,8 @@ class FirestoreService {
         });
   }
 
-  /// Cập nhật một field cụ thể
+  // Cập nhật một field cụ thể của user
+  // Tiện lợi khi chỉ cần thay đổi một thuộc tính nhỏ
   Future<void> updateUserField(
     String userId,
     String field,
@@ -268,12 +327,14 @@ class FirestoreService {
     }
   }
 
-  /// Cập nhật nhiều fields cùng lúc
+  // Cập nhật nhiều fields cùng lúc
+  // Tối ưu hơn so với gọi updateUserField nhiều lần
   Future<void> updateUserFields(
     String userId,
     Map<String, dynamic> fields,
   ) async {
     try {
+      // Kiểm tra có field nào để cập nhật không
       if (fields.isEmpty) {
         developer.log('Không có field nào để cập nhật', name: 'FirestoreService');
         return;
@@ -287,7 +348,8 @@ class FirestoreService {
     }
   }
 
-  /// Kiểm tra user có tồn tại không
+  // Kiểm tra user có tồn tại trong Firestore không
+  // Trả về true nếu tồn tại, false nếu không
   Future<bool> userExists(String userId) async {
     try {
       final doc = await _db.collection('users').doc(userId).get();
@@ -298,7 +360,8 @@ class FirestoreService {
     }
   }
 
-  /// Xóa user
+  // Xóa user khỏi Firestore
+  // Lưu ý: Nên xóa cả dữ liệu liên quan như matches, messages trước
   Future<void> deleteUser(String userId) async {
     try {
       await _db.collection('users').doc(userId).delete();
@@ -309,9 +372,11 @@ class FirestoreService {
     }
   }
 
-  /// Lấy lịch sử match của user
+  // Lấy lịch sử match của user, sắp xếp theo thời gian cập nhật gần nhất
+  // Giới hạn số lượng để tránh load quá nhiều dữ liệu
   Future<List<MatchModel>> getUserMatchHistory(String userId, {int limit = 50}) async {
     try {
+      // Query matches có chứa userId trong mảng userIds
       final snap = await matches
           .where('userIds', arrayContains: userId)
           .orderBy('updatedAt', descending: true)
@@ -327,6 +392,8 @@ class FirestoreService {
     }
   }
 
+  // Lấy dữ liệu user dưới dạng Map thay vì UserModel
+  // Dùng khi cần truy cập raw data hoặc fields không có trong model
   Future<Map<String, dynamic>?> getUserMapById(String userId) async {
     final doc = await users.doc(userId).get();
     if (doc.exists) {
@@ -392,6 +459,8 @@ Future<List<String>> getSwipedUserIds(String userId) async {
   }
 }
 
+// Lấy danh sách documents match của user
+  // Trả về raw documents thay vì model để linh hoạt xử lý
 Future<List<QueryDocumentSnapshot>> getMatchDocsForUser(String userId) async {
   try {
     final snapshot = await _db
@@ -466,7 +535,7 @@ Future<List<SwipeHistory>> getLikedMeHistory(String userId, {int limit = 20}) as
       .toList();
 }
 
-// ==================== MATCH MANAGEMENT ====================
+  // ==================== MATCH MANAGEMENT ====================
 
 /// Tạo match mới (overload method mới, giữ nguyên method cũ)
 Future<String> createNewMatch({

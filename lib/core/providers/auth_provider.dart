@@ -54,7 +54,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Đăng nhập với Facebook và lấy location
-  Future<bool> signInWithFacebook() async {
+  /*Future<bool> signInWithFacebook() async {
     try {
       _isLoading = true;
       _error = null;
@@ -80,7 +80,7 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
+  }*/
 
   /// Đăng ký với Email/Password
   Future<bool> signUpWithEmailPassword(String email, String password) async {

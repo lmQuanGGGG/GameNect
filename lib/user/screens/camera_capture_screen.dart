@@ -15,16 +15,18 @@ import 'package:logger/logger.dart';
 import 'package:image/image.dart' as img;
 import '../../core/utils/video_thumbnail_helper.dart';
 import 'dart:developer' as developer;
-import '../../core/services/firestore_service.dart'; // THÊM dòng này
-import 'subscription_screen.dart'; // THÊM dòng này
+import '../../core/services/firestore_service.dart';
+import 'subscription_screen.dart';
 
-// Import widgets
+// Import các widget tái sử dụng
 import '../widgets/glass_icon_button.dart';
 import '../widgets/zoom_preset_button.dart';
 import '../widgets/recording_indicator.dart';
 import '../widgets/glass_button.dart';
 import '../widgets/preview_button.dart';
 
+// Màn hình camera để chụp ảnh và quay video cho tính năng Moment
+// Tương tự Instagram Stories với khả năng chụp ảnh tap ngắn hoặc giữ để quay video
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
 
@@ -50,22 +52,22 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   final ImagePicker _picker = ImagePicker();
   VideoPlayerController? _videoController;
   
-  // Focus & Exposure indicator
+  // Các biến để xử lý focus và exposure khi tap vào màn hình
   Offset? _focusPoint;
   bool _showFocusCircle = false;
   AnimationController? _focusAnimationController;
   
-  // Pinch to zoom
+  // Biến cho pinch to zoom
   double _baseScale = 1.0;
   
-  // Exposure slider
+  // Biến để hiển thị exposure slider
   bool _showExposureSlider = false;
   Offset? _exposureSliderPosition;
 
-  // Front flash overlay
+  // Front flash overlay để giả lập flash cho camera trước
   bool _showFrontFlashOverlay = false;
 
-  // Thumbnail
+  // Thumbnail cho video để hiển thị preview
   String? _localThumbnailPath;
   bool _isGeneratingThumbnail = false;
 
@@ -81,6 +83,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     _initializeCamera();
   }
 
+  // Khởi tạo camera khi mở màn hình
+  // Mặc định sử dụng camera sau nếu có
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
@@ -101,6 +105,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
       await _controller!.initialize();
       await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
       
+      // Lấy giới hạn zoom của camera để set range cho slider
       _maxZoom = await _controller!.getMaxZoomLevel();
       _minZoom = await _controller!.getMinZoomLevel();
       _currentZoom = _minZoom;
@@ -113,6 +118,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Chuyển đổi giữa camera trước và sau
   Future<void> _toggleCamera() async {
     if (_cameras == null || _cameras!.length < 2) return;
 
@@ -135,7 +141,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     _minZoom = await _controller!.getMinZoomLevel();
     _currentZoom = _minZoom;
 
-    // Tắt flash khi chuyển sang camera trước
+    // Camera trước không có flash thật nên tắt flash khi chuyển
     if (_isFrontCamera) {
       _isFlashOn = false;
       await _controller!.setFlashMode(FlashMode.off);
@@ -146,6 +152,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Xử lý tap vào màn hình để focus và set exposure point
   Future<void> _handleTapToFocus(TapDownDetails details) async {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
@@ -153,7 +160,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     final Offset localPosition = box.globalToLocal(details.globalPosition);
     final Size size = box.size;
 
-    // Normalize coordinates
+    // Chuẩn hóa tọa độ từ 0 đến 1 để camera API hiểu
     final dx = localPosition.dx / size.width;
     final dy = localPosition.dy / size.height;
 
@@ -173,6 +180,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
       _logger.e('Focus error: $e');
     }
 
+    // Tự động ẩn focus indicator sau 3 giây
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
@@ -183,15 +191,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     });
   }
 
+  // Xử lý pinch to zoom - lưu zoom hiện tại làm base
   void _handleScaleStart(ScaleStartDetails details) {
     _baseScale = _currentZoom;
   }
 
+  // Cập nhật zoom khi pinch
   Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
     if (_controller == null) return;
 
     final newZoom = (_baseScale * details.scale).clamp(_minZoom, _maxZoom);
     
+    // Chỉ cập nhật khi thay đổi đủ lớn để tránh lag
     if ((newZoom - _currentZoom).abs() > 0.01) {
       _currentZoom = newZoom;
       await _controller!.setZoomLevel(_currentZoom);
@@ -199,6 +210,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Set zoom theo các preset 1x 2x 3x
   Future<void> _setZoomPreset(double zoom) async {
     if (_controller == null) return;
     
@@ -208,9 +220,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     setState(() {});
   }
 
+  // Chụp ảnh
   Future<void> _takePicture() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
+    // Bật overlay trắng giả lập flash cho camera trước
     if (_isFrontCamera && _isFlashOn) {
       setState(() => _showFrontFlashOverlay = true);
       await Future.delayed(const Duration(milliseconds: 350));
@@ -229,6 +243,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Bắt đầu quay video
   Future<void> _startRecording() async {
     if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
 
@@ -239,6 +254,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
         _recordingSeconds = 0;
       });
 
+      // Timer để đếm giây và tự động dừng sau 15 giây
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() => _recordingSeconds++);
         if (_recordingSeconds >= 15) {
@@ -250,6 +266,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Dừng quay video
   Future<void> _stopRecording() async {
     if (_controller == null || !_isRecording) return;
 
@@ -263,13 +280,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
         _recordingSeconds = 0;
       });
       
-      // Generate thumbnail
+      // Tạo thumbnail cho video để hiển thị preview
       await _generateThumbnail(video.path);
     } catch (e) {
       _logger.e('Stop recording error: $e');
     }
   }
 
+  // Tạo thumbnail từ video
   Future<void> _generateThumbnail(String videoPath) async {
     setState(() => _isGeneratingThumbnail = true);
     
@@ -289,8 +307,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
+  // Chọn ảnh hoặc video từ thư viện
   Future<void> _pickFromGallery() async {
     try {
+      // Hiển thị dialog cho user chọn ảnh hoặc video
       final choice = await showDialog<String>(
         context: context,
         builder: (ctx) => BackdropFilter(
@@ -353,13 +373,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
           setState(() {
             _capturedMedia = pickedFile;
             _isVideo = false;
-            _localThumbnailPath = null; // Reset thumbnail
+            _localThumbnailPath = null;
           });
         }
       } else {
         pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
         
         if (pickedFile != null) {
+          // Kiểm tra video không quá 15 giây
           final videoController = VideoPlayerController.file(File(pickedFile.path));
           await videoController.initialize();
           final duration = videoController.value.duration.inSeconds;
@@ -391,7 +412,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
-  // Thay thế _buildGlassIconButton
   Widget _buildGlassIconButton({
     required IconData icon,
     required VoidCallback onPressed,
@@ -399,7 +419,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     return GlassIconButton(icon: icon, onPressed: onPressed);
   }
 
-  // Thay thế _buildZoomPreset
   Widget _buildZoomPreset(String label, double zoom) {
     return ZoomPresetButton(
       label: label,
@@ -409,7 +428,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     );
   }
 
-  // Thay thế _buildGlassButton
   Widget _buildGlassButton({
     required IconData icon,
     required String label,
@@ -418,7 +436,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     return GlassButton(icon: icon, label: label, onTap: onTap);
   }
 
-  // Thay thế _buildPreviewButton
   Widget _buildPreviewButton({
     required IconData icon,
     required String label,
@@ -433,6 +450,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     );
   }
 
+  // Lật ảnh theo chiều ngang nếu chụp từ camera trước
+  // Camera trước có hiệu ứng mirror nên cần flip lại
   Future<XFile> _flipImageIfFrontCamera(XFile file) async {
     if (!_isFrontCamera) return file;
     final bytes = await file.readAsBytes();
@@ -444,13 +463,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     return XFile(newFile.path);
   }
 
+  // Upload media lên Firebase Storage và đăng moment
   Future<void> _uploadAndPost() async {
   if (_capturedMedia == null) return;
 
   final userId = FirebaseAuth.instance.currentUser?.uid;
   if (userId == null) return;
 
-  // THÊM: Kiểm tra giới hạn trước khi hỏi caption
+  // Kiểm tra giới hạn 20 moments/tháng cho free user
   try {
     final canPost = await FirestoreService().canPostMoment(userId);
     if (!canPost) {
@@ -462,11 +482,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     // Nếu lỗi check, vẫn cho tiếp tục (fallback an toàn)
   }
 
-  // Hỏi chú thích
+  // Hỏi user nhập caption
   final caption = await _showCaptionDialog();
   if (caption == null) return;
 
-  // Hiện loading
+  // Hiện loading dialog
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -478,14 +498,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     String? thumbnailUrl;
 
     if (_isVideo) {
-      // Upload video
+      // Upload video lên Storage
       final videoRef = FirebaseStorage.instance
           .ref()
           .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
       await videoRef.putFile(File(_capturedMedia!.path));
       mediaUrl = await videoRef.getDownloadURL();
 
-      // Upload thumbnail (nếu đã generate)
+      // Upload thumbnail nếu có
       if (_localThumbnailPath != null) {
         final thumbRef = FirebaseStorage.instance
             .ref()
@@ -494,7 +514,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
         thumbnailUrl = await thumbRef.getDownloadURL();
       }
     } else {
-      // Ảnh: lật nếu camera trước
+      // Lật ảnh nếu chụp từ camera trước
       XFile imageToUpload = _capturedMedia!;
       if (_isFrontCamera) {
         imageToUpload = await _flipImageIfFrontCamera(_capturedMedia!);
@@ -507,11 +527,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
       mediaUrl = await imageRef.getDownloadURL();
     }
 
-    // Lấy danh sách userIds đã match
+    // Lấy danh sách matched users để gửi moment
     final momentProvider = Provider.of<MomentProvider>(context, listen: false);
     final matchedUserIds = await momentProvider.getMatchedUserIds(userId);
 
-    // Đăng moment
+    // Đăng moment lên Firestore
     await momentProvider.postMoment(
       userId: userId,
       mediaUrl: mediaUrl,
@@ -530,9 +550,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   } catch (e) {
     developer.log('Error uploading moment: $e', name: 'CameraCapture', error: e);
     if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pop(); // đóng loading
+    Navigator.of(context, rootNavigator: true).pop();
     
-    // THÊM: nếu lỗi LIMIT_EXCEEDED thì hiện popup
+    // Nếu lỗi do vượt giới hạn thì hiện popup upsell premium
     final msg = e.toString();
     if (msg.contains('LIMIT_EXCEEDED')) {
       await _showPremiumUpsellDialog();
@@ -544,7 +564,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   }
 }
 
-// THÊM HÀM MỚI (đặt trước _showCaptionDialog)
+// Hiển thị dialog upsell premium khi user vượt giới hạn
 Future<void> _showPremiumUpsellDialog() async {
   if (!mounted) return;
   await showDialog<void>(
@@ -649,6 +669,7 @@ Future<void> _showPremiumUpsellDialog() async {
   );
 }
 
+  // Hiển thị dialog nhập caption
   Future<String?> _showCaptionDialog() async {
     final controller = TextEditingController();
     return showDialog<String>(
@@ -767,6 +788,7 @@ Future<void> _showPremiumUpsellDialog() async {
 
   @override
   Widget build(BuildContext context) {
+    // Nếu đã có media thì hiển thị màn hình preview
     if (_capturedMedia != null) {
       return _buildPreviewScreen();
     }
@@ -776,7 +798,7 @@ Future<void> _showPremiumUpsellDialog() async {
       body: _isInitialized
           ? Stack(
               children: [
-                // Camera preview with aspect ratio
+                // Camera preview với tỷ lệ 9:16 giống Instagram Stories
                 Center(
                   child: AspectRatio(
                     aspectRatio: 9 / 16,
@@ -789,7 +811,7 @@ Future<void> _showPremiumUpsellDialog() async {
                   ),
                 ),
 
-                // Focus circle indicator
+                // Hiển thị vòng tròn vàng khi tap để focus
                 if (_showFocusCircle && _focusPoint != null)
                   Positioned(
                     left: _focusPoint!.dx - 40,
@@ -810,7 +832,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     ),
                   ),
 
-                // Exposure slider
+                // Exposure slider hiện lên bên cạnh điểm focus
                 if (_showExposureSlider && _exposureSliderPosition != null)
                   Positioned(
                     left: _exposureSliderPosition!.dx + 50,
@@ -881,7 +903,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     ),
                   ),
 
-                  // Top bar with glass effect
+                  // Top bar với nút đóng
                   Positioned(
                     top: 0,
                     left: 0,
@@ -910,7 +932,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     ),
                   ),
 
-                  // Recording indicator - thay thế bằng widget
+                  // Recording indicator hiển thị số giây đang quay
                   if (_isRecording)
                     Positioned(
                       top: MediaQuery.of(context).padding.top + 120,
@@ -921,7 +943,7 @@ Future<void> _showPremiumUpsellDialog() async {
                       ),
                     ),
 
-                  // Bottom controls
+                  // Bottom controls chứa các nút điều khiển
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -940,7 +962,7 @@ Future<void> _showPremiumUpsellDialog() async {
                       ),
                       child: Column(
                         children: [
-                          // Zoom presets + Flash + Flip camera (iOS style)
+                          // Hàng chứa Flash Flip camera và Zoom presets
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly, // căn đều các nút
                             children: [
@@ -967,11 +989,11 @@ Future<void> _showPremiumUpsellDialog() async {
                           ),
                           const SizedBox(height: 30),
 
-                          // Capture buttons
+                          // Hàng chứa nút chụp/quay và chọn từ thư viện
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              // Nút up ảnh (bên trái)
+                              // Nút chọn từ thư viện
                               SizedBox(
                                 width: 70,
                                 height: 70,
@@ -980,7 +1002,7 @@ Future<void> _showPremiumUpsellDialog() async {
                                   onPressed: _pickFromGallery,
                                 ),
                               ),
-                              // Nút chụp/quay
+                              // Nút chụp/quay chính giữa
                               SizedBox(
                                 width: 80,
                                 height: 80,
@@ -994,7 +1016,7 @@ Future<void> _showPremiumUpsellDialog() async {
                                   child: Center(
                                     child: AnimatedContainer(
                                       duration: const Duration(milliseconds: 200),
-                                      width: _isRecording ? 32 : 60, // nhỏ lại khi quay video
+                                      width: _isRecording ? 32 : 60,
                                       height: _isRecording ? 32 : 60,
                                       decoration: BoxDecoration(
                                         color: _isRecording ? Colors.red : Colors.white,
@@ -1006,7 +1028,7 @@ Future<void> _showPremiumUpsellDialog() async {
                                 ),
                               ),
 
-                              // Nút chuyển chế độ (video/ảnh)
+                              // Nút chuyển chế độ video/ảnh
                               SizedBox(
                                 width: 70,
                                 height: 70,
@@ -1039,6 +1061,7 @@ Future<void> _showPremiumUpsellDialog() async {
                           ),
                           const SizedBox(height: 20),
                           
+                          // Text hướng dẫn sử dụng
                           Text(
                             _isRecording
                                 ? 'Nhấn để dừng'
@@ -1056,7 +1079,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     ),
                   ),
 
-                  // Current zoom indicator
+                  // Hiển thị mức zoom hiện tại
                   Positioned(
                     bottom: 200,
                     left: 0,
@@ -1094,7 +1117,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     ),
                   ),
 
-                  // Flash overlay for front camera
+                  // Flash overlay trắng cho camera trước
                   if (_showFrontFlashOverlay)
                     Positioned.fill(
                       child: Container(
@@ -1109,15 +1132,14 @@ Future<void> _showPremiumUpsellDialog() async {
     );
   }
 
-  // ...existing code...
-
+  // Màn hình preview sau khi chụp hoặc quay
   Widget _buildPreviewScreen() {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Preview media
+          // Hiển thị preview media
           Center(
             child: _isVideo
                 ? (_localThumbnailPath != null
@@ -1128,6 +1150,7 @@ Future<void> _showPremiumUpsellDialog() async {
                             File(_localThumbnailPath!),
                             fit: BoxFit.contain,
                           ),
+                          // Icon play để biết đây là video
                           Center(
                             child: Container(
                               padding: const EdgeInsets.all(20),
@@ -1168,6 +1191,7 @@ Future<void> _showPremiumUpsellDialog() async {
                         ),
                       ))
                 : (_isFrontCamera
+                    // Mirror ảnh nếu chụp từ camera trước
                     ? Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.identity()..scale(-1.0, 1.0),
@@ -1176,7 +1200,7 @@ Future<void> _showPremiumUpsellDialog() async {
                     : Image.file(File(_capturedMedia!.path), fit: BoxFit.contain)),
           ),
 
-          // Top bar
+          // Top bar với nút hủy
           Positioned(
             top: 0,
             left: 0,
@@ -1199,7 +1223,7 @@ Future<void> _showPremiumUpsellDialog() async {
                   _buildGlassIconButton(
                     icon: Icons.close,
                     onPressed: () {
-                      // Xóa thumbnail local
+                      // Xóa thumbnail local khi hủy
                       if (_localThumbnailPath != null) {
                         // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
@@ -1215,7 +1239,7 @@ Future<void> _showPremiumUpsellDialog() async {
             ),
           ),
 
-          // Bottom actions
+          // Bottom actions với nút Chụp lại và Đăng
           Positioned(
             bottom: 0,
             left: 0,
@@ -1272,7 +1296,7 @@ Future<void> _showPremiumUpsellDialog() async {
     _videoController?.dispose();
     _focusAnimationController?.dispose();
     
-    // Xóa thumbnail local
+    // Xóa thumbnail local khi dispose
     if (_localThumbnailPath != null) {
       // ignore: body_might_complete_normally_catch_error
       File(_localThumbnailPath!).delete().catchError((_) {});

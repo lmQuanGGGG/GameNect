@@ -3,6 +3,8 @@ import 'package:video_player/video_player.dart';
 import 'dart:io';
 import 'dart:ui';
 
+// Màn hình preview ảnh hoặc video trước khi gửi trong chat
+// Cho phép user thêm caption và xem trước media
 class MediaPreviewScreen extends StatefulWidget {
   final File file;
   final bool isVideo;
@@ -24,10 +26,13 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
   @override
   void initState() {
     super.initState();
+    // Nếu là video thì khởi tạo video player controller
     if (widget.isVideo) {
       _videoController = VideoPlayerController.file(widget.file)
         ..initialize().then((_) {
+          // Sau khi initialize xong thì setState để hiển thị video
           setState(() {});
+          // Tự động play và loop video
           _videoController!.play();
           _videoController!.setLooping(true);
         });
@@ -40,7 +45,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Preview media
+          // Vùng preview media chiếm toàn màn hình
           Positioned.fill(
             child: widget.isVideo && _videoController != null
                 ? Center(
@@ -54,6 +59,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                           ),
                   )
                 : Center(
+                    // Hiển thị ảnh với fit contain để giữ nguyên tỷ lệ
                     child: Image.file(
                       widget.file,
                       fit: BoxFit.contain,
@@ -61,7 +67,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                   ),
           ),
 
-          // Top bar với nút back
+          // Top bar với blur effect và nút đóng
           Positioned(
             top: 0,
             left: 0,
@@ -86,6 +92,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                       padding: const EdgeInsets.all(8),
                       child: Row(
                         children: [
+                          // Nút đóng để quay lại màn hình trước
                           IconButton(
                             icon: const Icon(
                               Icons.close,
@@ -103,7 +110,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
             ),
           ),
 
-          // Bottom bar với caption và nút gửi
+          // Bottom bar với caption input và nút gửi
           Positioned(
             bottom: 0,
             left: 0,
@@ -128,6 +135,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
+                          // TextField để nhập caption
                           Expanded(
                             child: TextField(
                               controller: _captionController,
@@ -165,6 +173,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
+                          // Nút gửi với gradient đỏ
                           Container(
                             width: 50,
                             height: 50,
@@ -183,6 +192,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                                 color: Colors.white,
                               ),
                               onPressed: () {
+                                // Pop và trả về caption để màn hình chat xử lý gửi tin
                                 Navigator.pop(
                                   context,
                                   _captionController.text.trim(),
@@ -205,6 +215,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
 
   @override
   void dispose() {
+    // Dispose video controller để giải phóng bộ nhớ
     _videoController?.dispose();
     _captionController.dispose();
     super.dispose();

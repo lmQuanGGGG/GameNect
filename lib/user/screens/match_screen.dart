@@ -1,6 +1,3 @@
-// File này định nghĩa màn hình chính cho việc tìm kiếm và match người dùng trong ứng dụng GameNect.
-// Người dùng có thể swipe qua các profile được đề xuất, like hoặc dislike, và tạo match khi có sự tương tác lẫn nhau.
-// Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,6 +9,8 @@ import '../../core/widgets/profile_card.dart'; // Thay vì user_card.dart
 import '../../core/services/firestore_service.dart';
 import 'match_list_screen.dart';
 import 'subscription_screen.dart';
+
+// Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 
 // Lớp chính của màn hình match, sử dụng CardSwiper để người dùng swipe qua các profile
 class MatchScreen extends StatefulWidget {

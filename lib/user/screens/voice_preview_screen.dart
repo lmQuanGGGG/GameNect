@@ -3,9 +3,12 @@ import 'package:just_audio/just_audio.dart';
 import 'dart:io';
 import 'dart:ui';
 
+// Màn hình preview tin nhắn thoại trước khi gửi trong chat
+// Cho phép user nghe lại audio, xem thời lượng và quyết định gửi hoặc hủy
+// Sử dụng just_audio package để phát audio
 class VoicePreviewScreen extends StatefulWidget {
-  final File audioFile;
-  final int duration;
+  final File audioFile; // File audio đã ghi
+  final int duration; // Thời lượng audio tính bằng giây
 
   const VoicePreviewScreen({
     super.key,
@@ -18,16 +21,18 @@ class VoicePreviewScreen extends StatefulWidget {
 }
 
 class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
-  late AudioPlayer _player;
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
+  late AudioPlayer _player; // Audio player để phát file audio
+  bool _isPlaying = false; // Trạng thái đang phát hay đang dừng
+  Duration _position = Duration.zero; // Vị trí hiện tại của audio đang phát
 
   @override
   void initState() {
     super.initState();
+    // Khởi tạo audio player và load file audio
     _player = AudioPlayer();
     _player.setFilePath(widget.audioFile.path);
     
+    // Lắng nghe trạng thái phát/dừng của player
     _player.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
@@ -36,6 +41,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
       }
     });
 
+    // Lắng nghe vị trí hiện tại của audio để update UI
     _player.positionStream.listen((position) {
       if (mounted) {
         setState(() {
@@ -51,7 +57,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background gradient
+          // Background gradient màu đen chuyển sang đỏ nhạt
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -67,12 +73,12 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
             ),
           ),
 
-          // Content
+          // Content chính ở giữa màn hình
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Waveform animation (placeholder)
+                // Waveform animation hiển thị các thanh dao động theo nhạc
                 Container(
                   width: 200,
                   height: 100,
@@ -80,11 +86,12 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: List.generate(20, (index) {
+                      // Chiều cao mỗi thanh thay đổi để tạo hiệu ứng sóng
                       final height = 20.0 + (index % 3) * 20.0;
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: 4,
-                        height: _isPlaying ? height : 20,
+                        height: _isPlaying ? height : 20, // Thanh cao hơn khi đang phát
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(2),
@@ -96,13 +103,13 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
 
                 const SizedBox(height: 40),
 
-                // Play/Pause button
+                // Nút play/pause với gradient đỏ và shadow phát sáng
                 GestureDetector(
                   onTap: () {
                     if (_isPlaying) {
-                      _player.pause();
+                      _player.pause(); // Dừng phát nếu đang phát
                     } else {
-                      _player.play();
+                      _player.play(); // Phát audio nếu đang dừng
                     }
                   },
                   child: Container(
@@ -131,7 +138,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
 
                 const SizedBox(height: 24),
 
-                // Duration
+                // Hiển thị thời gian hiện tại / tổng thời lượng
                 Text(
                   '${_position.inSeconds}s / ${widget.duration}s',
                   style: const TextStyle(
@@ -144,7 +151,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
             ),
           ),
 
-          // Bottom buttons
+          // Bottom buttons: Hủy và Gửi
           Positioned(
             bottom: 0,
             left: 0,
@@ -154,7 +161,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                 padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
-                    // Nút hủy
+                    // Nút hủy với viền trắng, pop false khi nhấn
                     Expanded(
                       child: Container(
                         height: 56,
@@ -166,7 +173,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                           ),
                         ),
                         child: TextButton.icon(
-                          onPressed: () => Navigator.pop(context, false),
+                          onPressed: () => Navigator.pop(context, false), // Trả về false để không gửi
                           icon: const Icon(
                             Icons.delete_outline,
                             color: Colors.white,
@@ -185,7 +192,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
 
                     const SizedBox(width: 16),
 
-                    // Nút gửi
+                    // Nút gửi với gradient đỏ, pop true khi nhấn
                     Expanded(
                       child: Container(
                         height: 56,
@@ -196,7 +203,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                           ),
                         ),
                         child: TextButton.icon(
-                          onPressed: () => Navigator.pop(context, true),
+                          onPressed: () => Navigator.pop(context, true), // Trả về true để gửi tin
                           icon: const Icon(
                             Icons.send,
                             color: Colors.white,
@@ -224,6 +231,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
 
   @override
   void dispose() {
+    // Dispose audio player để giải phóng bộ nhớ
     _player.dispose();
     super.dispose();
   }

@@ -3,31 +3,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Lớp MatchStatus định nghĩa các trạng thái của một lần ghép đôi (match).
 // Các trạng thái gồm: pending (chờ xác nhận), partial (một bên xác nhận), confirmed (tất cả xác nhận), cancelled (bị hủy), expired (quá hạn chưa xác nhận đủ).
 class MatchStatus {
-  static const String pending = 'pending';          // Vừa ghép, chờ xác nhận
-  static const String partial = 'partial';          // Một bên xác nhận
-  static const String confirmed = 'confirmed';      // Tất cả đã xác nhận
-  static const String cancelled = 'cancelled';      // Bị hủy
-  static const String expired = 'expired';          // Quá hạn chưa xác nhận đủ
+  static const String pending = 'pending';         
+  static const String partial = 'partial';         
+  static const String confirmed = 'confirmed';     
+  static const String cancelled = 'cancelled';      
+  static const String expired = 'expired';         
 }
 
 // Lớp MatchModel lưu thông tin một lần ghép đôi giữa các user.
 // Bao gồm danh sách user, tên game, thời điểm ghép, trạng thái xác nhận, trạng thái hoạt động, các mốc thời gian liên quan.
 class MatchModel {
-  String id;                           // Id của lần ghép (document id trong Firestore)
-  List<String> userIds;                // Danh sách id các user tham gia ghép
-  String game;                         // Tên game được ghép
-  DateTime matchedAt;                  // Thời điểm ghép đôi
-  bool isActive;                       // Trạng thái hoạt động của lần ghép
-  Map<String, bool> confirmations;     // Map lưu trạng thái xác nhận của từng user (userId: true/false)
+  String id;                           
+  List<String> userIds;                
+  String game;                         
+  DateTime matchedAt;                  
+  bool isActive;                       
+  Map<String, bool> confirmations;     
 
   // Các trường trạng thái mới
-  String status;                       // Trạng thái hiện tại của lần ghép (pending, partial, confirmed, cancelled, expired)
-  String? cancelReason;                // Lý do hủy ghép (nếu có)
-  DateTime createdAt;                  // Thời điểm tạo lần ghép
-  DateTime updatedAt;                  // Thời điểm cập nhật lần ghép gần nhất
-  DateTime? confirmedAt;               // Thời điểm tất cả xác nhận
-  DateTime? cancelledAt;               // Thời điểm bị hủy
-  DateTime? expiresAt;                 // Hạn xác nhận (nếu có)
+  String status;                       
+  String? cancelReason;               
+  DateTime createdAt;                  
+  DateTime updatedAt;                  
+  DateTime? confirmedAt;               
+  DateTime? cancelledAt;               
+  DateTime? expiresAt;                 
 
   // Hàm khởi tạo đối tượng MatchModel với các tham số truyền vào.
   MatchModel({

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../user_app.dart';
 
+// Màn hình đăng nhập chính với nhiều tùy chọn
+// Hỗ trợ đăng nhập qua Google, số điện thoại và Email
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
@@ -47,7 +49,7 @@ class LoginScreen extends StatelessWidget {
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo và tiêu đề
+                    // Logo tròn với icon game controller
                     Container(
                       width: 120,
                       height: 120,
@@ -62,6 +64,7 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 32),
+                    // Tiêu đề chào mừng
                     const Text(
                       'Chào mừng đến với',
                       style: TextStyle(
@@ -89,7 +92,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 48),
 
-                    // Nút đăng nhập Google
+                    // Nút đăng nhập với Google
                     _buildLoginButton(
                       context: context,
                       onPressed: authProvider.isLoading
@@ -99,11 +102,13 @@ class LoginScreen extends StatelessWidget {
                               if (!context.mounted) return;
 
                               if (success) {
+                                // Đăng nhập thành công, chuyển sang UserApp
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(builder: (_) => const UserApp()),
                                 );
                               } else {
+                                // Hiển thị lỗi nếu đăng nhập thất bại
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Đăng nhập thất bại: ${authProvider.error}'),
@@ -113,7 +118,7 @@ class LoginScreen extends StatelessWidget {
                               }
                             },
                       icon: Image.asset(
-                        'assets/images/google_logo.png', // Thêm logo Google vào assets
+                        'assets/images/google_logo.png',
                         width: 24,
                         height: 24,
                         errorBuilder: (context, error, stackTrace) {
@@ -127,14 +132,13 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    
-
-                    // Nút đăng nhập số điện thoại
+                    // Nút đăng nhập với số điện thoại
                     _buildLoginButton(
                       context: context,
                       onPressed: authProvider.isLoading
                           ? null
                           : () {
+                              // Chuyển sang màn hình đăng nhập số điện thoại
                               Navigator.pushNamed(context, '/phone-login');
                             },
                       icon: const Icon(CupertinoIcons.phone_fill, color: Colors.white, size: 24),
@@ -144,12 +148,13 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    // Nút đăng nhập Email
+                    // Nút đăng nhập với Email
                     _buildLoginButton(
                       context: context,
                       onPressed: authProvider.isLoading
                           ? null
                           : () {
+                              // Chuyển sang màn hình đăng nhập email
                               Navigator.pushNamed(context, '/email-login');
                             },
                       icon: const Icon(CupertinoIcons.mail_solid, color: Colors.white, size: 24),
@@ -160,13 +165,13 @@ class LoginScreen extends StatelessWidget {
 
                     const SizedBox(height: 32),
 
-                    // Loading indicator
+                    // Hiển thị loading indicator khi đang xử lý đăng nhập
                     if (authProvider.isLoading)
                       const CircularProgressIndicator(
                         color: Colors.deepOrange,
                       ),
 
-                    // Hiển thị lỗi
+                    // Hiển thị thông báo lỗi nếu có
                     if (authProvider.error != null && !authProvider.isLoading)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
@@ -179,7 +184,7 @@ class LoginScreen extends StatelessWidget {
 
                     const SizedBox(height: 32),
 
-                    // Terms and Privacy
+                    // Điều khoản sử dụng và chính sách bảo mật
                     Text(
                       'Bằng việc đăng nhập, bạn đồng ý với\nĐiều khoản sử dụng và Chính sách bảo mật',
                       textAlign: TextAlign.center,
@@ -198,6 +203,7 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
+  // Widget helper để tạo nút đăng nhập với style đồng nhất
   Widget _buildLoginButton({
     required BuildContext context,
     required VoidCallback? onPressed,

@@ -5,12 +5,15 @@ import 'dart:async';
 import 'package:flutter_web_browser/flutter_web_browser.dart';
 import '../../core/providers/subscription_provider.dart';
 
-
+// Màn hình đăng ký gói Premium
+// Hiển thị các tính năng Premium, gói đăng ký và xử lý thanh toán qua PayOS
+// Sử dụng flutter_web_browser để mở trang thanh toán trong Custom Tabs/Safari View Controller
 class SubscriptionScreen extends StatelessWidget {
   const SubscriptionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Tạo SubscriptionProvider riêng cho màn hình này
     return ChangeNotifierProvider(
       create: (_) => SubscriptionProvider(),
       child: const _SubscriptionScreenContent(),
@@ -25,7 +28,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = Provider.of<SubscriptionProvider>(context);
 
-    // Fetch plans khi mở màn hình
+    // Fetch danh sách gói đăng ký từ Firestore khi mở màn hình
     if (provider.plans.isEmpty) {
       provider.fetchPlans();
     }
@@ -43,7 +46,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // Gradient background
+          // Background gradient màu cam chuyển đen
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -58,7 +61,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
             ),
           ),
 
-          // Content
+          // Content chính
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -66,7 +69,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                 children: [
                   const SizedBox(height: 20),
 
-                  // Icon Premium
+                  // Icon Premium với gradient vàng cam và shadow phát sáng
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -90,7 +93,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Title
+                  // Title với gradient text effect
                   ShaderMask(
                     shaderCallback: (bounds) => LinearGradient(
                       colors: [Colors.amber, Colors.orange.shade600],
@@ -115,7 +118,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
-                  // Features list
+                  // Danh sách tính năng Premium
                   _buildFeature(
                     icon: Icons.all_inclusive,
                     title: 'Đăng khoảnh khắc không giới hạn',
@@ -133,12 +136,6 @@ class _SubscriptionScreenContent extends StatelessWidget {
                     title: 'Hoàn tác lượt vuốt',
                     subtitle: 'Sửa lại lỗi không mong muốn',
                   ),
-                  /*const SizedBox(height: 20),
-                  _buildFeature(
-                    icon: Icons.visibility_off_rounded,
-                    title: 'Duyệt ẩn danh',
-                    subtitle: 'Chỉ người bạn thích mới thấy',
-                  ),*/
                   const SizedBox(height: 20),
                   _buildFeature(
                     icon: Icons.star_rounded,
@@ -147,7 +144,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
-                  // Plan cards (thay thế phần hard-code)
+                  // Hiển thị danh sách gói đăng ký từ Firestore
                   if (provider.plans.isNotEmpty) ...[
                     for (var plan in provider.plans)
                       Padding(
@@ -164,7 +161,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                       ),
                     const SizedBox(height: 32),
                   ] else ...[
-                    // fallback nếu chưa có dữ liệu Firestore
+                    // Fallback hiển thị gói mặc định nếu chưa load được từ Firestore
                     _buildPlanCard(
                       context,
                       planType: 'yearly',
@@ -187,7 +184,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                     const SizedBox(height: 32),
                   ],
 
-                  // Subscribe button
+                  // Nút đăng ký Premium
                   SizedBox(
                     width: double.infinity,
                     height: 60,
@@ -196,6 +193,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                           ? null
                           : () async {
                               try {
+                                // Tạo payment link từ backend
                                 final paymentData = await provider.purchasePlan(provider.selectedPlan!);
                                 if (paymentData == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -207,12 +205,13 @@ class _SubscriptionScreenContent extends StatelessWidget {
                                 final checkoutUrl = paymentData['checkoutUrl'] as String;
                                 final orderCode = paymentData['orderCode'] as int;
 
-                                // Bắt đầu polling trong nền
+                                // Bắt đầu polling kiểm tra trạng thái thanh toán mỗi 3 giây
                                 bool completed = false;
                                 Timer? timer;
                                 timer = Timer.periodic(const Duration(seconds: 3), (t) async {
                                   final status = await provider.checkPaymentStatus(orderCode);
                                   if (status == 'success') {
+                                    // Thanh toán thành công -> kích hoạt Premium
                                     completed = true;
                                     t.cancel();
                                     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -223,10 +222,10 @@ class _SubscriptionScreenContent extends StatelessWidget {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(content: Text('Thanh toán thành công!'), backgroundColor: Colors.green),
                                       );
-                                      // Có thể đóng màn hình đăng ký nếu muốn:
                                       Navigator.of(context).maybePop();
                                     }
                                   } else if (status == 'failed') {
+                                    // Thanh toán thất bại
                                     completed = true;
                                     t.cancel();
                                     if (context.mounted) {
@@ -237,7 +236,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                                   }
                                 });
 
-                                // Mở Custom Tabs / SafariVC (await cho đến khi người dùng đóng)
+                                // Mở trang thanh toán trong Custom Tabs (Android) hoặc Safari View Controller (iOS)
                                 await FlutterWebBrowser.openWebPage(
                                   url: checkoutUrl,
                                   customTabsOptions: const CustomTabsOptions(
@@ -254,7 +253,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                                   ),
                                 );
 
-                                // Người dùng đã đóng trình duyệt → kiểm tra lần cuối nếu chưa xong
+                                // Người dùng đóng trình duyệt -> kiểm tra trạng thái lần cuối
                                 if (!completed) {
                                   final status = await provider.checkPaymentStatus(orderCode);
                                   if (status == 'success') {
@@ -320,7 +319,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Restore button
+                  // Nút khôi phục gói đã mua (kiểm tra từ Firestore)
                   TextButton(
                     onPressed: provider.isLoading
                         ? null
@@ -357,7 +356,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
 
-                  // Terms
+                  // Điều khoản dịch vụ
                   Text(
                     'Bằng cách đăng ký, bạn đồng ý với Điều khoản dịch vụ',
                     textAlign: TextAlign.center,
@@ -376,6 +375,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
     );
   }
 
+  // Widget hiển thị một tính năng Premium với icon và mô tả
   Widget _buildFeature({
     required IconData icon,
     required String title,
@@ -383,6 +383,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
   }) {
     return Row(
       children: [
+        // Icon container với gradient cam
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -421,6 +422,8 @@ class _SubscriptionScreenContent extends StatelessWidget {
     );
   }
 
+  // Widget card hiển thị một gói đăng ký
+  // Có thể chọn/bỏ chọn bằng cách tap vào
   Widget _buildPlanCard(
     BuildContext context, {
     required String planType,
@@ -438,6 +441,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
+          // Gradient cam nếu được chọn, màu xám nếu không
           gradient: isSelected
               ? LinearGradient(
                   colors: [
@@ -455,7 +459,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Radio
+            // Radio button indicator
             Container(
               width: 24,
               height: 24,
@@ -473,7 +477,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
             ),
             const SizedBox(width: 16),
 
-            // Info
+            // Thông tin gói: tên và giá/tháng
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,7 +507,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
               ),
             ),
 
-            // Giá tiền + badge bên dưới
+            // Giá tổng và badge tiết kiệm
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [

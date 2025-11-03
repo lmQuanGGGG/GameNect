@@ -13,19 +13,23 @@ dependencies:
   cupertino_icons: ^1.0.8
   multi_select_flutter: ^4.1.3
   dropdown_search: ^6.0.2
+  # Format ngày tháng, số, tiền tệ
   intl: ^0.20.2
-  flutter_local_notifications: ^19.4.2
+  #flutter_local_notifications: ^19.4.2
 
   # Firebase Core & Authentication
   
   rxdart: ^0.28.0
   # Firebase Services
-  cloud_firestore: ^5.4.3               
+  cloud_firestore: ^5.4.3      
+  # Database realtime         
   cloud_functions: ^5.1.3               
   firebase_messaging: ^15.1.3 
   firebase_core: ^3.15.1
   firebase_auth: ^5.6.2
+  # Báo cáo lỗi tự động khi app crash
   firebase_crashlytics: ^4.3.9
+  # Theo dõi hành vi user: Screen views, events, conversions
   firebase_analytics: ^11.5.2
   firebase_storage: ^12.4.9
   google_sign_in: ^6.2.1
@@ -42,6 +46,8 @@ dependencies:
   flutter_dotenv: ^6.0.0
 
   # Machine Learning
+  # Chạy TensorFlow Lite models
+  # Có thể dùng để: Recommend matches, filter ảnh, detect content
   tflite_flutter: ^0.11.0
 
   # RTC
@@ -54,12 +60,14 @@ dependencies:
   video_player: ^2.8.1
   camerawesome: ^2.5.0
   video_thumbnail: ^0.5.3
-  flutter_sound: ^9.2.13
+  #flutter_sound: ^9.2.13
+  # Lấy đường dẫn thư mục: Documents, Cache, Temp
   path_provider: ^2.0.15
   #log
   logger: ^2.2.0
   #Payment
   crypto: ^3.0.3
+  # Mở URL external: Website, Email, Phone, SMS
   url_launcher: ^6.2.1
   flutter_web_browser: ^0.17.1
 

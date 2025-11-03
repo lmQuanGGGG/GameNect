@@ -9,6 +9,9 @@ import 'liked_me_screen.dart';
 import 'match_list_screen.dart';
 import 'moment_screen.dart';
 
+// Màn hình chính với bottom navigation bar
+// Quản lý 5 tab: Match, Moment, Liked Me, Messages, Profile
+// Hiển thị badge đếm số lượt thích mới, tin nhắn chưa đọc và moments mới
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -19,6 +22,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
+  // Danh sách 5 màn hình tương ứng với 5 tab
   final List<Widget> _screens = [
     MatchScreen(),
     const MomentScreen(),
@@ -34,6 +38,7 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: StreamBuilder<Map<String, int>>(
+        // Stream để theo dõi realtime số lượng badge
         stream: _getBadgeCountsStream(currentUserId),
         builder: (context, snapshot) {
           final badgeCounts = snapshot.data ?? {'likes': 0, 'messages': 0, 'moments': 0};
@@ -42,12 +47,12 @@ class _MainScreenState extends State<MainScreen> {
 
           return BottomNavigationBar(
             currentIndex: _currentIndex,
-  onTap: (index) => setState(() => _currentIndex = index),
-  selectedItemColor: Colors.deepOrange,  // <-- Giữ deepOrange cho selected
-  unselectedItemColor: Colors.grey.shade600,  // <-- Xám tối hơn cho unselected
-  type: BottomNavigationBarType.fixed,
-  backgroundColor: Colors.white,  // <-- Giữ trắng để tinh tế, phù hợp với UI sạch
-  elevation: 4, 
+            onTap: (index) => setState(() => _currentIndex = index),
+            selectedItemColor: Colors.deepOrange,
+            unselectedItemColor: Colors.grey.shade600,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            elevation: 4, 
             items: [
               const BottomNavigationBarItem(
                 icon: Icon(Icons.sports_esports),
@@ -85,11 +90,13 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // Widget hiển thị icon với badge đếm số thông báo
   Widget _buildIconWithBadge({required IconData icon, required int count}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Icon(icon, color: Colors.grey),
+        // Hiển thị badge đỏ nếu có thông báo
         if (count > 0)
           Positioned(
             right: -8,
@@ -119,41 +126,43 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // Stream kết hợp để theo dõi realtime số lượng likes, messages và moments mới
   Stream<Map<String, int>> _getBadgeCountsStream(String currentUserId) {
     if (currentUserId.isEmpty) {
       return Stream.value({'likes': 0, 'messages': 0, 'moments': 0});
     }
 
-    // Kết hợp 2 streams: matches và moments
+    // Stream theo dõi matches để đếm tin nhắn chưa đọc
     final matchesStream = FirebaseFirestore.instance
         .collection('matches')
         .where('userIds', arrayContains: currentUserId)
         .where('status', isEqualTo: 'confirmed')
         .snapshots();
 
+    // Stream theo dõi moments mới
     final momentsStream = FirebaseFirestore.instance
         .collection('moments')
         .where('matchIds', arrayContains: currentUserId)
         .snapshots();
 
-    // Combine 2 streams
+    // Kết hợp 2 streams để cập nhật đồng thời
     return matchesStream.asyncExpand((matchesSnapshot) {
       return momentsStream.asyncMap((momentsSnapshot) async {
-        // 1. Đếm lượt thích mới (chưa match VÀ chưa cancelled)
+        // Đếm lượt thích mới chưa match và chưa bị cancelled
         final likeSnapshot = await FirebaseFirestore.instance
             .collection('swipe_history')
             .where('targetUserId', isEqualTo: currentUserId)
             .where('action', isEqualTo: 'like')
             .get();
 
-        // Lấy danh sách user đã match (confirmed)
+        // Lấy danh sách user đã match để loại trừ
         final matchedUserIds = <String>{};
         for (var doc in matchesSnapshot.docs) {
           final userIds = List<String>.from(doc['userIds'] ?? []);
           matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
         }
 
-        // Lấy danh sách user đã cancelled
+        // Lấy danh sách user đã cancelled để loại trừ
         final cancelledSnapshot = await FirebaseFirestore.instance
             .collection('matches')
             .where('userIds', arrayContains: currentUserId)
@@ -166,13 +175,13 @@ class _MainScreenState extends State<MainScreen> {
           cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
         }
 
-        // Đếm chỉ những user chưa match VÀ chưa cancelled
+        // Đếm chỉ những like từ user chưa match và chưa cancelled
         final newLikesCount = likeSnapshot.docs.where((doc) {
           final userId = doc['userId'];
           return !matchedUserIds.contains(userId) && !cancelledUserIds.contains(userId);
         }).length;
 
-        // 2. Đếm tin nhắn chưa đọc
+        // Đếm tin nhắn chưa đọc trong các cuộc trò chuyện
         int unreadMessagesCount = 0;
         for (var matchDoc in matchesSnapshot.docs) {
           final matchData = matchDoc.data();
@@ -180,10 +189,12 @@ class _MainScreenState extends State<MainScreen> {
           final lastMessageSenderId = matchData['lastMessageSenderId'];
           final lastSeen = matchData['lastSeen_$currentUserId'];
 
+          // Chỉ đếm nếu tin nhắn cuối không phải từ mình và chưa xem
           if (lastMessageTime != null &&
               lastMessageSenderId != null &&
               lastMessageSenderId != currentUserId) {
             
+            // Parse thời gian tin nhắn cuối
             DateTime? lastMsgTime;
             if (lastMessageTime is Timestamp) {
               lastMsgTime = lastMessageTime.toDate();
@@ -191,6 +202,7 @@ class _MainScreenState extends State<MainScreen> {
               lastMsgTime = DateTime.tryParse(lastMessageTime);
             }
 
+            // Parse thời gian xem cuối
             DateTime? lastSeenTime;
             if (lastSeen is Timestamp) {
               lastSeenTime = lastSeen.toDate();
@@ -198,6 +210,7 @@ class _MainScreenState extends State<MainScreen> {
               lastSeenTime = DateTime.tryParse(lastSeen);
             }
 
+            // So sánh thời gian để xác định tin nhắn chưa đọc
             if (lastMsgTime != null) {
               if (lastSeenTime == null || lastMsgTime.isAfter(lastSeenTime)) {
                 unreadMessagesCount++;
@@ -206,11 +219,11 @@ class _MainScreenState extends State<MainScreen> {
           }
         }
 
-        // 3. Đếm moments mới chưa xem
+        // Đếm moments mới chưa xem
         int newMomentsCount = 0;
         
         try {
-          // Lấy thời gian xem moments lần cuối
+          // Lấy thời gian xem moments lần cuối từ user document
           final userDoc = await FirebaseFirestore.instance
               .collection('users')
               .doc(currentUserId)
@@ -226,7 +239,7 @@ class _MainScreenState extends State<MainScreen> {
             }
           }
 
-          // Lọc moments từ snapshot
+          // Đếm moments được tạo sau lần xem cuối
           if (lastSeenMoments != null) {
             newMomentsCount = momentsSnapshot.docs.where((doc) {
               final data = doc.data();
@@ -236,14 +249,14 @@ class _MainScreenState extends State<MainScreen> {
               // Bỏ qua moments của chính mình
               if (userId == currentUserId) return false;
               
-              // So sánh thời gian
+              // So sánh thời gian tạo với thời gian xem cuối
               if (createdAt is Timestamp) {
                 return createdAt.toDate().isAfter(lastSeenMoments!);
               }
               return false;
             }).length;
           } else {
-            // Nếu chưa có lastSeenMoments, đếm tất cả moments (trừ của mình)
+            // Nếu chưa từng xem, đếm tất cả moments của người khác
             newMomentsCount = momentsSnapshot.docs
                 .where((doc) => doc.data()['userId'] != currentUserId)
                 .length;
@@ -255,6 +268,7 @@ class _MainScreenState extends State<MainScreen> {
           newMomentsCount = 0;
         }
 
+        // Trả về map chứa số lượng badge cho cả 3 tab
         return {
           'likes': newLikesCount,
           'messages': unreadMessagesCount,

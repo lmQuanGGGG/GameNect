@@ -11,6 +11,9 @@ import 'location_settings_screen.dart';
 import 'package:logging/logging.dart';
 import 'subscription_screen.dart';
 
+// Màn hình hồ sơ cá nhân của user
+// Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
+// Cho phép chỉnh sửa profile, cài đặt vị trí matching và nâng cấp Premium
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -21,6 +24,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final Logger _logger = Logger('ProfilePage');
   
+  // Widget hiển thị card quảng cáo Premium cho user Free
+  // Liệt kê các tính năng Premium và nút nâng cấp
   Widget _buildPremiumPromoCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -55,6 +60,7 @@ class _ProfilePageState extends State<ProfilePage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
+                // Mở màn hình đăng ký Premium
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                 );
@@ -74,6 +80,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Widget hiển thị một tính năng Premium với icon check
   Widget _featureRow(String text) {
     return Row(
       children: [
@@ -87,16 +94,20 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    // Load thông tin profile sau khi build frame đầu tiên
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().loadUserProfile();
     });
   }
 
+  // Hàm test để request quyền location và lấy vị trí hiện tại
+  // Cập nhật vị trí vào Firestore sau khi lấy thành công
   Future<void> _testLocationPermission() async {
     final locationProvider = Provider.of<LocationProvider>(context, listen: false);
     
     _logger.info('Test: Bắt đầu request location permission...');
     
+    // Request quyền truy cập vị trí
     final hasPermission = await locationProvider.requestLocationPermission();
     
     if (!hasPermission) {
@@ -113,6 +124,7 @@ class _ProfilePageState extends State<ProfilePage> {
     
     _logger.info('Test: Đã có permission, đang lấy vị trí...');
     
+    // Lấy vị trí hiện tại
     final success = await locationProvider.getCurrentLocation();
     
     if (mounted) {
@@ -127,6 +139,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
         
+        // Cập nhật vị trí lên Firestore
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           await locationProvider.updateUserLocation(user.uid);
@@ -156,6 +169,7 @@ class _ProfilePageState extends State<ProfilePage> {
             elevation: 0,
             toolbarHeight: 60,
             titleSpacing: 0,
+            // Logo và tên app ở góc trên
             title: Row(
               children: [
                 const Padding(
@@ -178,9 +192,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             actions: [
-              // THÊM: Premium Button/Badge
+              // Hiển thị badge Premium hoặc nút Nâng cấp
               if (isPremium)
-                // Hiển thị badge Premium nếu đã đăng ký
+                // Badge Premium với gradient vàng cam
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Center(
@@ -215,7 +229,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 )
               else
-                // Hiển thị nút Nâng cấp nếu chưa Premium
+                // Nút Nâng cấp cho user Free
                 TextButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -239,7 +253,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               
-              // Settings Menu
+              // Menu Settings và Đăng xuất
               PopupMenuButton<String>(
                 icon: const Icon(
                   CupertinoIcons.settings,
@@ -248,6 +262,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 onSelected: (value) async {
                   if (value == 'logout') {
+                    // Hiển thị dialog xác nhận đăng xuất
                     final shouldLogout = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -270,6 +285,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     );
 
                     if (shouldLogout == true) {
+                      // Thực hiện đăng xuất và chuyển về màn hình login
                       final authService = Provider.of<AuthService>(context, listen: false);
                       await authService.signOut();
                       if (mounted) {
@@ -309,6 +325,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
 
+          // Body hiển thị loading, empty state hoặc profile content
           body: provider.isLoading
               ? const Center(child: CircularProgressIndicator())
               : provider.userData == null
@@ -318,9 +335,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Stack(
                         children: [
-                          // Khi bấm vào avatar, mở màn hình mới hiển thị ProfileCard 
+                          // Avatar lớn ở giữa màn hình, tap để xem ProfileCard
                           GestureDetector(
                             onTap: () {
+                              // Mở màn hình mới hiển thị ProfileCard với swipe
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -362,11 +380,13 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                           ),
+                          // Nút Edit ở góc dưới bên phải avatar
                           Positioned(
                             bottom: 16,
                             right: 16,
                             child: FloatingActionButton(
                               onPressed: () {
+                                // Mở màn hình chỉnh sửa profile
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -388,6 +408,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Tên và tuổi
                             Row(
                               children: [
                                 Text(
@@ -406,6 +427,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             const SizedBox(height: 16),
                             
+                            // Card hiển thị vị trí và cài đặt matching
                             Consumer<LocationProvider>(
                               builder: (context, locationProvider, child) {
                                 return Card(
@@ -437,6 +459,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 12),
                                         
+                                        // Hiển thị vị trí hiện tại
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -454,6 +477,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 8),
                                         
+                                        // Hiển thị khoảng cách tìm kiếm
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -472,6 +496,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 8),
                                         
+                                        // Hiển thị độ tuổi tìm kiếm
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -490,6 +515,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                         const SizedBox(height: 16),
                                         
+                                        // 2 nút: Lấy vị trí và Cài đặt match
                                         Row(
                                           children: [
                                             Expanded(
@@ -528,6 +554,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                             Expanded(
                                               child: ElevatedButton.icon(
                                                 onPressed: () {
+                                                  // Mở màn hình cài đặt matching
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
@@ -541,7 +568,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                                   size: 18,
                                                 ),
                                                 label: const Text(
-                                                  'Cài đặt',
+                                                  'Cài đặt match',
                                                   style: TextStyle(fontSize: 13),
                                                 ),
                                                 style: ElevatedButton.styleFrom(
@@ -564,10 +591,12 @@ class _ProfilePageState extends State<ProfilePage> {
                             
                             const SizedBox(height: 16),
                             
+                            // Hiển thị card quảng cáo Premium nếu chưa Premium
                             if (!isPremium) _buildPremiumPromoCard(),
 
                             const SizedBox(height: 16),
                             
+                            // Section Game yêu thích
                             _buildSection(
                               'Game yêu thích',
                               Wrap(
@@ -585,6 +614,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                             const SizedBox(height: 16),
+                            
+                            // Section Thống kê game
                             _buildSection(
                               'Thống kê',
                               Column(
@@ -635,6 +666,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Widget hiển thị empty state khi chưa có profile
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -653,6 +685,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
+              // Mở màn hình tạo profile
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -669,6 +702,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Widget helper để tạo một section với title và content
   Widget _buildSection(String title, Widget content) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,6 +717,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Widget helper để hiển thị một dòng thống kê (label - value)
   Widget _buildStatRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),

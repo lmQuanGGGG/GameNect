@@ -9,6 +9,9 @@ import '../../core/providers/match_provider.dart';
 import '../../core/widgets/profile_card.dart';
 import 'subscription_screen.dart';
 
+// Màn hình hiển thị danh sách người đã thích mình và người đã bỏ lỡ
+// Free user chỉ xem được 3 người đầu tiên, còn lại phải nâng cấp Premium
+// Premium user xem không giới hạn và có tính năng Rewind để thích lại người đã dislike
 class LikedMeScreen extends StatefulWidget {
   const LikedMeScreen({super.key});
 
@@ -20,10 +23,14 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
   bool isLoading = true;
   bool isPremium = false;
   
+  // Danh sách người đã thích mình
   List<UserModel> _likedMeUsers = [];
+  // Danh sách người mình đã dislike
   List<UserModel> _myDislikedUsers = [];
   
+  // Stream để lắng nghe realtime danh sách người thích mình
   Stream<List<UserModel>>? _likedMeStream;
+  // Stream để lắng nghe realtime danh sách người đã dislike
   Stream<List<UserModel>>? _myDislikedStream;
 
   @override
@@ -35,10 +42,13 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     _initializeData();
   }
 
+  // Khởi tạo dữ liệu khi mở màn hình
+  // Load thông tin premium và setup stream để lắng nghe realtime
   Future<void> _initializeData() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
+    // Lấy thông tin user hiện tại để check premium
     final currentUser = await FirestoreService().getCurrentUser();
     if (currentUser != null && mounted) {
       setState(() {
@@ -46,6 +56,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       });
     }
 
+    // Cập nhật thời gian xem likes cuối cùng để reset badge
     await FirebaseFirestore.instance
         .collection('users')
         .doc(userId)
@@ -54,9 +65,12 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     if (mounted) {
       final matchProvider = Provider.of<MatchProvider>(context, listen: false);
       
+      // Setup stream để lắng nghe danh sách người thích mình
       _likedMeStream = matchProvider.streamLikedMeUsers(userId);
+      // Setup stream để lắng nghe danh sách người đã dislike
       _myDislikedStream = matchProvider.streamMyDislikedUsers(userId, limit: 1000);
       
+      // Lắng nghe thay đổi danh sách người thích mình
       _likedMeStream!.listen((users) {
         if (mounted) {
           setState(() {
@@ -65,6 +79,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
         }
       });
       
+      // Lắng nghe thay đổi danh sách người đã dislike
       _myDislikedStream!.listen((users) {
         if (mounted) {
           setState(() {
@@ -79,7 +94,8 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     }
   }
 
-  // Banner nâng cấp Premium
+  // Banner nâng cấp Premium với gradient đẹp mắt
+  // Hiển thị khi user chưa premium và cần unlock tính năng
   Widget _promoUpgrade(BuildContext context, {String message = 'Xem danh sách những người bạn đã bỏ lỡ và có thể thích lại!'}) {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -137,9 +153,11 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
   }
 
   // Widget avatar với glassmorphism effect
+  // Áp dụng blur nếu user chưa premium và vượt quá giới hạn 3 người
   Widget _buildAvatar(UserModel user, {bool shouldBlur = false}) {
     Widget avatarContent;
     
+    // Hiển thị avatar từ URL nếu có
     if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) {
       avatarContent = ClipOval(
         child: Image.network(
@@ -148,6 +166,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
           height: 64,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
+            // Fallback nếu load ảnh lỗi
             return Container(
               width: 64,
               height: 64,
@@ -165,6 +184,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
         ),
       );
     } else {
+      // Hiển thị icon person mặc định nếu không có avatar
       avatarContent = Container(
         width: 64,
         height: 64,
@@ -180,7 +200,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       );
     }
 
-    // Glassmorphism effect cho avatar
+    // Glassmorphism effect cho avatar với BackdropFilter
     Widget glassAvatar = Container(
       width: 68,
       height: 68,
@@ -217,9 +237,10 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       ),
     );
 
+    // Trả về avatar thường nếu không cần blur
     if (!shouldBlur) return glassAvatar;
 
-    // Blur effect nếu chưa Premium
+    // Blur effect nếu chưa Premium - che mờ avatar và thêm icon blur
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -242,8 +263,10 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     );
   }
 
-  // Tab 1: Người đã thích tôi (FREE chỉ xem 3 người, còn lại blur)
+  // Tab 1: Người đã thích tôi
+  // FREE user chỉ xem 3 người đầu tiên, còn lại blur và hiện banner upsell
   Widget _likedMeTab(String currentUserId) {
+    // Hiển thị empty state nếu chưa có ai thích
     if (_likedMeUsers.isEmpty) {
       return const Center(
         child: Column(
@@ -257,15 +280,16 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       );
     }
 
-    final freeLimit = 3; // FREE chỉ xem 3 người
+    final freeLimit = 3; // FREE user chỉ xem được 3 người
     final hasMore = _likedMeUsers.length > freeLimit;
 
     return ListView.builder(
       key: const PageStorageKey('liked_me_list'),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: isPremium ? _likedMeUsers.length : (_likedMeUsers.length + 1), // +1 cho banner quảng cáo
+      // Premium xem tất cả, Free thì +1 item cho banner upsell
+      itemCount: isPremium ? _likedMeUsers.length : (_likedMeUsers.length + 1),
       itemBuilder: (context, index) {
-        // Hiện banner quảng cáo sau 3 người (nếu FREE)
+        // Hiện banner quảng cáo Premium sau 3 người (nếu FREE và có nhiều hơn 3)
         if (!isPremium && index == freeLimit && hasMore) {
           final remainingCount = _likedMeUsers.length - freeLimit;
           return Container(
@@ -292,7 +316,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    // 3 avatar xếp chồng nhau (blur)
+                    // 3 avatar xếp chồng nhau (blur) để tạo hiệu ứng nhiều người
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
@@ -362,11 +386,12 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
           );
         }
 
-        // Lấy index user thực tế
+        // Lấy index user thực tế (bỏ qua banner ở giữa nếu free)
         final userIndex = !isPremium && index > freeLimit ? index - 1 : index;
         if (userIndex >= _likedMeUsers.length) return const SizedBox.shrink();
         
         final user = _likedMeUsers[userIndex];
+        // Blur avatar nếu free và vượt quá 3 người
         final shouldBlur = !isPremium && userIndex >= freeLimit;
 
         return Container(
@@ -397,11 +422,13 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
+              // Nếu blur thì tap vào sẽ mở màn hình premium
               onTap: shouldBlur
                   ? () {
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
                     }
                   : () {
+                      // Không blur thì mở profile card
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -427,6 +454,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Hiển thị dấu chấm nếu blur, còn không thì hiện tên thật
                           Text(
                             shouldBlur ? '●●●●●●' : user.username,
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -439,6 +467,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                         ],
                       ),
                     ),
+                    // Nếu không blur thì hiển thị nút thích lại và bỏ qua
                     if (!shouldBlur)
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -447,8 +476,9 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                             icon: const Icon(Icons.favorite, color: Colors.deepOrange, size: 28),
                             tooltip: 'Thích lại',
                             onPressed: () async {
+                              // Lưu swipe history với action like để tạo match
                               final matchProvider = Provider.of<MatchProvider>(context, listen: false);
-                              await matchProvider.saveSwipeHistory(currentUserId, user, true); // true = like
+                              await matchProvider.saveSwipeHistory(currentUserId, user, true);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('Bạn đã thích lại ${user.username}!')),
@@ -460,6 +490,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                             icon: const Icon(Icons.close, color: Colors.grey, size: 28),
                             tooltip: 'Bỏ qua',
                             onPressed: () async {
+                              // Lưu swipe history với action dislike
                               await FirestoreService().saveSwipeHistory(
                                 userId: currentUserId,
                                 targetUserId: user.id,
@@ -475,6 +506,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                         ],
                       )
                     else
+                      // Nếu blur thì hiển thị nút Xem để mở premium
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -496,8 +528,10 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     );
   }
 
-  // Tab 2: Bỏ lỡ (người đã dislike)
+  // Tab 2: Bỏ lỡ - danh sách người đã dislike
+  // Chỉ Premium user mới xem được và có thể Rewind để thích lại
   Widget _missedTab(String currentUserId) {
+    // Nếu chưa premium thì hiển thị banner upsell
     if (!isPremium) {
       return SingleChildScrollView(
         child: Column(
@@ -529,6 +563,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       );
     }
 
+    // Empty state nếu chưa dislike ai
     if (_myDislikedUsers.isEmpty) {
       return Center(
         child: Column(
@@ -545,6 +580,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       );
     }
 
+    // Hiển thị danh sách người đã dislike với tính năng Rewind
     return ListView.builder(
       key: const PageStorageKey('missed_list'),
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -580,6 +616,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
+                // Tap vào để xem profile card
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -617,10 +654,12 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                         ],
                       ),
                     ),
+                    // Nút Rewind để hoàn tác dislike và thích lại
                     IconButton(
                       icon: const Icon(Icons.undo_rounded, color: Colors.deepOrange, size: 28),
                       tooltip: 'Rewind - Thích lại',
                       onPressed: () async {
+                        // Lưu swipe history với action like để thay thế dislike trước đó
                         await FirestoreService().saveSwipeHistory(
                           userId: currentUserId,
                           targetUserId: user.id,
@@ -652,6 +691,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
     
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
+    // Hiển thị loading khi đang khởi tạo dữ liệu
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -673,6 +713,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
       );
     }
 
+    // Màn hình chính với 2 tabs: Thích bạn và Bỏ lỡ
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -691,6 +732,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
             ],
           ),
           actions: [
+            // Hiển thị badge Premium hoặc nút Nâng cấp
             if (isPremium)
               Padding(
                 padding: const EdgeInsets.only(right: 12),
@@ -749,6 +791,7 @@ class _LikedMeScreenState extends State<LikedMeScreen> with AutomaticKeepAliveCl
                 ),
               ),
           ],
+          // TabBar với 2 tabs
           bottom: TabBar(
             labelColor: Colors.deepOrange,
             unselectedLabelColor: Colors.grey,
