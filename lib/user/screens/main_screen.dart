@@ -9,9 +9,6 @@ import 'liked_me_screen.dart';
 import 'match_list_screen.dart';
 import 'moment_screen.dart';
 
-// Màn hình chính với bottom navigation bar
-// Quản lý 5 tab: Match, Moment, Liked Me, Messages, Profile
-// Hiển thị badge đếm số lượt thích mới, tin nhắn chưa đọc và moments mới
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -22,7 +19,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  // Danh sách 5 màn hình tương ứng với 5 tab
+  // Danh sách 6 màn hình tương ứng với 6 tab
   final List<Widget> _screens = [
     MatchScreen(),
     const MomentScreen(),

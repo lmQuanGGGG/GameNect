@@ -10,6 +10,7 @@ class MediaPreviewScreen extends StatefulWidget {
   final bool isVideo;
 
   const MediaPreviewScreen({
+    // Truyền vào file media và kiểu media (ảnh hay video)
     super.key,
     required this.file,
     required this.isVideo,

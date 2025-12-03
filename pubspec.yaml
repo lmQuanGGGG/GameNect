@@ -71,6 +71,7 @@ dependencies:
   url_launcher: ^6.2.1
   flutter_web_browser: ^0.17.1
 
+  share_plus: ^10.1.2
   fl_chart: ^0.65.0
   record: ^6.1.1
   just_audio: ^0.9.36

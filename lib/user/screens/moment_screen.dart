@@ -16,6 +16,7 @@ import 'dart:developer' as developer;
 import 'package:firebase_storage/firebase_storage.dart'; 
 import '../../core/providers/profile_provider.dart';
 import 'subscription_screen.dart';
+import 'game_trending_screen.dart'; // ← THÊM import
 
 // Lớp chính của màn hình moments, sử dụng TabBarView để chuyển đổi giữa các tab
 class MomentScreen extends StatefulWidget {
@@ -310,9 +311,8 @@ class _FeedTabState extends State<FeedTab> {
       if (userId != null) {
         try {
           await FirebaseFirestore.instance.collection('users').doc(userId).set({
-            'lastSeenMoments':
-                FieldValue.serverTimestamp(), // THAY ĐỔI: Dùng serverTimestamp
-          }, SetOptions(merge: true)); // THAY ĐỔI: Thêm merge: true
+            'lastSeenMoments': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
           developer.log('Updated lastSeenMoments', name: 'FeedTab');
         } catch (e) {
@@ -333,57 +333,88 @@ class _FeedTabState extends State<FeedTab> {
 
     return Stack(
       children: [
-        Padding(
-          padding: EdgeInsets.only(top: topPadding),
-          child: Consumer<MomentProvider>(
-            builder: (context, provider, _) {
-              if (provider.isLoading) {
-                return const Center(
+        Consumer<MomentProvider>(
+          builder: (context, provider, _) {
+            if (provider.isLoading) {
+              return Padding(
+                padding: EdgeInsets.only(top: topPadding),
+                child: const Center(
                   child: CircularProgressIndicator(
                     color: Colors.deepOrange,
                     strokeWidth: 3,
                   ),
-                );
-              }
+                ),
+              );
+            }
 
-              if (provider.moments.isEmpty) {
-                return _buildEmptyState(context);
-              }
+            if (provider.moments.isEmpty) {
+              return Padding(
+                padding: EdgeInsets.only(top: topPadding),
+                child: _buildEmptyState(context),
+              );
+            }
 
-              if (isGridMode) {
-                // Hiển thị dạng lưới
-                return GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(8, 70, 8, 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.75,
+            // NẾU CÓ MOMENTS: Hiển thị nút Games + danh sách moments
+            if (isGridMode) {
+              // Grid mode: Thêm nút Games ở đầu grid
+              return CustomScrollView(
+                slivers: [
+                  // trending Games Button
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(16, topPadding + 16, 16, 8),
+                      child: _buildTrendingGamesButton(),
+                    ),
                   ),
-                  itemCount: provider.moments.length,
-                  itemBuilder: (context, index) {
-                    final moment = provider.moments[index];
-                    return _buildGridItem(context, moment, userId);
-                  },
-                );
-              } else {
-                // Hiển thị dạng PageView dọc
-                return PageView.builder(
+
+                  // Grid view moments (GIỮ NGUYÊN)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 0.75,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final moment = provider.moments[index];
+                          return _buildGridItem(context, moment, userId);
+                        },
+                        childCount: provider.moments.length,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              // PageView mode: Thêm nút Games trước moment đầu tiên
+              return Padding(
+                padding: EdgeInsets.only(top: topPadding),
+                child: PageView.builder(
                   controller: _pageController,
                   scrollDirection: Axis.vertical,
-                  itemCount: provider.moments.length,
+                  itemCount: provider.moments.length + 1, // ← +1 cho nút Games
                   itemBuilder: (context, index) {
+                    //Index 0 = Nút Trending Games
+                    if (index == 0) {
+                      return _buildTrendingGamesPage();
+                    }
+                    
+                    // Index >= 1 = Moments (trừ đi 1)
                     return MomentCard(
-                      moment: provider.moments[index],
+                      moment: provider.moments[index - 1],
                       currentUserId: userId,
                     );
                   },
-                );
-              }
-            },
-          ),
+                ),
+              );
+            }
+          },
         ),
-        // Nút chuyển đổi chế độ hiển thị
+        
+        // Nút toggle grid/page mode (GIỮ NGUYÊN)
         Positioned(
           top: topPadding + 12,
           right: 16,
@@ -426,7 +457,260 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
-  // Xây dựng item trong grid view
+  //Widget nút Trending Games (Full screen page cho PageView)
+  Widget _buildTrendingGamesPage() {
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        children: [
+          // Background gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF6200EA).withValues(alpha:0.3),
+                  Colors.black,
+                  const Color(0xFFBB86FC).withValues(alpha:0.2),
+                ],
+              ),
+            ),
+          ),
+          
+          // Content
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Game icon với animation effect
+                  Container(
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFFBB86FC),
+                          const Color(0xFF6200EA),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFBB86FC).withValues(alpha: 0.5),
+                          blurRadius: 40,
+                          spreadRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.videogame_asset_rounded,
+                      size: 80,
+                      color: Colors.white,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 40),
+                  
+                  // Title
+                  const Text(
+                    '🎮 Trending Games',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Description
+                  Text(
+                    'Khám phá những trò chơi hot nhất\nhiện nay',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 18,
+                      height: 1.5,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 48),
+                  
+                  // Button
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const GameTrendingScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 20,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFBB86FC), Color(0xFF6200EA)],
+                        ),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFBB86FC).withValues(alpha: 0.5),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            'Xem ngay',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 40),
+                  
+                  // Hint text
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.swipe_down_rounded,
+                        color: Colors.white.withValues(alpha: 0.5),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Vuốt lên để xem Moments',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  //Widget nút Trending Games (Compact version cho Grid mode)
+  Widget _buildTrendingGamesButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const GameTrendingScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFBB86FC), Color(0xFF6200EA)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFBB86FC).withValues(alpha: 0.5),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Icon Container
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.videogame_asset_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Text Content
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🎮 Trending Games',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Discover the hottest games right now',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Arrow Icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Xây dựng item trong grid view (GIỮ NGUYÊN)
   Widget _buildGridItem(BuildContext context, dynamic moment, String userId) {
     return GestureDetector(
       onTap: () => _showMomentDetail(context, moment, userId),
@@ -435,9 +719,7 @@ class _FeedTabState extends State<FeedTab> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Hiển thị ảnh hoặc thumbnail của video
             CachedNetworkImage(
-              // Sử dụng thumbnail nếu là video, không thì dùng mediaUrl
               imageUrl: (moment.isVideo && moment.thumbnailUrl != null)
                   ? moment.thumbnailUrl!
                   : moment.mediaUrl,
@@ -472,7 +754,6 @@ class _FeedTabState extends State<FeedTab> {
                 ),
               ),
             ),
-            // Gradient overlay để làm tối phần dưới
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -487,7 +768,6 @@ class _FeedTabState extends State<FeedTab> {
                 ),
               ),
             ),
-            // Icon play cho video
             if (moment.isVideo)
               Positioned(
                 top: 10,
@@ -505,7 +785,6 @@ class _FeedTabState extends State<FeedTab> {
                   ),
                 ),
               ),
-            // Thông tin user ở dưới
             Positioned(
               left: 12,
               right: 12,
@@ -579,7 +858,6 @@ class _FeedTabState extends State<FeedTab> {
                 },
               ),
             ),
-            // Badge hiển thị số lượng reactions
             if (moment.reactions.isNotEmpty)
               Positioned(
                 top: 10,
@@ -626,7 +904,6 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
-  // Lấy thông tin user từ Firestore
   Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
     final doc = await FirebaseFirestore.instance
         .collection('users')
@@ -635,7 +912,6 @@ class _FeedTabState extends State<FeedTab> {
     return doc.exists ? doc.data() : null;
   }
 
-  // Xây dựng trạng thái trống khi không có moments
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -683,7 +959,6 @@ class _FeedTabState extends State<FeedTab> {
             ),
           ),
           const SizedBox(height: 24),
-          // Nút để đăng moments mới
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepOrange,
@@ -703,7 +978,6 @@ class _FeedTabState extends State<FeedTab> {
                 context,
                 MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
               );
-              // Xử lý kết quả upload nếu cần
             },
           ),
         ],
@@ -711,7 +985,6 @@ class _FeedTabState extends State<FeedTab> {
     );
   }
 
-  // Hiển thị chi tiết moment trong modal bottom sheet
   void _showMomentDetail(
     BuildContext context,
     dynamic moment,

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-//import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/moment_provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,7 +17,6 @@ import 'dart:developer' as developer;
 import '../../core/services/firestore_service.dart';
 import 'subscription_screen.dart';
 
-// Import các widget tái sử dụng
 import '../widgets/glass_icon_button.dart';
 import '../widgets/zoom_preset_button.dart';
 import '../widgets/recording_indicator.dart';
@@ -26,7 +24,7 @@ import '../widgets/glass_button.dart';
 import '../widgets/preview_button.dart';
 
 // Màn hình camera để chụp ảnh và quay video cho tính năng Moment
-// Tương tự Instagram Stories với khả năng chụp ảnh tap ngắn hoặc giữ để quay video
+// Tương tự Instagram Stories: tap nhanh = chụp ảnh, giữ lâu = quay video
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
 
@@ -34,40 +32,42 @@ class CameraCaptureScreen extends StatefulWidget {
   State<CameraCaptureScreen> createState() => _CameraCaptureScreenState();
 }
 
-class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerProviderStateMixin {
-  CameraController? _controller;
-  List<CameraDescription>? _cameras;
-  bool _isInitialized = false;
-  bool _isRecording = false;
-  bool _isFrontCamera = true;
-  int _recordingSeconds = 0;
-  Timer? _recordingTimer;
-  XFile? _capturedMedia;
-  bool _isVideo = false;
-  bool _isFlashOn = false;
-  double _exposure = 0.0;
-  double _currentZoom = 1.0;
-  double _minZoom = 1.0;
-  double _maxZoom = 1.0;
-  final ImagePicker _picker = ImagePicker();
-  VideoPlayerController? _videoController;
-  
-  // Các biến để xử lý focus và exposure khi tap vào màn hình
-  Offset? _focusPoint;
-  bool _showFocusCircle = false;
-  AnimationController? _focusAnimationController;
-  
-  // Biến cho pinch to zoom
-  double _baseScale = 1.0;
-  
-  // Biến để hiển thị exposure slider
+class _CameraCaptureScreenState extends State<CameraCaptureScreen>
+    with TickerProviderStateMixin {
+  CameraController? _controller; // Quản lý camera
+  List<CameraDescription>? _cameras; // Danh sách camera có sẵn
+  bool _isInitialized = false; // Kiểm tra camera đã sẵn sàng chưa
+  bool _isRecording = false; // Đang quay video hay không
+  bool _isFrontCamera = true; // Đang dùng camera trước hay sau
+  int _recordingSeconds = 0; // Số giây đã quay
+  Timer? _recordingTimer; // Timer đếm giây khi quay video
+  XFile? _capturedMedia; // File ảnh/video vừa chụp
+  bool _isVideo = false; // File vừa chụp là video hay ảnh
+  bool _isFlashOn = false; // Đèn flash có đang bật không
+  double _exposure = 0.0; // Độ sáng (-2.0 đến 2.0)
+  double _currentZoom = 1.0; // Mức zoom hiện tại
+  double _minZoom = 1.0; // Zoom tối thiểu camera hỗ trợ
+  double _maxZoom = 1.0; // Zoom tối đa camera hỗ trợ
+  final ImagePicker _picker = ImagePicker(); // Để chọn ảnh/video từ thư viện
+  VideoPlayerController? _videoController; // Play video preview
+
+  // Các biến để xử lý tap màn hình = focus camera
+  Offset? _focusPoint; // Vị trí tap để focus
+  bool _showFocusCircle = false; // Hiện vòng tròn focus hay không
+  AnimationController?
+  _focusAnimationController; // Animation cho vòng tròn focus
+
+  // Biến cho tính năng pinch to zoom
+  double _baseScale = 1.0; // Lưu zoom ban đầu khi bắt đầu pinch
+
+  // Biến để hiển thị thanh điều chỉnh độ sáng
   bool _showExposureSlider = false;
   Offset? _exposureSliderPosition;
 
-  // Front flash overlay để giả lập flash cho camera trước
+  // Giả lập flash cho camera trước (overlay trắng)
   bool _showFrontFlashOverlay = false;
 
-  // Thumbnail cho video để hiển thị preview
+  // Thumbnail cho video (để preview không cần load video)
   String? _localThumbnailPath;
   bool _isGeneratingThumbnail = false;
 
@@ -76,6 +76,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   @override
   void initState() {
     super.initState();
+    // Setup animation controller cho vòng tròn focus
     _focusAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -83,13 +84,13 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     _initializeCamera();
   }
 
-  // Khởi tạo camera khi mở màn hình
-  // Mặc định sử dụng camera sau nếu có
+  // Khởi động camera khi mở màn hình
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
       if (_cameras == null || _cameras!.isEmpty) return;
 
+      // Mặc định dùng camera sau trước
       final backCamera = _cameras!.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
         orElse: () => _cameras!.first,
@@ -97,19 +98,21 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
 
       _controller = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.veryHigh, // Dùng quality cao nhất
         enableAudio: true,
+        imageFormatGroup: ImageFormatGroup.jpeg, // Format JPEG cho ảnh đẹp
       );
 
       _isFrontCamera = false;
       await _controller!.initialize();
+      // Khóa màn hình chỉ dọc
       await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
-      
-      // Lấy giới hạn zoom của camera để set range cho slider
+
+      // Lấy giới hạn zoom của camera
       _maxZoom = await _controller!.getMaxZoomLevel();
       _minZoom = await _controller!.getMinZoomLevel();
       _currentZoom = _minZoom;
-      
+
       if (mounted) {
         setState(() => _isInitialized = true);
       }
@@ -118,7 +121,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
-  // Chuyển đổi giữa camera trước và sau
+  // Đổi camera trước/sau
   Future<void> _toggleCamera() async {
     if (_cameras == null || _cameras!.length < 2) return;
 
@@ -128,20 +131,29 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     });
 
     final newCamera = _cameras!.firstWhere(
-      (camera) => camera.lensDirection == (_isFrontCamera ? CameraLensDirection.front : CameraLensDirection.back),
+      (camera) =>
+          camera.lensDirection ==
+          (_isFrontCamera
+              ? CameraLensDirection.front
+              : CameraLensDirection.back),
       orElse: () => _cameras!.first,
     );
 
     await _controller?.dispose();
-    _controller = CameraController(newCamera, ResolutionPreset.high, enableAudio: true);
+    _controller = CameraController(
+      newCamera,
+      ResolutionPreset.veryHigh, // Quality cao
+      enableAudio: true,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
     await _controller!.initialize();
     await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
-    
+
     _maxZoom = await _controller!.getMaxZoomLevel();
     _minZoom = await _controller!.getMinZoomLevel();
     _currentZoom = _minZoom;
 
-    // Camera trước không có flash thật nên tắt flash khi chuyển
+    // Camera trước không có flash thật
     if (_isFrontCamera) {
       _isFlashOn = false;
       await _controller!.setFlashMode(FlashMode.off);
@@ -152,7 +164,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
-  // Xử lý tap vào màn hình để focus và set exposure point
+  // Tap màn hình để focus và set exposure point
   Future<void> _handleTapToFocus(TapDownDetails details) async {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
@@ -160,7 +172,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     final Offset localPosition = box.globalToLocal(details.globalPosition);
     final Size size = box.size;
 
-    // Chuẩn hóa tọa độ từ 0 đến 1 để camera API hiểu
+    // Chuyển tọa độ pixel thành % (0-1) cho camera API
     final dx = localPosition.dx / size.width;
     final dy = localPosition.dy / size.height;
 
@@ -180,7 +192,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
       _logger.e('Focus error: $e');
     }
 
-    // Tự động ẩn focus indicator sau 3 giây
+    // Tự động ẩn sau 3 giây
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
@@ -191,18 +203,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     });
   }
 
-  // Xử lý pinch to zoom - lưu zoom hiện tại làm base
+  // Pinch to zoom - giai đoạn bắt đầu
   void _handleScaleStart(ScaleStartDetails details) {
     _baseScale = _currentZoom;
   }
 
-  // Cập nhật zoom khi pinch
+  // Pinch to zoom - đang zoom
   Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
     if (_controller == null) return;
 
     final newZoom = (_baseScale * details.scale).clamp(_minZoom, _maxZoom);
-    
-    // Chỉ cập nhật khi thay đổi đủ lớn để tránh lag
+
+    // Chỉ update khi thay đổi đủ lớn (tránh lag)
     if ((newZoom - _currentZoom).abs() > 0.01) {
       _currentZoom = newZoom;
       await _controller!.setZoomLevel(_currentZoom);
@@ -210,10 +222,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
-  // Set zoom theo các preset 1x 2x 3x
+  // Zoom theo nút preset (1x, 2x, 3x)
   Future<void> _setZoomPreset(double zoom) async {
     if (_controller == null) return;
-    
+
     final targetZoom = zoom.clamp(_minZoom, _maxZoom);
     _currentZoom = targetZoom;
     await _controller!.setZoomLevel(_currentZoom);
@@ -224,7 +236,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   Future<void> _takePicture() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
-    // Bật overlay trắng giả lập flash cho camera trước
+    // Giả lập flash cho camera trước
     if (_isFrontCamera && _isFlashOn) {
       setState(() => _showFrontFlashOverlay = true);
       await Future.delayed(const Duration(milliseconds: 350));
@@ -245,7 +257,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
 
   // Bắt đầu quay video
   Future<void> _startRecording() async {
-    if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _isRecording)
+      return;
 
     try {
       await _controller!.startVideoRecording();
@@ -254,7 +269,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
         _recordingSeconds = 0;
       });
 
-      // Timer để đếm giây và tự động dừng sau 15 giây
+      // Timer đếm giây, tự động dừng sau 15 giây
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() => _recordingSeconds++);
         if (_recordingSeconds >= 15) {
@@ -279,8 +294,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
         _isVideo = true;
         _recordingSeconds = 0;
       });
-      
-      // Tạo thumbnail cho video để hiển thị preview
+
+      // Tạo thumbnail để preview
       await _generateThumbnail(video.path);
     } catch (e) {
       _logger.e('Stop recording error: $e');
@@ -290,9 +305,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
   // Tạo thumbnail từ video
   Future<void> _generateThumbnail(String videoPath) async {
     setState(() => _isGeneratingThumbnail = true);
-    
+
     try {
-      final thumbnailPath = await VideoThumbnailHelper.generateThumbnail(videoPath);
+      final thumbnailPath = await VideoThumbnailHelper.generateThumbnail(
+        videoPath,
+      );
       if (mounted && thumbnailPath != null) {
         setState(() {
           _localThumbnailPath = thumbnailPath;
@@ -307,10 +324,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     }
   }
 
-  // Chọn ảnh hoặc video từ thư viện
+  // Chọn ảnh/video từ thư viện
   Future<void> _pickFromGallery() async {
     try {
-      // Hiển thị dialog cho user chọn ảnh hoặc video
+      // Hỏi user muốn chọn ảnh hay video
       final choice = await showDialog<String>(
         context: context,
         builder: (ctx) => BackdropFilter(
@@ -378,10 +395,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
         }
       } else {
         pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
-        
+
         if (pickedFile != null) {
           // Kiểm tra video không quá 15 giây
-          final videoController = VideoPlayerController.file(File(pickedFile.path));
+          final videoController = VideoPlayerController.file(
+            File(pickedFile.path),
+          );
           await videoController.initialize();
           final duration = videoController.value.duration.inSeconds;
           await videoController.dispose();
@@ -397,13 +416,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
             }
             return;
           }
-          
+
           setState(() {
             _capturedMedia = pickedFile;
             _isVideo = true;
           });
-          
-          // Generate thumbnail cho video từ thư viện
+
           await _generateThumbnail(pickedFile.path);
         }
       }
@@ -450,226 +468,299 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> with TickerPr
     );
   }
 
-  // Lật ảnh theo chiều ngang nếu chụp từ camera trước
-  // Camera trước có hiệu ứng mirror nên cần flip lại
+  // Lật ảnh nếu chụp từ camera trước với quality 100%
   Future<XFile> _flipImageIfFrontCamera(XFile file) async {
     if (!_isFrontCamera) return file;
-    final bytes = await file.readAsBytes();
-    final image = img.decodeImage(bytes);
-    if (image == null) return file;
-    final flipped = img.flipHorizontal(image);
-    final newPath = file.path.replaceFirst('.jpg', '_flipped.jpg');
-    final newFile = File(newPath)..writeAsBytesSync(img.encodeJpg(flipped, quality: 95));
-    return XFile(newFile.path);
+
+    try {
+      final bytes = await file.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) return file;
+
+      final flipped = img.flipHorizontal(image);
+
+      // Lưu với quality 100% để giữ nguyên chất lượng
+      final newPath = file.path.replaceFirst('.jpg', '_flipped.jpg');
+      final newFile = File(newPath)
+        ..writeAsBytesSync(
+          img.encodeJpg(flipped, quality: 100), // Quality tối đa
+        );
+
+      return XFile(newFile.path);
+    } catch (e) {
+      _logger.e('Flip image error: $e');
+      return file; // Nếu lỗi thì trả về ảnh gốc
+    }
   }
 
-  // Upload media lên Firebase Storage và đăng moment
+  // Upload lên Firebase và đăng moment
   Future<void> _uploadAndPost() async {
-  if (_capturedMedia == null) return;
+    if (_capturedMedia == null) return;
 
-  final userId = FirebaseAuth.instance.currentUser?.uid;
-  if (userId == null) return;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
 
-  // Kiểm tra giới hạn 20 moments/tháng cho free user
-  try {
-    final canPost = await FirestoreService().canPostMoment(userId);
-    if (!canPost) {
-      await _showPremiumUpsellDialog();
-      return;
-    }
-  } catch (e) {
-    developer.log('Check limit error: $e', name: 'CameraCapture');
-    // Nếu lỗi check, vẫn cho tiếp tục (fallback an toàn)
-  }
-
-  // Hỏi user nhập caption
-  final caption = await _showCaptionDialog();
-  if (caption == null) return;
-
-  // Hiện loading dialog
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
-  );
-
-  try {
-    String? mediaUrl;
-    String? thumbnailUrl;
-
-    if (_isVideo) {
-      // Upload video lên Storage
-      final videoRef = FirebaseStorage.instance
-          .ref()
-          .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
-      await videoRef.putFile(File(_capturedMedia!.path));
-      mediaUrl = await videoRef.getDownloadURL();
-
-      // Upload thumbnail nếu có
-      if (_localThumbnailPath != null) {
-        final thumbRef = FirebaseStorage.instance
-            .ref()
-            .child('moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg');
-        await thumbRef.putFile(File(_localThumbnailPath!));
-        thumbnailUrl = await thumbRef.getDownloadURL();
+    // Kiểm tra giới hạn 20 moments/tháng (free user)
+    try {
+      final canPost = await FirestoreService().canPostMoment(userId);
+      if (!canPost) {
+        await _showPremiumUpsellDialog();
+        return;
       }
-    } else {
-      // Lật ảnh nếu chụp từ camera trước
-      XFile imageToUpload = _capturedMedia!;
-      if (_isFrontCamera) {
-        imageToUpload = await _flipImageIfFrontCamera(_capturedMedia!);
-      }
-
-      final imageRef = FirebaseStorage.instance
-          .ref()
-          .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await imageRef.putFile(File(imageToUpload.path));
-      mediaUrl = await imageRef.getDownloadURL();
+    } catch (e) {
+      developer.log('Check limit error: $e', name: 'CameraCapture');
     }
 
-    // Lấy danh sách matched users để gửi moment
-    final momentProvider = Provider.of<MomentProvider>(context, listen: false);
-    final matchedUserIds = await momentProvider.getMatchedUserIds(userId);
+    // Hỏi user nhập caption
+    final caption = await _showCaptionDialog();
+    if (caption == null) return;
 
-    // Đăng moment lên Firestore
-    await momentProvider.postMoment(
-      userId: userId,
-      mediaUrl: mediaUrl,
-      isVideo: _isVideo,
-      matchIds: matchedUserIds,
-      caption: caption.isEmpty ? null : caption,
-      thumbnailUrl: thumbnailUrl,
+    // Hiện loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.deepOrange),
+      ),
     );
 
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pop(); // đóng loading
-    Navigator.of(context).pop(true); // quay lại
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã đăng khoảnh khắc!'), backgroundColor: Colors.green),
-    );
-  } catch (e) {
-    developer.log('Error uploading moment: $e', name: 'CameraCapture', error: e);
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pop();
-    
-    // Nếu lỗi do vượt giới hạn thì hiện popup upsell premium
-    final msg = e.toString();
-    if (msg.contains('LIMIT_EXCEEDED')) {
-      await _showPremiumUpsellDialog();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
+    try {
+      String? mediaUrl;
+      String? thumbnailUrl;
+
+      if (_isVideo) {
+        // Upload video
+        final videoRef = FirebaseStorage.instance.ref().child(
+          'moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4',
+        );
+        await videoRef.putFile(File(_capturedMedia!.path));
+        mediaUrl = await videoRef.getDownloadURL();
+
+        // Upload thumbnail
+        if (_localThumbnailPath != null) {
+          final thumbRef = FirebaseStorage.instance.ref().child(
+            'moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          await thumbRef.putFile(File(_localThumbnailPath!));
+          thumbnailUrl = await thumbRef.getDownloadURL();
+        }
+      } else {
+        // Lật ảnh camera trước với quality cao
+        XFile imageToUpload = _capturedMedia!;
+        if (_isFrontCamera) {
+          imageToUpload = await _flipImageIfFrontCamera(_capturedMedia!);
+        }
+
+        // Upload ảnh với metadata quality cao
+        final imageRef = FirebaseStorage.instance.ref().child(
+          'moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {'quality': 'high'}, // Đánh dấu quality cao
+        );
+
+        await imageRef.putFile(File(imageToUpload.path), metadata);
+        mediaUrl = await imageRef.getDownloadURL();
+      }
+
+      // Lấy danh sách match để gửi moment
+      final momentProvider = Provider.of<MomentProvider>(
+        context,
+        listen: false,
       );
+      final matchedUserIds = await momentProvider.getMatchedUserIds(userId);
+
+      // Đăng lên Firestore
+      await momentProvider.postMoment(
+        userId: userId,
+        mediaUrl: mediaUrl,
+        isVideo: _isVideo,
+        matchIds: matchedUserIds,
+        caption: caption.isEmpty ? null : caption,
+        thumbnailUrl: thumbnailUrl,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Đóng loading
+      Navigator.of(context).pop(true); // Quay lại
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã đăng khoảnh khắc!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      developer.log(
+        'Error uploading moment: $e',
+        name: 'CameraCapture',
+        error: e,
+      );
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      final msg = e.toString();
+      if (msg.contains('LIMIT_EXCEEDED')) {
+        await _showPremiumUpsellDialog();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
     }
   }
-}
 
-// Hiển thị dialog upsell premium khi user vượt giới hạn
-Future<void> _showPremiumUpsellDialog() async {
-  if (!mounted) return;
-  await showDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierColor: Colors.black.withValues(alpha: 0.7),
-    builder: (ctx) => BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.deepOrange.withValues(alpha: 0.2),
-                    Colors.black.withValues(alpha: 0.85),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 56),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Nâng cấp Premium',
-                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Bạn đã đăng đủ 20 khoảnh khắc trong tháng này!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, height: 1.5),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Nâng cấp để đăng không giới hạn 🔥',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
-                            ),
-                          ),
-                          child: Text('Để sau', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepOrange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            elevation: 8,
-                            shadowColor: Colors.deepOrange.withValues(alpha: 0.5),
-                          ),
-                          child: const Text('Nâng cấp ngay', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                        ),
-                      ),
+  // Dialog upsell premium khi vượt giới hạn
+  Future<void> _showPremiumUpsellDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (ctx) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.deepOrange.withValues(alpha: 0.2),
+                      Colors.black.withValues(alpha: 0.85),
                     ],
                   ),
-                ],
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.workspace_premium_rounded,
+                        color: Colors.amber,
+                        size: 56,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Nâng cấp Premium',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Bạn đã đăng đủ 20 khoảnh khắc trong tháng này!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Nâng cấp để đăng không giới hạn',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              'Để sau',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SubscriptionScreen(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepOrange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 8,
+                              shadowColor: Colors.deepOrange.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                            child: const Text(
+                              'Nâng cấp ngay',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  // Hiển thị dialog nhập caption
+  // Dialog nhập caption
   Future<String?> _showCaptionDialog() async {
     final controller = TextEditingController();
     return showDialog<String>(
@@ -743,7 +834,10 @@ Future<void> _showPremiumUpsellDialog() async {
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
                           ),
                           child: Text(
                             'Hủy',
@@ -756,11 +850,15 @@ Future<void> _showPremiumUpsellDialog() async {
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                          onPressed: () =>
+                              Navigator.pop(ctx, controller.text.trim()),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepOrange,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -788,7 +886,7 @@ Future<void> _showPremiumUpsellDialog() async {
 
   @override
   Widget build(BuildContext context) {
-    // Nếu đã có media thì hiển thị màn hình preview
+    // Nếu đã chụp/quay thì hiện màn preview
     if (_capturedMedia != null) {
       return _buildPreviewScreen();
     }
@@ -798,7 +896,7 @@ Future<void> _showPremiumUpsellDialog() async {
       body: _isInitialized
           ? Stack(
               children: [
-                // Camera preview với tỷ lệ 9:16 giống Instagram Stories
+                // Camera preview tỷ lệ 9:16
                 Center(
                   child: AspectRatio(
                     aspectRatio: 9 / 16,
@@ -811,7 +909,7 @@ Future<void> _showPremiumUpsellDialog() async {
                   ),
                 ),
 
-                // Hiển thị vòng tròn vàng khi tap để focus
+                // Vòng tròn focus vàng khi tap
                 if (_showFocusCircle && _focusPoint != null)
                   Positioned(
                     left: _focusPoint!.dx - 40,
@@ -823,16 +921,13 @@ Future<void> _showPremiumUpsellDialog() async {
                         height: 80,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.yellow,
-                            width: 2,
-                          ),
+                          border: Border.all(color: Colors.yellow, width: 2),
                         ),
                       ),
                     ),
                   ),
 
-                // Exposure slider hiện lên bên cạnh điểm focus
+                // Thanh điều chỉnh độ sáng
                 if (_showExposureSlider && _exposureSliderPosition != null)
                   Positioned(
                     left: _exposureSliderPosition!.dx + 50,
@@ -871,19 +966,24 @@ Future<void> _showPremiumUpsellDialog() async {
                                         thumbShape: const RoundSliderThumbShape(
                                           enabledThumbRadius: 8,
                                         ),
-                                        overlayShape: const RoundSliderOverlayShape(
-                                          overlayRadius: 16,
-                                        ),
+                                        overlayShape:
+                                            const RoundSliderOverlayShape(
+                                              overlayRadius: 16,
+                                            ),
                                       ),
                                       child: Slider(
                                         value: _exposure,
                                         min: -2.0,
                                         max: 2.0,
                                         activeColor: Colors.yellow,
-                                        inactiveColor: Colors.white.withValues(alpha: 0.3),
+                                        inactiveColor: Colors.white.withValues(
+                                          alpha: 0.3,
+                                        ),
                                         onChanged: (value) async {
                                           _exposure = value;
-                                          await _controller?.setExposureOffset(_exposure);
+                                          await _controller?.setExposureOffset(
+                                            _exposure,
+                                          );
                                           setState(() {});
                                         },
                                       ),
@@ -903,212 +1003,250 @@ Future<void> _showPremiumUpsellDialog() async {
                     ),
                   ),
 
-                  // Top bar với nút đóng
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.6),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildGlassIconButton(
-                            icon: Icons.close,
-                            onPressed: () => Navigator.pop(context),
-                          ),
+                // Top bar với nút đóng
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.only(
+                      top: 50,
+                      left: 20,
+                      right: 20,
+                      bottom: 20,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.6),
+                          Colors.transparent,
                         ],
                       ),
                     ),
-                  ),
-
-                  // Recording indicator hiển thị số giây đang quay
-                  if (_isRecording)
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 120,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: RecordingIndicator(seconds: _recordingSeconds),
-                      ),
-                    ),
-
-                  // Bottom controls chứa các nút điều khiển
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.only(bottom: 40, left: 20, right: 20, top: 20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.6),
-                            Colors.transparent,
-                          ],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildGlassIconButton(
+                          icon: Icons.close,
+                          onPressed: () => Navigator.pop(context),
                         ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Hàng chứa Flash Flip camera và Zoom presets
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly, // căn đều các nút
-                            children: [
-                              _buildGlassIconButton(
-                                icon: _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                                onPressed: () async {
-                                  if (_isFrontCamera) {
-                                    setState(() => _isFlashOn = !_isFlashOn);
-                                  } else {
-                                    _isFlashOn = !_isFlashOn;
-                                    await _controller!.setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
-                                    setState(() {});
-                                  }
-                                },
-                              ),
-                              _buildGlassIconButton(
-                                icon: Icons.flip_camera_ios_rounded,
-                                onPressed: _toggleCamera,
-                              ),
-                              _buildZoomPreset('1', 1.0),
-                              _buildZoomPreset('2', 2.0),
-                              _buildZoomPreset('3', 3.0),
-                            ],
-                          ),
-                          const SizedBox(height: 30),
-
-                          // Hàng chứa nút chụp/quay và chọn từ thư viện
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Nút chọn từ thư viện
-                              SizedBox(
-                                width: 70,
-                                height: 70,
-                                child: _buildGlassIconButton(
-                                  icon: Icons.photo_library_rounded,
-                                  onPressed: _pickFromGallery,
-                                ),
-                              ),
-                              // Nút chụp/quay chính giữa
-                              SizedBox(
-                                width: 80,
-                                height: 80,
-                                child: GestureDetector(
-                                  onTap: _isRecording ? _stopRecording : (_isVideo ? _startRecording : _takePicture),
-                                  onLongPress: () {
-                                    if (!_isRecording && !_isVideo) {
-                                      _startRecording();
-                                    }
-                                  },
-                                  child: Center(
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      width: _isRecording ? 32 : 60,
-                                      height: _isRecording ? 32 : 60,
-                                      decoration: BoxDecoration(
-                                        color: _isRecording ? Colors.red : Colors.white,
-                                        shape: _isRecording ? BoxShape.rectangle : BoxShape.circle,
-                                        borderRadius: _isRecording ? BorderRadius.circular(8) : null,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // Nút chuyển chế độ video/ảnh
-                              SizedBox(
-                                width: 70,
-                                height: 70,
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _isVideo = !_isVideo),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(35),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.2),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white.withValues(alpha: 0.3),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          _isVideo ? Icons.camera_alt_rounded : Icons.videocam_rounded,
-                                          color: Colors.white,
-                                          size: 30,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          
-                          // Text hướng dẫn sử dụng
-                          Text(
-                            _isRecording
-                                ? 'Nhấn để dừng'
-                                : _isVideo
-                                    ? 'Nhấn để quay • Giữ để chụp'
-                                    : 'Nhấn để chụp • Giữ để quay',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
+                ),
 
-                  // Hiển thị mức zoom hiện tại
+                // Đồng hồ đếm giây khi đang quay
+                if (_isRecording)
                   Positioned(
-                    bottom: 200,
+                    top: MediaQuery.of(context).padding.top + 120,
                     left: 0,
                     right: 0,
                     child: Center(
-                      child: AnimatedOpacity(
-                        opacity: _currentZoom != 1.0 ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 200),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  width: 1,
+                      child: RecordingIndicator(seconds: _recordingSeconds),
+                    ),
+                  ),
+
+                // Bottom controls
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.only(
+                      bottom: 40,
+                      left: 20,
+                      right: 20,
+                      top: 20,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.6),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        // Hàng nút: Flash, Flip camera, Zoom
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildGlassIconButton(
+                              icon: _isFlashOn
+                                  ? Icons.flash_on
+                                  : Icons.flash_off,
+                              onPressed: () async {
+                                if (_isFrontCamera) {
+                                  setState(() => _isFlashOn = !_isFlashOn);
+                                } else {
+                                  _isFlashOn = !_isFlashOn;
+                                  await _controller!.setFlashMode(
+                                    _isFlashOn
+                                        ? FlashMode.torch
+                                        : FlashMode.off,
+                                  );
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                            _buildGlassIconButton(
+                              icon: Icons.flip_camera_ios_rounded,
+                              onPressed: _toggleCamera,
+                            ),
+                            _buildZoomPreset('1', 1.0),
+                            _buildZoomPreset('2', 2.0),
+                            _buildZoomPreset('3', 3.0),
+                          ],
+                        ),
+                        const SizedBox(height: 30),
+
+                        // Hàng nút chính: Thư viện, Chụp/Quay, Chuyển chế độ
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // Nút thư viện
+                            SizedBox(
+                              width: 70,
+                              height: 70,
+                              child: _buildGlassIconButton(
+                                icon: Icons.photo_library_rounded,
+                                onPressed: _pickFromGallery,
+                              ),
+                            ),
+                            // Nút chụp/quay chính giữa
+                            SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: GestureDetector(
+                                onTap: _isRecording
+                                    ? _stopRecording
+                                    : (_isVideo
+                                          ? _startRecording
+                                          : _takePicture),
+                                onLongPress: () {
+                                  if (!_isRecording && !_isVideo) {
+                                    _startRecording();
+                                  }
+                                },
+                                child: Center(
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: _isRecording ? 32 : 60,
+                                    height: _isRecording ? 32 : 60,
+                                    decoration: BoxDecoration(
+                                      color: _isRecording
+                                          ? Colors.red
+                                          : Colors.white,
+                                      shape: _isRecording
+                                          ? BoxShape.rectangle
+                                          : BoxShape.circle,
+                                      borderRadius: _isRecording
+                                          ? BorderRadius.circular(8)
+                                          : null,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                '${_currentZoom.toStringAsFixed(1)}x',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                            ),
+
+                            // Nút chuyển chế độ video/ảnh
+                            SizedBox(
+                              width: 70,
+                              height: 70,
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _isVideo = !_isVideo),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(35),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 20,
+                                      sigmaY: 20,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.3,
+                                          ),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        _isVideo
+                                            ? Icons.camera_alt_rounded
+                                            : Icons.videocam_rounded,
+                                        color: Colors.white,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ),
                                 ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Text hướng dẫn
+                        Text(
+                          _isRecording
+                              ? 'Nhấn để dừng'
+                              : _isVideo
+                              ? 'Nhấn để quay • Giữ để chụp'
+                              : 'Nhấn để chụp • Giữ để quay',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Hiển thị mức zoom
+                Positioned(
+                  bottom: 200,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: _currentZoom != 1.0 ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              '${_currentZoom.toStringAsFixed(1)}x',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -1116,15 +1254,12 @@ Future<void> _showPremiumUpsellDialog() async {
                       ),
                     ),
                   ),
+                ),
 
-                  // Flash overlay trắng cho camera trước
-                  if (_showFrontFlashOverlay)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.white,
-                      ),
-                    ),
-                ],
+                // Overlay trắng giả flash camera trước
+                if (_showFrontFlashOverlay)
+                  Positioned.fill(child: Container(color: Colors.white)),
+              ],
             )
           : const Center(
               child: CircularProgressIndicator(color: Colors.deepOrange),
@@ -1132,81 +1267,101 @@ Future<void> _showPremiumUpsellDialog() async {
     );
   }
 
-  // Màn hình preview sau khi chụp hoặc quay
+  // Màn hình preview sau khi chụp/quay
   Widget _buildPreviewScreen() {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Hiển thị preview media
+          // Preview media
           Center(
             child: _isVideo
                 ? (_localThumbnailPath != null
-                    ? Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.file(
-                            File(_localThumbnailPath!),
-                            fit: BoxFit.contain,
-                          ),
-                          // Icon play để biết đây là video
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.play_arrow_rounded,
-                                color: Colors.white,
-                                size: 50,
-                              ),
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(
+                              File(_localThumbnailPath!),
+                              fit: BoxFit.contain,
                             ),
-                          ),
-                        ],
-                      )
-                    : Container(
-                        color: Colors.black,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_isGeneratingThumbnail)
-                                const CircularProgressIndicator(color: Colors.deepOrange)
-                              else
-                                const Icon(Icons.videocam_rounded, color: Colors.white54, size: 80),
-                              const SizedBox(height: 16),
-                              Text(
-                                _isGeneratingThumbnail ? 'Đang xử lý...' : 'Video đã quay',
-                                style: const TextStyle(
+                            // Icon play
+                            Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.play_arrow_rounded,
                                   color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
+                                  size: 50,
                                 ),
                               ),
-                            ],
+                            ),
+                          ],
+                        )
+                      : Container(
+                          color: Colors.black,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isGeneratingThumbnail)
+                                  const CircularProgressIndicator(
+                                    color: Colors.deepOrange,
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.videocam_rounded,
+                                    color: Colors.white54,
+                                    size: 80,
+                                  ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _isGeneratingThumbnail
+                                      ? 'Đang xử lý...'
+                                      : 'Video đã quay',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ))
+                        ))
+                // SỬA: Lật preview nếu là camera trước
                 : (_isFrontCamera
-                    // Mirror ảnh nếu chụp từ camera trước
-                    ? Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..scale(-1.0, 1.0),
-                        child: Image.file(File(_capturedMedia!.path), fit: BoxFit.contain),
-                      )
-                    : Image.file(File(_capturedMedia!.path), fit: BoxFit.contain)),
+                      ? Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..scale(-1.0, 1.0), // Lật ngang
+                          child: Image.file(
+                            File(_capturedMedia!.path),
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                      : Image.file(
+                          File(_capturedMedia!.path),
+                          fit: BoxFit.contain,
+                        )),
           ),
 
-          // Top bar với nút hủy
+          // Top bar với nút hủy (GIỮ NGUYÊN)
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
+              padding: const EdgeInsets.only(
+                top: 50,
+                left: 20,
+                right: 20,
+                bottom: 20,
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -1223,9 +1378,8 @@ Future<void> _showPremiumUpsellDialog() async {
                   _buildGlassIconButton(
                     icon: Icons.close,
                     onPressed: () {
-                      // Xóa thumbnail local khi hủy
+                      // Xóa thumbnail local
                       if (_localThumbnailPath != null) {
-                        // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
                       }
                       setState(() {
@@ -1239,13 +1393,18 @@ Future<void> _showPremiumUpsellDialog() async {
             ),
           ),
 
-          // Bottom actions với nút Chụp lại và Đăng
+          // Bottom actions (GIỮ NGUYÊN)
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.only(bottom: 40, left: 20, right: 20, top: 30),
+              padding: const EdgeInsets.only(
+                bottom: 40,
+                left: 20,
+                right: 20,
+                top: 30,
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
@@ -1264,7 +1423,6 @@ Future<void> _showPremiumUpsellDialog() async {
                     label: 'Chụp lại',
                     onPressed: () {
                       if (_localThumbnailPath != null) {
-                        // ignore: body_might_complete_normally_catch_error
                         File(_localThumbnailPath!).delete().catchError((_) {});
                       }
                       setState(() {
@@ -1295,13 +1453,12 @@ Future<void> _showPremiumUpsellDialog() async {
     _controller?.dispose();
     _videoController?.dispose();
     _focusAnimationController?.dispose();
-    
-    // Xóa thumbnail local khi dispose
+
+    // Xóa thumbnail local
     if (_localThumbnailPath != null) {
-      // ignore: body_might_complete_normally_catch_error
       File(_localThumbnailPath!).delete().catchError((_) {});
     }
-    
+
     super.dispose();
   }
 }

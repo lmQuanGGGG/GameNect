@@ -29,6 +29,7 @@ import 'dart:developer' as developer;
 import 'dart:async';
 import 'admin/admin_app.dart';
 import 'core/controllers/notification_controller.dart'; 
+import 'core/providers/game_provider.dart';
 
 // Khóa navigator toàn cục để điều hướng từ các phần khác của ứng dụng, đặc biệt là từ thông báo
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -339,6 +340,7 @@ class GameNectApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => MomentProvider()),
         Provider(create: (_) => FirestoreService()),
+        ChangeNotifierProvider(create: (_) => GameProvider()), // ← THÊM DÒNG NÀY
       ],
       child: MaterialApp(
         title: 'GameNect',
