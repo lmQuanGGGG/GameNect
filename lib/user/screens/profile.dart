@@ -460,22 +460,26 @@ class _ProfilePageState extends State<ProfilePage> {
                                         const SizedBox(height: 12),
                                         
                                         // Hiển thị vị trí hiện tại
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             const Text(
                                               'Vị trí hiện tại:',
-                                              style: TextStyle(color: Colors.grey),
+                                              style: TextStyle(color: Colors.grey, fontSize: 13),
                                             ),
+                                            const SizedBox(height: 4),
                                             Text(
                                               locationProvider.currentLocation ?? 'Chưa cập nhật',
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.w500,
+                                                fontSize: 14,
                                               ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 12),
                                         
                                         // Hiển thị khoảng cách tìm kiếm
                                         Row(

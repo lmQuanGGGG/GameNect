@@ -67,59 +67,54 @@ class LocationProvider extends ChangeNotifier {
 
   // Hàm lấy vị trí GPS hiện tại của thiết bị, chuyển đổi sang địa chỉ, lưu vào state
   Future<bool> getCurrentLocation() async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+  try {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-      _logger.info('Đang lấy vị trí hiện tại...');
-
-      // Kiểm tra quyền trước khi lấy vị trí
-      final hasPermission = await _locationService.requestLocationPermission();
-      if (!hasPermission) {
-        _error = 'Không có quyền truy cập vị trí';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Lấy vị trí GPS
-      final position = await _locationService.getCurrentLocation();
-      if (position == null) {
-        _error = 'Không thể lấy vị trí hiện tại';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Lưu tọa độ vào state
-      _latitude = position.latitude;
-      _longitude = position.longitude;
-
-      // Chuyển đổi tọa độ sang địa chỉ (address, city, country)
-      final addressData = await _locationService.getAddressFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-      _address = addressData['address'];
-      _city = addressData['city'];
-      _country = addressData['country'];
-      _currentLocation = _address ?? _city ?? 'Không xác định';
-
-      _logger.info('Đã lấy vị trí: $_currentLocation');
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _logger.severe('Lỗi khi lấy vị trí: $e');
-      _error = e.toString();
+    // XIN QUYỀN MỘT LẦN
+    final hasPermission = await _locationService.requestLocationPermission();
+    if (!hasPermission) {
+      _error = 'Vui lòng cấp quyền truy cập vị trí';
       _isLoading = false;
       notifyListeners();
       return false;
     }
-  }
 
+    // LẤY VỊ TRÍ (không xin quyền lặp lại)
+    final position = await _locationService.getCurrentLocation();
+    if (position == null) {
+      _error = 'Không thể lấy vị trí. Vui lòng bật GPS và thử lại';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    _latitude = position.latitude;
+    _longitude = position.longitude;
+
+    // GEOCODING
+    final addressData = await _locationService.getAddressFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+    
+    _address = addressData['address'];
+    _city = addressData['city'];
+    _country = addressData['country'];
+    _currentLocation = _city ?? 'Vị trí hiện tại';
+
+    _isLoading = false;
+    notifyListeners();
+    return true;
+    
+  } catch (e, st) {
+    _error = e.toString();
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+}
   // Hàm cập nhật vị trí hiện tại của user lên Firestore
   Future<bool> updateUserLocation(String userId) async {
     try {

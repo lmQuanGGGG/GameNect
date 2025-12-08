@@ -2,7 +2,7 @@ name: gamenect_new
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+7
 
 environment:
   sdk: ^3.8.1
@@ -16,7 +16,7 @@ dependencies:
   # Format ngày tháng, số, tiền tệ
   intl: ^0.20.2
   #flutter_local_notifications: ^19.4.2
-
+  flutter_launcher_icons: ^0.13.1
   # Firebase Core & Authentication
   
   rxdart: ^0.28.0
@@ -97,3 +97,8 @@ flutter:
     - assets/images/gamenect_logo.png
     - assets/images/google_logo.png
     - assets/images/yacht_bg.jpg
+    - assets/images/avt.png
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/avt.png"

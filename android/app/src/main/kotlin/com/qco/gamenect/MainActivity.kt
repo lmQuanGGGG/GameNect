@@ -1,4 +1,4 @@
-package com.example.gamenect_new
+package com.qco.gamenect
 
 import io.flutter.embedding.android.FlutterActivity
 

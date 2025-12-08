@@ -20,3 +20,4 @@ firebase_options.dart
 
 # ignore service account keys
 /service-account.json
+android/key.properties

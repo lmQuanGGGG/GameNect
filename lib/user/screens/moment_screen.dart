@@ -13,7 +13,7 @@ import '../../core/providers/chat_provider.dart';
 import 'dart:ui';
 import 'dart:developer' as developer;
 //import 'package:flutter/services.dart';
-import 'package:firebase_storage/firebase_storage.dart'; 
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../core/providers/profile_provider.dart';
 import 'subscription_screen.dart';
 import 'game_trending_screen.dart'; // ← THÊM import
@@ -78,11 +78,16 @@ class _MomentScreenState extends State<MomentScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter, 
+                      begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.deepOrange.withValues(alpha: 0.8), 
-                        const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.6),
+                        Colors.deepOrange.withValues(alpha: 0.8),
+                        const Color.fromARGB(
+                          255,
+                          0,
+                          0,
+                          0,
+                        ).withValues(alpha: 0.6),
                       ],
                     ),
                     border: Border(
@@ -305,7 +310,6 @@ class _FeedTabState extends State<FeedTab> {
   @override
   void initState() {
     super.initState();
-    // Đánh dấu đã xem moments khi vào tab
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
@@ -347,19 +351,13 @@ class _FeedTabState extends State<FeedTab> {
               );
             }
 
-            if (provider.moments.isEmpty) {
-              return Padding(
-                padding: EdgeInsets.only(top: topPadding),
-                child: _buildEmptyState(context),
-              );
-            }
+            final hasMoments = provider.moments.isNotEmpty;
 
-            // NẾU CÓ MOMENTS: Hiển thị nút Games + danh sách moments
             if (isGridMode) {
-              // Grid mode: Thêm nút Games ở đầu grid
+              // Grid mode: Luôn có nút Games + moments (hoặc empty state)
               return CustomScrollView(
                 slivers: [
-                  // trending Games Button
+                  // Trending Games Button
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(16, topPadding + 16, 16, 8),
@@ -367,42 +365,52 @@ class _FeedTabState extends State<FeedTab> {
                     ),
                   ),
 
-                  // Grid view moments (GIỮ NGUYÊN)
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                    sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 0.75,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
+                  // Grid view moments hoặc empty state
+                  if (hasMoments)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 0.75,
+                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
                           final moment = provider.moments[index];
                           return _buildGridItem(context, moment, userId);
-                        },
-                        childCount: provider.moments.length,
+                        }, childCount: provider.moments.length),
                       ),
+                    )
+                  else
+                    SliverFillRemaining(
+                      child: _buildEmptyState(context),
                     ),
-                  ),
                 ],
               );
             } else {
-              // PageView mode: Thêm nút Games trước moment đầu tiên
+              // PageView mode
               return Padding(
                 padding: EdgeInsets.only(top: topPadding),
                 child: PageView.builder(
                   controller: _pageController,
                   scrollDirection: Axis.vertical,
-                  itemCount: provider.moments.length + 1, // ← +1 cho nút Games
+                  itemCount: hasMoments 
+                      ? provider.moments.length + 1  // +1 cho Games button
+                      : 2,  // Games button + Empty state
                   itemBuilder: (context, index) {
-                    //Index 0 = Nút Trending Games
+                    // Index 0 = Trending Games (luôn luôn)
                     if (index == 0) {
                       return _buildTrendingGamesPage();
                     }
-                    
-                    // Index >= 1 = Moments (trừ đi 1)
+
+                    // Index 1 = Empty state (nếu không có moments)
+                    if (!hasMoments && index == 1) {
+                      return _buildEmptyState(context);
+                    }
+
+                    // Index >= 1 = Moments (nếu có)
                     return MomentCard(
                       moment: provider.moments[index - 1],
                       currentUserId: userId,
@@ -413,8 +421,8 @@ class _FeedTabState extends State<FeedTab> {
             }
           },
         ),
-        
-        // Nút toggle grid/page mode (GIỮ NGUYÊN)
+
+        // Nút toggle grid/page mode
         Positioned(
           top: topPadding + 12,
           right: 16,
@@ -470,14 +478,14 @@ class _FeedTabState extends State<FeedTab> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF6200EA).withValues(alpha:0.3),
+                  const Color(0xFF6200EA).withValues(alpha: 0.3),
                   Colors.black,
-                  const Color(0xFFBB86FC).withValues(alpha:0.2),
+                  const Color(0xFFBB86FC).withValues(alpha: 0.2),
                 ],
               ),
             ),
           ),
-          
+
           // Content
           Center(
             child: Padding(
@@ -510,9 +518,9 @@ class _FeedTabState extends State<FeedTab> {
                       color: Colors.white,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // Title
                   const Text(
                     '🎮 Trending Games',
@@ -523,9 +531,9 @@ class _FeedTabState extends State<FeedTab> {
                       letterSpacing: 1,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Description
                   Text(
                     'Khám phá những trò chơi hot nhất\nhiện nay',
@@ -536,9 +544,9 @@ class _FeedTabState extends State<FeedTab> {
                       height: 1.5,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 48),
-                  
+
                   // Button
                   GestureDetector(
                     onTap: () {
@@ -561,7 +569,9 @@ class _FeedTabState extends State<FeedTab> {
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFBB86FC).withValues(alpha: 0.5),
+                            color: const Color(
+                              0xFFBB86FC,
+                            ).withValues(alpha: 0.5),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -589,9 +599,9 @@ class _FeedTabState extends State<FeedTab> {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // Hint text
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -626,9 +636,7 @@ class _FeedTabState extends State<FeedTab> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => const GameTrendingScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
         );
       },
       child: Container(
@@ -682,10 +690,7 @@ class _FeedTabState extends State<FeedTab> {
                   SizedBox(height: 4),
                   Text(
                     'Discover the hottest games right now',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],
               ),
@@ -1754,8 +1759,7 @@ class MomentCard extends StatelessWidget {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                             child: Container(
-                              height:
-                                  56, // Chiều cao cố định bằng với ô emoji
+                              height: 56, // Chiều cao cố định bằng với ô emoji
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16, // Bỏ vertical để giữ đúng 56
                               ),
