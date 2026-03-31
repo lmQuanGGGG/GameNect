@@ -51,7 +51,7 @@ dependencies:
   tflite_flutter: ^0.11.0
 
   # RTC
-  agora_rtc_engine: ^6.5.2
+  agora_rtc_engine: 6.5.3
   permission_handler: ^12.0.1
   intl_phone_number_input: ^0.7.3
 

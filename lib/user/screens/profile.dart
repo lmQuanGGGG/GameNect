@@ -642,7 +642,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       
                       const SizedBox(height: 24),
                       
-                      /*Padding(
+                      Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: ElevatedButton.icon(
                           onPressed: () {
@@ -661,7 +661,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       
-                      const SizedBox(height: 32),*/
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),

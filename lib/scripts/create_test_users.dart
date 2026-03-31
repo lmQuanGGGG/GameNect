@@ -11,14 +11,69 @@ class CreateTestUsers {
 
   // Danh sách tên Việt Nam
   final List<String> _firstNames = [
-    'Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng',
-    'Bùi', 'Đỗ', 'Hồ', 'Ngô', 'Dương', 'Lý', 'Mai', 'Đinh', 'Trịnh', 'Tô'
+    'Nguyễn',
+    'Trần',
+    'Lê',
+    'Phạm',
+    'Hoàng',
+    'Huỳnh',
+    'Phan',
+    'Vũ',
+    'Võ',
+    'Đặng',
+    'Bùi',
+    'Đỗ',
+    'Hồ',
+    'Ngô',
+    'Dương',
+    'Lý',
+    'Đinh',
+    'Trịnh',
+    'Tô',
+    'La',
+    'Mai',
+    'Tạ',
+    'Châu',
+    'Tăng',
+    'Lâm',
+    'Chu',
+    'Thái',
+    'Tiêu',
+    'Quách',
+    'Hà',
   ];
 
   final List<String> _lastNames = [
-    'Minh', 'Anh', 'Hùng', 'Dũng', 'Tuấn', 'Hải', 'Long', 'Nam', 'Quân', 'Khoa',
-    'Thảo', 'Linh', 'Hương', 'Lan', 'Mai', 'Hà', 'Trang', 'Ngọc', 'Phương', 'Châu',
-    'Khánh', 'Đức', 'Thành', 'Phúc', 'Bảo', 'Thiên', 'An', 'Bình', 'Hoàng', 'Tâm'
+    'Gia Huy',
+    'Minh Khang',
+    'Khánh An',
+    'Bảo Ngọc',
+    'Hải Đăng',
+    'Nhật Minh',
+    'Quỳnh Anh',
+    'Phương Linh',
+    'Yến Nhi',
+    'Đức Thịnh',
+    'Hoàng Nam',
+    'Tuấn Kiệt',
+    'Thanh Trúc',
+    'Diễm My',
+    'Ngọc Mai',
+    'Kim Ngân',
+    'Hà My',
+    'Khôi Nguyên',
+    'Minh Quân',
+    'Tiến Đạt',
+    'Vân Anh',
+    'Thiên Ân',
+    'Bảo Châu',
+    'Quang Huy',
+    'Mỹ Duyên',
+    'Anh Thư',
+    'Tường Vy',
+    'Hữu Phước',
+    'Gia Linh',
+    'Đức Anh',
   ];
 
   // Danh sách game phổ biến
@@ -26,51 +81,64 @@ class CreateTestUsers {
     'Liên Quân Mobile',
     'PUBG Mobile',
     'Free Fire',
-    'Mobile Legends',
     'Tốc Chiến',
     'Valorant',
     'League of Legends',
-    'Dota 2',
-    'CS:GO',
+    'Đấu Trường Chân Lý',
+    'CS2',
     'Genshin Impact',
+    'Honkai: Star Rail',
+    'Zenless Zone Zero',
     'Minecraft',
-    'Among Us',
-    'FIFA Online 4',
-    'Võ Lâm Truyền Kỳ',
-    'Blade & Soul',
+    'Roblox',
+    'FC Online',
+    'Naraka: Bladepoint',
+    'Apex Legends',
+    'Overwatch 2',
+    'Warzone Mobile',
+    'Marvel Rivals',
   ];
 
   // Danh sách tỉnh thành Việt Nam
   final List<Map<String, dynamic>> _locations = [
-    {'city': 'Hà Nội', 'lat': 21.0285, 'lng': 105.8542},
-    {'city': 'Hồ Chí Minh', 'lat': 10.8231, 'lng': 106.6297},
-    {'city': 'Đà Nẵng', 'lat': 16.0544, 'lng': 108.2022},
+    {'city': 'Hà Nội', 'lat': 21.0278, 'lng': 105.8342},
+    {'city': 'TP. Hồ Chí Minh', 'lat': 10.7769, 'lng': 106.7009},
+    {'city': 'Đà Nẵng', 'lat': 16.0678, 'lng': 108.2208},
     {'city': 'Hải Phòng', 'lat': 20.8449, 'lng': 106.6881},
     {'city': 'Cần Thơ', 'lat': 10.0452, 'lng': 105.7469},
-    {'city': 'Biên Hòa', 'lat': 10.9510, 'lng': 106.8441},
     {'city': 'Nha Trang', 'lat': 12.2388, 'lng': 109.1967},
     {'city': 'Huế', 'lat': 16.4637, 'lng': 107.5909},
-    {'city': 'Vũng Tàu', 'lat': 10.3460, 'lng': 107.0843},
+    {'city': 'Đà Lạt', 'lat': 11.9404, 'lng': 108.4583},
+    {'city': 'Quy Nhơn', 'lat': 13.7820, 'lng': 109.2197},
+    {'city': 'Vũng Tàu', 'lat': 10.4114, 'lng': 107.1362},
     {'city': 'Buôn Ma Thuột', 'lat': 12.6667, 'lng': 108.0500},
+    {'city': 'Thái Nguyên', 'lat': 21.5942, 'lng': 105.8482},
+    {'city': 'Long Xuyên', 'lat': 10.3833, 'lng': 105.4333},
+    {'city': 'Rạch Giá', 'lat': 10.0125, 'lng': 105.0808},
   ];
 
   // Danh sách bio mẫu
   final List<String> _bios = [
-    'Thích khám phá game mới, kết bạn cùng chơi.',
-    'Luôn vui vẻ, không toxic, thích teamwork.',
-    'Tìm đồng đội cùng leo rank, không bỏ cuộc.',
-    'Chơi game để giải trí, ưu tiên vui là chính.',
-    'Mê game chiến thuật, thích thử thách bản thân.',
-    'Streamer nhỏ, thích giao lưu với mọi người.',
-    'Tìm bạn chơi game lâu dài, cùng phát triển.',
-    'Main support, luôn hỗ trợ đồng đội hết mình.',
-    'Thích chơi game cùng bạn bè, không ngại thử thách.',
-    'Tìm team cùng nhau chiến thắng mọi trận đấu.',
-    'Yêu thích các tựa game MOBA và FPS.',
-    'Chơi game mỗi ngày, không ngại học hỏi.',
-    'Tìm người hướng dẫn, cùng nhau tiến bộ.',
-    'Luôn sẵn sàng cho mọi kèo game mới.',
-    'Game thủ đam mê, thích giao lưu kết bạn.',
+    'Tối online sau 8h, ưu tiên team nói chuyện vui vẻ.',
+    'Main support nhưng sẵn sàng fill mọi vị trí khi cần.',
+    'Thích leo rank nghiêm túc, không toxic, call rõ ràng.',
+    'Chơi game để xả stress, thua cũng cười.',
+    'Ưu tiên đồng đội kiên nhẫn, cùng nhau cải thiện.',
+    'Fan game chiến thuật, thích đọc meta và thử bài dị.',
+    'Cuối tuần cày dài, ngày thường chơi 1-2 trận.',
+    'Thích duo ổn định, không ghost giữa trận.',
+    'Mục tiêu mùa này: lên rank mới và giữ winrate đẹp.',
+    'Vừa chơi vừa học, thích chia sẻ kinh nghiệm cho team.',
+    'Không try-hard quá mức, tôn trọng đồng đội là chính.',
+    'Nếu bạn thích teamwork thì bắt cặp luôn nhé.',
+    'Mình chơi đều nhiều tựa, từ MOBA tới FPS.',
+    'Tìm bạn nói chuyện hợp vibe và chơi lâu dài.',
+    'Lên game đúng giờ, kỷ luật nhưng vẫn thoải mái.',
+    'Sẵn sàng train cùng người mới, miễn là có tinh thần.',
+    'Tập trung objective, hạn chế combat vô nghĩa.',
+    'Duo buổi tối, cuối tuần có thể lập team 5 người.',
+    'Ưu tiên giao tiếp lịch sự, cùng nhau win sạch đẹp.',
+    'Mong gặp đồng đội tích cực để đi đường dài.',
   ];
 
   // 🏆 Rank Options (ĐÚNG THEO YÊU CẦU)
@@ -117,45 +185,42 @@ class CreateTestUsers {
   ];
 
   // 🚻 Gender Options (ĐÚNG THEO YÊU CẦU)
-  final List<String> _genders = [
-    'Nam',
-    'Nữ',
-    'Khác',
-  ];
+  final List<String> _genders = ['Nam', 'Nữ', 'Khác'];
 
   // Danh sách avatar URLs
   final List<String> _maleAvatars = [
-    'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1519340333755-c89231c2e1e0?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=facearea&w=400&h=400',
+    'https://i.pravatar.cc/400?img=11',
+    'https://i.pravatar.cc/400?img=12',
+    'https://i.pravatar.cc/400?img=13',
+    'https://i.pravatar.cc/400?img=14',
+    'https://i.pravatar.cc/400?img=15',
+    'https://i.pravatar.cc/400?img=16',
+    'https://i.pravatar.cc/400?img=17',
+    'https://i.pravatar.cc/400?img=18',
+    'https://i.pravatar.cc/400?img=19',
+    'https://i.pravatar.cc/400?img=20',
   ];
 
   final List<String> _femaleAvatars = [
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1519340333755-c89231c2e1e0?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&w=400&h=400',
+    'https://i.pravatar.cc/400?img=31',
+    'https://i.pravatar.cc/400?img=32',
+    'https://i.pravatar.cc/400?img=33',
+    'https://i.pravatar.cc/400?img=34',
+    'https://i.pravatar.cc/400?img=35',
+    'https://i.pravatar.cc/400?img=36',
+    'https://i.pravatar.cc/400?img=37',
+    'https://i.pravatar.cc/400?img=38',
+    'https://i.pravatar.cc/400?img=39',
+    'https://i.pravatar.cc/400?img=40',
   ];
 
   final List<String> _otherAvatars = [
-    'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&w=400&h=400',
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&w=400&h=400',
+    'https://i.pravatar.cc/400?img=51',
+    'https://i.pravatar.cc/400?img=52',
+    'https://i.pravatar.cc/400?img=53',
+    'https://i.pravatar.cc/400?img=54',
+    'https://i.pravatar.cc/400?img=55',
+    'https://i.pravatar.cc/400?img=56',
   ];
 
   final Random _random = Random();
@@ -188,11 +253,12 @@ class CreateTestUsers {
       final firstName = _firstNames[_random.nextInt(_firstNames.length)];
       final lastName = _lastNames[_random.nextInt(_lastNames.length)];
       final displayName = '$firstName $lastName';
-      
+
       // Tạo username unique (chữ thường không dấu + số)
-      final username = '${_removeVietnameseTones(firstName.toLowerCase())}${_removeVietnameseTones(lastName.toLowerCase())}${index.toString().padLeft(3, '0')}';
-      
-      final email = 'testuser${index.toString().padLeft(3, '8')}@gamenect.com';
+      final username =
+          '${_removeVietnameseTones(firstName.toLowerCase())}${_removeVietnameseTones(lastName.toLowerCase())}${index.toString().padLeft(3, '0')}';
+
+      final email = 'testuser${index.toString().padLeft(3, '9999')}@gamenect.com';
       final password = 'Test@123';
 
       _logger.i('Đang tạo user: $email (username: $username)');
@@ -274,12 +340,15 @@ class CreateTestUsers {
       final interests = <String>[];
       final interestsCopy = List<String>.from(_allInterests);
       for (int i = 0; i < numInterests; i++) {
-        final interest = interestsCopy.removeAt(_random.nextInt(interestsCopy.length));
+        final interest = interestsCopy.removeAt(
+          _random.nextInt(interestsCopy.length),
+        );
         interests.add(interest);
       }
 
       // 11. Looking For (ĐÚNG OPTIONS)
-      final lookingFor = _lookingForOptions[_random.nextInt(_lookingForOptions.length)];
+      final lookingFor =
+          _lookingForOptions[_random.nextInt(_lookingForOptions.length)];
 
       // 12. Game Style (ĐÚNG OPTIONS)
       final gameStyle = _gameStyles[_random.nextInt(_gameStyles.length)];
@@ -314,24 +383,24 @@ class CreateTestUsers {
         'photoURL': avatarUrl,
         'avatarUrl': avatarUrl,
         'bio': bio,
-        
+
         // Personal Info
         'gender': gender,
         'birthDate': birthDate.toIso8601String(),
         'age': age,
         'height': height,
-        
+
         // Game Info
         'favoriteGames': selectedGames,
         'rank': rank,
         'playTime': playTime,
         'winRate': winRate,
         'gameStyle': gameStyle,
-        
+
         // Social Info
         'interests': interests,
         'lookingFor': lookingFor,
-        
+
         // Location
         'location': {
           'city': location['city'],
@@ -339,32 +408,32 @@ class CreateTestUsers {
           'longitude': location['lng'],
           'updatedAt': DateTime.now().toIso8601String(),
         },
-        
+
         // Media
         'additionalPhotos': additionalPhotos,
-        
+
         // Status
         'isOnline': isOnline,
         'lastSeen': DateTime.now().toIso8601String(),
         'isPremium': isPremium,
         'isVerified': isVerified,
         'isTestAccount': true,
-        
+
         // Timestamps
         'createdAt': DateTime.now().toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),
-        
+
         // Stats
         'matchCount': _random.nextInt(50),
         'friendCount': _random.nextInt(100),
         'likeCount': _random.nextInt(200),
         'superLikeCount': _random.nextInt(20),
-        
+
         // Settings
         'showAge': _random.nextBool(),
         'showDistance': _random.nextBool(),
         'showOnlineStatus': _random.nextBool(),
-        
+
         // === THÊM CÁC TRƯỜNG MỚI ===
         'subscriptionTier': 'free',
         'subscriptionEndDate': null,
@@ -378,12 +447,14 @@ class CreateTestUsers {
       };
 
       // ✅ Lưu vào Firestore với merge để ghi đè nếu đã tồn tại
-      await _firestore.collection('users').doc(user.uid).set(
-        profileData,
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set(profileData, SetOptions(merge: true));
 
-      _logger.i('✓ Đã tạo/cập nhật user: $email (username: $username, ${location['city']}, $age tuổi, $gender, $rank)');
+      _logger.i(
+        '✓ Đã tạo/cập nhật user: $email (username: $username, ${location['city']}, $age tuổi, $gender, $rank)',
+      );
 
       // Đăng xuất để tạo user tiếp theo
       await _auth.signOut();
@@ -411,9 +482,11 @@ class CreateTestUsers {
 
   /// Hàm bỏ dấu tiếng Việt để tạo username
   String _removeVietnameseTones(String str) {
-    const vietnamese = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-    const latin = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
-    
+    const vietnamese =
+        'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
+    const latin =
+        'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd';
+
     String result = str;
     for (int i = 0; i < vietnamese.length; i++) {
       result = result.replaceAll(vietnamese[i], latin[i]);
@@ -451,7 +524,9 @@ class CreateTestUsers {
   /// Export danh sách users ra console
   void exportUsersList(List<Map<String, dynamic>> users) {
     _logger.i('\n=== DANH SÁCH USERS ĐÃ TẠO ===\n');
-    _logger.i('STT | Email | Username | Tên | Tuổi | Giới tính | Thành phố | Rank');
+    _logger.i(
+      'STT | Email | Username | Tên | Tuổi | Giới tính | Thành phố | Rank',
+    );
     _logger.i('-' * 150);
 
     for (int i = 0; i < users.length; i++) {
@@ -466,7 +541,7 @@ class CreateTestUsers {
         '${user['city']} | '
         '${user['rank']} | '
         '${user['gameStyle']} | '
-        '${user['lookingFor']}'
+        '${user['lookingFor']}',
       );
     }
   }
