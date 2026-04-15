@@ -18,6 +18,7 @@ class OTPAttempt {
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger('AuthService'); // { changed code }
+  bool _googleSignInInitialized = false;
 
   // Biến theo dõi OTP
   final Map<String, OTPAttempt> _otpAttempts = {};
@@ -34,16 +35,22 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    await GoogleSignIn.instance.initialize();
+    _googleSignInInitialized = true;
+  }
+
   // Đăng nhập Google
   Future<User?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return null;
+      await _ensureGoogleSignInInitialized();
+      final GoogleSignInAccount googleUser =
+          await GoogleSignIn.instance.authenticate();
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth =
+          googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
@@ -77,7 +84,8 @@ class AuthService {
 
   Future<void> signOut() async {
     await _auth.signOut();
-    await GoogleSignIn().signOut();
+    await _ensureGoogleSignInInitialized();
+    await GoogleSignIn.instance.signOut();
     await FacebookAuth.instance.logOut();
   }
 

@@ -116,7 +116,7 @@ class LocationService {
       try {
         lastKnownPosition = await Geolocator.getLastKnownPosition();
         if (lastKnownPosition != null) {
-          final age = DateTime.now().difference(lastKnownPosition.timestamp!);
+          final age = DateTime.now().difference(lastKnownPosition.timestamp);
           _logger.info(
             ' [3/5] Có last known: (${lastKnownPosition.latitude}, ${lastKnownPosition.longitude}), cách đây ${age.inMinutes} phút',
           );
@@ -219,11 +219,12 @@ class LocationService {
     try {
       _logger.info(' Đang geocoding ($latitude, $longitude)...');
 
+      await setLocaleIdentifier('vi_VN');
+
       final placemarks =
           await placemarkFromCoordinates(
             latitude,
             longitude,
-            localeIdentifier: 'vi_VN', // Tiếng Việt
           ).timeout(
             Duration(seconds: 15),
             onTimeout: () {

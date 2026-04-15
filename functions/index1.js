@@ -11,9 +11,7 @@ setGlobalOptions({ region: 'asia-southeast1', memory: '512MiB', timeoutSeconds: 
 /**
  * Cloud Function: Gửi push notification khi có tin nhắn mới
  * 
- * Trigger: Khi có document mới được tạo trong collection messages
- * Path: matches/{matchId}/messages/{messageId}
- * 
+ * Path: chats/{matchId}/messages/{messageId}
  * Flow:
  * 1. Lấy thông tin tin nhắn và match
  * 2. Xác định người nhận (user còn lại trong match)
@@ -21,7 +19,7 @@ setGlobalOptions({ region: 'asia-southeast1', memory: '512MiB', timeoutSeconds: 
  * 4. Gửi notification với payload Android-optimized
  */
 exports.sendMessageNotification = onDocumentCreated(
-  'matches/{matchId}/messages/{messageId}',
+  'chats/{matchId}/messages/{messageId}',
   async (event) => {
     try {
       const snap = event.data;
