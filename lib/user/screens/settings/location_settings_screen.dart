@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:ui';
 import '../../../core/providers/location_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 
@@ -72,419 +73,439 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     return Consumer<LocationProvider>(
       builder: (context, locationProvider, child) {
         return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(CupertinoIcons.back, color: Colors.black),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: const Text(
-              'Cài đặt vị trí & bộ lọc',
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: locationProvider.isLoading ? null : _saveSettings,
-                child: Text(
-                  'Lưu',
-                  style: TextStyle(
-                    color: locationProvider.isLoading 
-                        ? Colors.grey 
-                        : Colors.deepOrange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+          backgroundColor: const Color(0xFF101012),
+          extendBodyBehindAppBar: true,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(60),
+            child: ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(
+                                    CupertinoIcons.back,
+                                    color: Color(0xFFFF6E40),
+                                    size: 24,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Cài đặt vị trí & bộ lọc',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: locationProvider.isLoading ? null : _saveSettings,
+                          child: Text(
+                            'Lưu',
+                            style: TextStyle(
+                              color: locationProvider.isLoading
+                                  ? Colors.white38
+                                  : const Color(0xFFFF6E40),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
           body: locationProvider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Phần hiển thị vị trí hiện tại
-                      _buildSection(
-                        title: 'Vị trí hiện tại',
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                CupertinoIcons.location_solid,
-                                color: Colors.deepOrange,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40)))
+              : Stack(
+                  children: [
+                    // Orbs background
+                    Positioned(
+                      top: 100,
+                      left: -80,
+                      child: Container(
+                        width: 300,
+                        height: 300,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                              blurRadius: 100,
+                              spreadRadius: 40,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 100,
+                      right: -80,
+                      child: Container(
+                        width: 350,
+                        height: 350,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFBF360C).withValues(alpha: 0.12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFBF360C).withValues(alpha: 0.1),
+                              blurRadius: 120,
+                              spreadRadius: 50,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SafeArea(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Phần hiển thị vị trí hiện tại
+                            _buildSection(
+                              title: 'Vị trí hiện tại',
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                  ),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      locationProvider.currentLocation ?? 
-                                          'Đang tải...',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        CupertinoIcons.location_solid,
+                                        color: Color(0xFFFF6E40),
+                                        size: 24,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Cập nhật tự động',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            locationProvider.currentLocation ?? 'Đang tải...',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Cập nhật tự động',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.white.withValues(alpha: 0.6),
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        CupertinoIcons.refresh,
+                                        color: Color(0xFFFF6E40),
+                                      ),
+                                      onPressed: _refreshLocation,
                                     ),
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  CupertinoIcons.refresh,
-                                  color: Colors.deepOrange,
-                                ),
-                                onPressed: _refreshLocation,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Phần cài đặt khoảng cách tối đa
-                      _buildSection(
-                        title: 'Khoảng cách tối đa',
-                        subtitle: 'Tìm người chơi trong bán kính ${locationProvider.maxDistance.round()} km',
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 16),
-                            
-                            // Slider để chọn khoảng cách
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: Colors.deepOrange,
-                                inactiveTrackColor: Colors.grey[300],
-                                thumbColor: Colors.deepOrange,
-                                overlayColor: Colors.deepOrange.withValues(alpha: 0.2),
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 12,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 24,
-                                ),
-                              ),
-                              child: Slider(
-                                value: locationProvider.maxDistance,
-                                min: 1,
-                                max: 2000,
-                                divisions: 1999,
-                                label: '${locationProvider.maxDistance.round()} km',
-                                onChanged: (value) {
-                                  locationProvider.setMaxDistance(value);
-                                },
-                              ),
                             ),
+                            const SizedBox(height: 32),
 
-                            // Nhãn khoảng cách
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            // Phần cài đặt khoảng cách tối đa
+                            _buildSection(
+                              title: 'Khoảng cách tối đa',
+                              subtitle: 'Tìm người chơi trong bán kính ${locationProvider.maxDistance.round()} km',
+                              child: Column(
                                 children: [
-                                  Text(
-                                    '1 km',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
+                                  const SizedBox(height: 16),
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: const Color(0xFFFF6E40),
+                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                                      thumbColor: const Color(0xFFFF6E40),
+                                      overlayColor: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                                      trackHeight: 6,
+                                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+                                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
+                                    ),
+                                    child: Slider(
+                                      value: locationProvider.maxDistance,
+                                      min: 1,
+                                      max: 2000,
+                                      divisions: 1999,
+                                      onChanged: locationProvider.setMaxDistance,
                                     ),
                                   ),
-                                  Text(
-                                    '2000 km',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('1 km', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                                        Text('2000 km', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildQuickSelectButton(label: '10 km', value: 10, currentValue: locationProvider.maxDistance, onTap: locationProvider.setMaxDistance)),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: _buildQuickSelectButton(label: '50 km', value: 50, currentValue: locationProvider.maxDistance, onTap: locationProvider.setMaxDistance)),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: _buildQuickSelectButton(label: '100 km', value: 100, currentValue: locationProvider.maxDistance, onTap: locationProvider.setMaxDistance)),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: _buildQuickSelectButton(label: '500 km', value: 500, currentValue: locationProvider.maxDistance, onTap: locationProvider.setMaxDistance)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Phần cài đặt độ tuổi
+                            _buildSection(
+                              title: 'Độ tuổi',
+                              subtitle: 'Chỉ hiển thị người chơi từ ${locationProvider.minAge} đến ${locationProvider.maxAge} tuổi',
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 16),
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: const Color(0xFFFF6E40),
+                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                                      thumbColor: const Color(0xFFFF6E40),
+                                      overlayColor: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                                      trackHeight: 6,
+                                      rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 12),
+                                    ),
+                                    child: RangeSlider(
+                                      values: RangeValues(
+                                        locationProvider.minAge.toDouble(),
+                                        locationProvider.maxAge.toDouble(),
+                                      ),
+                                      min: 18,
+                                      max: 99,
+                                      divisions: 81,
+                                      onChanged: (RangeValues values) {
+                                        locationProvider.setMinAge(values.start.round());
+                                        locationProvider.setMaxAge(values.end.round());
+                                      },
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('18 tuổi', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                                        Text('99 tuổi', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildAgeRangeButton(label: '18-25', minAge: 18, maxAge: 25, locationProvider: locationProvider)),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: _buildAgeRangeButton(label: '26-35', minAge: 26, maxAge: 35, locationProvider: locationProvider)),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: _buildAgeRangeButton(label: '36+', minAge: 36, maxAge: 99, locationProvider: locationProvider)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Phần cài đặt giới tính muốn tìm
+                            _buildSection(
+                              title: 'Tìm kiếm',
+                              subtitle: 'Giới tính bạn muốn tìm',
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(child: _buildGenderButton(label: 'Nam', isSelected: locationProvider.interestedInGender == 'Nam', onTap: () => locationProvider.setInterestedInGender('Nam'))),
+                                    Expanded(child: _buildGenderButton(label: 'Nữ', isSelected: locationProvider.interestedInGender == 'Nữ', onTap: () => locationProvider.setInterestedInGender('Nữ'))),
+                                    Expanded(child: _buildGenderButton(label: 'Tất cả', isSelected: locationProvider.interestedInGender == 'Tất cả', onTap: () => locationProvider.setInterestedInGender('Tất cả'))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Toggle hiển thị khoảng cách
+                            _buildSection(
+                              title: 'Hiển thị khoảng cách',
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'Hiển thị khoảng cách trên profile',
+                                        style: TextStyle(fontSize: 16, color: Colors.white),
+                                      ),
+                                    ),
+                                    CupertinoSwitch(
+                                      value: locationProvider.showDistance,
+                                      activeTrackColor: const Color(0xFFFF6E40),
+                                      onChanged: locationProvider.setShowDistance,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Toggle lọc theo game chung
+                            _buildSection(
+                              title: 'Lọc theo game',
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Chỉ hiện người chơi chung game',
+                                            style: TextStyle(fontSize: 16, color: Colors.white),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Tắt → ML AI tự sắp xếp theo độ phù hợp',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white.withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    CupertinoSwitch(
+                                      value: locationProvider.filterCommonGame,
+                                      activeTrackColor: const Color(0xFFFF6E40),
+                                      onChanged: locationProvider.setFilterCommonGame,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Thông tin hướng dẫn
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    CupertinoIcons.info_circle_fill,
+                                    color: Color(0xFFFF6E40),
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Vị trí của bạn sẽ được cập nhật tự động để tìm người chơi gần bạn. Bạn có thể thay đổi khoảng cách matching bất cứ lúc nào.',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        fontSize: 14,
+                                        height: 1.5,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-
-                            const SizedBox(height: 24),
-
-                            // Các nút chọn nhanh khoảng cách
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildQuickSelectButton(
-                                    label: '10 km',
-                                    value: 10,
-                                    currentValue: locationProvider.maxDistance,
-                                    onTap: locationProvider.setMaxDistance,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildQuickSelectButton(
-                                    label: '50 km',
-                                    value: 50,
-                                    currentValue: locationProvider.maxDistance,
-                                    onTap: locationProvider.setMaxDistance,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildQuickSelectButton(
-                                    label: '100 km',
-                                    value: 100,
-                                    currentValue: locationProvider.maxDistance,
-                                    onTap: locationProvider.setMaxDistance,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildQuickSelectButton(
-                                    label: '500 km',
-                                    value: 500,
-                                    currentValue: locationProvider.maxDistance,
-                                    onTap: locationProvider.setMaxDistance,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 32),
-
-                      // Phần cài đặt độ tuổi
-                      _buildSection(
-                        title: 'Độ tuổi',
-                        subtitle: 'Chỉ hiển thị người chơi từ ${locationProvider.minAge} đến ${locationProvider.maxAge} tuổi',
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 16),
-                            
-                            // Range Slider cho độ tuổi
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: Colors.deepOrange,
-                                inactiveTrackColor: Colors.grey[300],
-                                rangeThumbShape: const RoundRangeSliderThumbShape(
-                                  enabledThumbRadius: 12,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 24,
-                                ),
-                              ),
-                              child: RangeSlider(
-                                values: RangeValues(
-                                  locationProvider.minAge.toDouble(),
-                                  locationProvider.maxAge.toDouble(),
-                                ),
-                                min: 18,
-                                max: 99,
-                                divisions: 81,
-                                labels: RangeLabels(
-                                  '${locationProvider.minAge}',
-                                  '${locationProvider.maxAge}',
-                                ),
-                                onChanged: (RangeValues values) {
-                                  locationProvider.setMinAge(values.start.round());
-                                  locationProvider.setMaxAge(values.end.round());
-                                },
-                              ),
-                            ),
-
-                            // Nhãn độ tuổi
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '18 tuổi',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  Text(
-                                    '99 tuổi',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Các nút chọn nhanh độ tuổi
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildAgeRangeButton(
-                                    label: '18-25',
-                                    minAge: 18,
-                                    maxAge: 25,
-                                    locationProvider: locationProvider,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildAgeRangeButton(
-                                    label: '26-35',
-                                    minAge: 26,
-                                    maxAge: 35,
-                                    locationProvider: locationProvider,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildAgeRangeButton(
-                                    label: '36+',
-                                    minAge: 36,
-                                    maxAge: 99,
-                                    locationProvider: locationProvider,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Phần cài đặt giới tính muốn tìm
-                      _buildSection(
-                        title: 'Tìm kiếm',
-                        subtitle: 'Giới tính bạn muốn tìm',
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _buildGenderButton(
-                                  label: 'Nam',
-                                  isSelected: locationProvider.interestedInGender == 'Nam',
-                                  onTap: () => locationProvider.setInterestedInGender('Nam'),
-                                ),
-                              ),
-                              Expanded(
-                                child: _buildGenderButton(
-                                  label: 'Nữ',
-                                  isSelected: locationProvider.interestedInGender == 'Nữ',
-                                  onTap: () => locationProvider.setInterestedInGender('Nữ'),
-                                ),
-                              ),
-                              Expanded(
-                                child: _buildGenderButton(
-                                  label: 'Tất cả',
-                                  isSelected: locationProvider.interestedInGender == 'Tất cả',
-                                  onTap: () => locationProvider.setInterestedInGender('Tất cả'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Toggle hiển thị khoảng cách
-                      _buildSection(
-                        title: 'Hiển thị khoảng cách',
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Hiển thị khoảng cách trên profile',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                              CupertinoSwitch(
-                                value: locationProvider.showDistance,
-                                activeTrackColor: Colors.deepOrange,
-                                onChanged: locationProvider.setShowDistance,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Thông tin hướng dẫn
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.orange[200]!,
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              CupertinoIcons.info_circle_fill,
-                              color: Colors.orange[700],
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Vị trí của bạn sẽ được cập nhật tự động để tìm người chơi gần bạn. Bạn có thể thay đổi khoảng cách matching bất cứ lúc nào.',
-                                style: TextStyle(
-                                  color: Colors.grey[800],
-                                  fontSize: 14,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
         );
       },
     );
   }
 
-  // Widget helper để xây dựng một section với title và child
   Widget _buildSection({
     required String title,
     String? subtitle,
@@ -498,6 +519,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
         if (subtitle != null) ...[
@@ -506,7 +528,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
             subtitle,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: Colors.white.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -516,7 +538,6 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     );
   }
 
-  // Widget helper cho nút chọn nhanh khoảng cách
   Widget _buildQuickSelectButton({
     required String label,
     required double value,
@@ -524,65 +545,72 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     required Function(double) onTap,
   }) {
     final isSelected = currentValue == value;
-    
-    return OutlinedButton(
-      onPressed: () => onTap(value),
-      style: OutlinedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.deepOrange : Colors.white,
-        foregroundColor: isSelected ? Colors.white : Colors.deepOrange,
-        side: BorderSide(
-          color: isSelected ? Colors.deepOrange : Colors.grey[300]!,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.15),
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              : [],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 13,
+          ),
         ),
       ),
     );
   }
 
-  // Widget helper cho nút chọn nhanh độ tuổi
   Widget _buildAgeRangeButton({
     required String label,
     required int minAge,
     required int maxAge,
     required LocationProvider locationProvider,
   }) {
-    final isSelected = locationProvider.minAge == minAge && 
-                      locationProvider.maxAge == maxAge;
-    
-    return OutlinedButton(
-      onPressed: () {
+    final isSelected = locationProvider.minAge == minAge && locationProvider.maxAge == maxAge;
+    return GestureDetector(
+      onTap: () {
         locationProvider.setMinAge(minAge);
         locationProvider.setMaxAge(maxAge);
       },
-      style: OutlinedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.deepOrange : Colors.white,
-        foregroundColor: isSelected ? Colors.white : Colors.deepOrange,
-        side: BorderSide(
-          color: isSelected ? Colors.deepOrange : Colors.grey[300]!,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.15),
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              : [],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 13,
+          ),
         ),
       ),
     );
   }
 
-  // Widget helper cho nút chọn giới tính
   Widget _buildGenderButton({
     required String label,
     required bool isSelected,
@@ -590,19 +618,23 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.deepOrange : Colors.transparent,
+          color: isSelected ? const Color(0xFFFF6E40) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              : [],
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.white : Colors.grey[700],
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              fontSize: 15,
+              color: isSelected ? Colors.white : Colors.white70,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              fontSize: 14,
             ),
           ),
         ),

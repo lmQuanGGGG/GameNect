@@ -147,31 +147,43 @@ class NotificationController {
     developer.log('Token cleared', name: 'FCM');
   }
 
-  // Hàm xử lý dữ liệu silent push từ FCM khi app chạy nền hoặc bị kill.
-  // Tạo notification trực tiếp dựa trên loại thông báo nhận được (chat, call, moment).
+  // Hybrid approach:
+  // - Chat/moment/like: OS tự hiển thị notification từ FCM "notification" field
+  // - Call: data-only → mySilentDataHandle tạo notification CÓ nút Nghe/Từ chối (như Zalo)
   @pragma("vm:entry-point")
   static Future<void> mySilentDataHandle(FcmSilentData silentData) async {
-    developer.log('Silent Data received: ${silentData.data}', name: 'FCM');
-    
-    if (silentData.createdLifeCycle != NotificationLifeCycle.Foreground) {
-      developer.log('Background silent data', name: 'FCM');
-    } else {
-      developer.log('Foreground silent data', name: 'FCM');
-    }
+    developer.log(
+      'Silent Data received | lifecycle: ${silentData.createdLifeCycle} | data: ${silentData.data}',
+      name: 'FCM',
+    );
 
-    // Lấy dữ liệu từ silentData để xác định loại thông báo.
     final data = silentData.data ?? {};
     final type = data['type'];
 
+    // CALL: xử lý ở mọi trạng thái (foreground/background/killed)
+    // vì cần tạo notification có action buttons Nghe/Từ chối
+    if (type == 'call') {
+      await _createCallNotification(data);
+      return;
+    }
+
+    // Các loại khác (chat/moment/like): 
+    // Khi background/killed → OS đã hiển thị từ FCM notification field
+    // Khi foreground → tạo in-app notification
+    if (silentData.createdLifeCycle != NotificationLifeCycle.Foreground) {
+      developer.log('Background/Killed + non-call → handled by OS', name: 'FCM');
+      return;
+    }
+
+    // Foreground: tạo in-app notification có style đẹp hơn
     try {
       if (type == 'chat') {
-        // Tạo notification tin nhắn mới.
         await AwesomeNotifications().createNotification(
           content: NotificationContent(
             id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
             channelKey: 'gamenect_channel',
             title: data['peerUsername'] ?? 'User',
-            body: data['message'] ?? 'New message',
+            body: data['message'] ?? 'Tin nhắn mới',
             payload: {
               'type': 'chat',
               'matchId': data['matchId'] ?? '',
@@ -182,49 +194,13 @@ class NotificationController {
             wakeUpScreen: true,
           ),
         );
-      } else if (type == 'call') {
-        // Tạo notification cuộc gọi đến với hai nút nghe và từ chối.
-        await AwesomeNotifications().createNotification(
-          content: NotificationContent(
-            id: (data['matchId'] ?? '').hashCode,
-            channelKey: 'call_channel',
-            title: 'Cuộc gọi đến',
-            body: '${data['peerUsername'] ?? 'User'} đang gọi cho bạn',
-            payload: {
-              'type': 'call',
-              'matchId': data['matchId'] ?? '',
-              'peerUserId': data['peerUserId'] ?? '',
-            },
-            notificationLayout: NotificationLayout.Default,
-            category: NotificationCategory.Call,
-            wakeUpScreen: true,
-            fullScreenIntent: true,
-            criticalAlert: true,
-            locked: true,
-          ),
-          actionButtons: [
-            NotificationActionButton(
-              key: 'accept',
-              label: 'Nghe',
-              color: Colors.green,
-              autoDismissible: true,
-            ),
-            NotificationActionButton(
-              key: 'decline',
-              label: 'Từ chối',
-              color: Colors.red,
-              autoDismissible: true,
-            ),
-          ],
-        );
       } else if (type == 'moment_reaction') {
-        // Tạo notification khi có người thả cảm xúc vào moment của user.
         await AwesomeNotifications().createNotification(
           content: NotificationContent(
             id: (data['momentId'] ?? '').hashCode,
             channelKey: 'moment_channel',
-            title: '${data['reactorUsername'] ?? 'Someone'} đã thả cảm xúc ${data['emoji'] ?? '❤️'}',
-            body: 'Vào moment của bạn',
+            title: '${data['reactorUsername'] ?? 'Someone'} đã thả ${data['emoji'] ?? '❤️'}',
+            body: 'vào moment của bạn',
             payload: {
               'type': 'moment_reaction',
               'momentId': data['momentId'] ?? '',
@@ -236,7 +212,56 @@ class NotificationController {
         );
       }
     } catch (e) {
-      developer.log('Error creating notification: $e', name: 'FCM');
+      developer.log('Error creating foreground notification: $e', name: 'FCM');
+    }
+  }
+
+  // Tạo call notification có action buttons — dùng cho mọi trạng thái app
+  static Future<void> _createCallNotification(Map<String, String?> data) async {
+    try {
+      final peerUsername = data['peerUsername'] ?? 'User';
+      final matchId = data['matchId'] ?? '';
+      final peerUserId = data['peerUserId'] ?? '';
+      final callType = data['callType'] ?? 'video';
+      final callTypeLabel = callType == 'voice' ? 'thoại' : 'video';
+
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: matchId.hashCode,
+          channelKey: 'call_channel',
+          title: '📞 Cuộc gọi $callTypeLabel đến',
+          body: '$peerUsername đang gọi cho bạn',
+          payload: {
+            'type': 'call',
+            'matchId': matchId,
+            'peerUserId': peerUserId,
+          },
+          notificationLayout: NotificationLayout.Default,
+          category: NotificationCategory.Call,
+          wakeUpScreen: true,
+          fullScreenIntent: true,   // Hiển thị full screen khi màn hình khóa
+          criticalAlert: true,       // Vượt qua chế độ im lặng
+          locked: true,              // Không thể vuốt tắt
+        ),
+        // Nút Nghe và Từ chối hiển thị trực tiếp trên notification
+        actionButtons: [
+          NotificationActionButton(
+            key: 'accept',
+            label: '✅ Nghe',
+            color: Colors.green,
+            autoDismissible: true,
+          ),
+          NotificationActionButton(
+            key: 'decline',
+            label: '❌ Từ chối',
+            color: Colors.red,
+            autoDismissible: true,
+          ),
+        ],
+      );
+      developer.log('Call notification created with action buttons', name: 'FCM');
+    } catch (e) {
+      developer.log('Error creating call notification: $e', name: 'FCM');
     }
   }
 

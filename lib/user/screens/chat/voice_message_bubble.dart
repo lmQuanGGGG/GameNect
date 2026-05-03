@@ -71,8 +71,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
             gradient: widget.isMe
                 ? LinearGradient(
                     colors: [
-                      const Color(0xFFFF453A).withValues(alpha: 0.8),
-                      const Color(0xFFFF6961).withValues(alpha: 0.8),
+                      const Color(0xFFFF6E40).withValues(alpha: 0.8),
+                      const Color(0xFFFF8A65).withValues(alpha: 0.8),
                     ],
                   )
                 : LinearGradient(
@@ -110,20 +110,61 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                   size: 24,
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 100,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  widget.duration > 0
-                      ? '${widget.duration ~/ 60}:${(widget.duration % 60).toString().padLeft(2, '0')}'
-                      : '0:00',
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                StreamBuilder<Duration>(
+                  stream: _player.positionStream,
+                  builder: (context, snapshot) {
+                    final position = snapshot.data ?? Duration.zero;
+                    final durationSecs = _player.duration?.inSeconds ?? widget.duration;
+                    final posSecs = position.inSeconds;
+                    
+                    final fraction = durationSecs > 0 ? (posSecs / durationSecs).clamp(0.0, 1.0) : 0.0;
+                    
+                    return Row(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0, end: fraction),
+                            // just_audio position stream nhảy mỗi 200ms
+                            // Nên dùng duration 250ms tuyến tính để nội suy mượt mà
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.linear,
+                            builder: (context, value, child) {
+                              return FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: value,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(2),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.white,
+                                        blurRadius: 4,
+                                        spreadRadius: 0,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          posSecs > 0 || _isPlaying
+                              ? '${posSecs ~/ 60}:${(posSecs % 60).toString().padLeft(2, '0')}'
+                              : '${widget.duration ~/ 60}:${(widget.duration % 60).toString().padLeft(2, '0')}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:ui';
 import '../../../core/providers/game_provider.dart';
 import '../../../core/models/game_model.dart';
 import 'game_detail_screen.dart';
@@ -19,9 +20,9 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
   final TextEditingController _searchController = TextEditingController();
 
   // Màu chủ đạo
-  final Color _primaryColor = const Color(0xFFBB86FC);
-  final Color _backgroundColor = const Color(0xFF121212);
-  final Color _cardColor = const Color(0xFF1E1E1E);
+  final Color _primaryColor = const Color(0xFFFF6E40);
+  final Color _backgroundColor = const Color(0xFF101012);
+  final Color _cardColor = const Color(0xFF1A1A1E);
 
   @override
   void initState() {
@@ -61,23 +62,39 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
           children: [
             // Custom Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                  ClipOval(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6E40).withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                              blurRadius: 16,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.videogame_asset_rounded, color: Colors.white, size: 24),
+                      ),
                     ),
-                    child: Icon(Icons.gamepad, color: _primaryColor),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   const Text(
-                    'Discover Games',
+                    'Discover',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 0.5,
                     ),
@@ -91,35 +108,44 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
             
             // Custom Tab Bar
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              height: 45,
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              height: 54,
               decoration: BoxDecoration(
-                color: _cardColor,
-                borderRadius: BorderRadius.circular(25),
+                color: Colors.white.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
               ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  gradient: LinearGradient(
-                    colors: [_primaryColor, Colors.purpleAccent],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _primaryColor.withOpacity(0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicatorPadding: const EdgeInsets.all(4),
+                    indicator: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                      border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                          blurRadius: 10,
+                        ),
+                      ],
                     ),
-                  ],
+                    labelColor: const Color(0xFFFF6E40),
+                    unselectedLabelColor: Colors.grey[500],
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
+                    dividerColor: Colors.transparent,
+                    splashFactory: NoSplash.splashFactory,
+                    tabs: const [
+                      Tab(text: 'Trending'),
+                      Tab(text: 'New Releases'),
+                    ],
+                  ),
                 ),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: '🔥 Trending'),
-                  Tab(text: '🆕 New Releases'),
-                ],
               ),
             ),
 
@@ -147,21 +173,27 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextField(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              color: Colors.white.withValues(alpha: 0.05),
+              child: TextField(
         controller: _searchController,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
@@ -178,17 +210,21 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                   },
                 )
               : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            ),
+            onChanged: (query) {
+              setState(() {});
+              if (query.length >= 3) {
+                context.read<GameProvider>().searchGames(query);
+              } else if (query.isEmpty) {
+                context.read<GameProvider>().clearSearch();
+              }
+            },
+          ),
         ),
-        onChanged: (query) {
-          setState(() {});
-          if (query.length >= 3) {
-            context.read<GameProvider>().searchGames(query);
-          } else if (query.isEmpty) {
-            context.read<GameProvider>().clearSearch();
-          }
-        },
+      ),
+      ),
       ),
     );
   }
@@ -206,19 +242,19 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
       color: _primaryColor,
       backgroundColor: _cardColor,
       onRefresh: () => provider.loadTrendingGames(refresh: true),
-      child: GridView.builder(
+      child: ListView.separated(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.65, // Taller cards
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
         itemCount: provider.trendingGames.length + (provider.isLoadingTrending ? 1 : 0),
+        separatorBuilder: (context, index) => const SizedBox(height: 24),
         itemBuilder: (context, index) {
           if (index >= provider.trendingGames.length) {
-            return Center(child: CircularProgressIndicator(color: _primaryColor));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(color: _primaryColor),
+              ),
+            );
           }
           return _buildModernGameCard(provider.trendingGames[index], index);
         },
@@ -234,15 +270,10 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
       color: _primaryColor,
       backgroundColor: _cardColor,
       onRefresh: provider.loadNewReleases,
-      child: GridView.builder(
+      child: ListView.separated(
         padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.65,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
         itemCount: provider.newReleases.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 24),
         itemBuilder: (context, index) => _buildModernGameCard(provider.newReleases[index], index),
       ),
     );
@@ -253,15 +284,10 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
     if (provider.searchResults.isEmpty) {
       return const Center(child: Text('No games found', style: TextStyle(color: Colors.grey)));
     }
-    return GridView.builder(
+    return ListView.separated(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
       itemCount: provider.searchResults.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 24),
       itemBuilder: (context, index) => _buildModernGameCard(provider.searchResults[index], index),
     );
   }
@@ -278,18 +304,21 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
         );
       },
       child: Container(
+        height: 240, // Chiều cao cố định cho phong cách Cinematic
+        width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -314,41 +343,42 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.2),
-                      Colors.black.withOpacity(0.8),
-                      Colors.black.withOpacity(0.95),
+                      Colors.black.withValues(alpha: 0.4),
+                      Colors.black.withValues(alpha: 0.85),
+                      Colors.black.withValues(alpha: 0.95),
                     ],
-                    stops: const [0.4, 0.6, 0.8, 1.0],
+                    stops: const [0.3, 0.6, 0.8, 1.0],
                   ),
                 ),
               ),
 
               // 3. Content
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Rating Badge
+                    // Rating & Metacritic
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.star, size: 10, color: Colors.black),
-                              const SizedBox(width: 2),
+                              const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                              const SizedBox(width: 4),
                               Text(
                                 game.rating.toStringAsFixed(1),
                                 style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 10,
+                                  color: Colors.amber,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -356,22 +386,22 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                           ),
                         ),
                         if (game.metacritic > 0) ...[
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: _getMetacriticColor(game.metacritic).withOpacity(0.8),
-                              borderRadius: BorderRadius.circular(6),
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: _getMetacriticColor(game.metacritic),
                                 width: 1,
                               ),
                             ),
                             child: Text(
-                              game.metacritic.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
+                              'Metascore ${game.metacritic}',
+                              style: TextStyle(
+                                color: _getMetacriticColor(game.metacritic),
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -379,7 +409,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                         ],
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
                     
                     // Title
                     Text(
@@ -388,32 +418,41 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         height: 1.2,
+                        letterSpacing: 0.5,
                         shadows: [
                           Shadow(
-                            offset: Offset(0, 1),
-                            blurRadius: 2,
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
                             color: Colors.black,
                           ),
                         ],
                       ),
                     ),
                     
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     
                     // Genres
                     if (game.genres.isNotEmpty)
-                      Text(
-                        game.genres.take(2).join(' • '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.grey[300],
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          const Icon(Icons.local_offer_rounded, size: 14, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              game.genres.join(' • '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.grey[300],
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                   ],
                 ),

@@ -9,7 +9,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'edit_profile_screen.dart';
 import '../settings/location_settings_screen.dart';
 import 'package:logging/logging.dart';
+import 'dart:ui';
 import '../premium/subscription_screen.dart';
+import '../../widgets/tab_bar_visibility.dart';
 
 // Màn hình hồ sơ cá nhân của user
 // Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
@@ -33,21 +35,28 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.deepOrange.withValues(alpha: 0.12),
-            Colors.orange.withValues(alpha: 0.08),
+            const Color(0xFFFF6E40).withValues(alpha: 0.15),
+            const Color(0xFFFF8A65).withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.5), width: 1.2),
+        border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Nâng cấp Premium',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black87),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 8),
           _featureRow('Xem ai đã thích bạn'),
@@ -55,7 +64,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _featureRow('Đăng khoảnh khắc không giới hạn'),
           const SizedBox(height: 6),
           _featureRow('Hoàn tác lượt vuốt, super like tăng khả năng kết nối'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -66,11 +75,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: const Color(0xFFFF6E40),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: const Text('Nâng cấp ngay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ),
@@ -84,9 +93,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _featureRow(String text) {
     return Row(
       children: [
-        const Icon(Icons.check_circle, size: 18, color: Colors.deepOrange),
+        const Icon(Icons.check_circle, size: 18, color: Color(0xFFFF6E40)),
         const SizedBox(width: 8),
-        Expanded(child: Text(text, style: const TextStyle(color: Colors.black87))),
+        Expanded(child: Text(text, style: const TextStyle(color: Colors.white70))),
       ],
     );
   }
@@ -157,6 +166,39 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
+        content: const Text('Bạn có chắc muốn đăng xuất?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF3B30),
+            ),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      if (!context.mounted) return;
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.signOut();
+      if (!context.mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ProfileProvider>(
@@ -164,29 +206,40 @@ class _ProfilePageState extends State<ProfilePage> {
         final isPremium = provider.userData?.isPremium ?? false;
         
         return Scaffold(
+          extendBodyBehindAppBar: true,
+          backgroundColor: const Color(0xFF101012),
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.transparent,
             elevation: 0,
             toolbarHeight: 60,
             titleSpacing: 0,
+            flexibleSpace: ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
             // Logo và tên app ở góc trên
             title: Row(
               children: [
                 const Padding(
                   padding: EdgeInsets.only(left: 12.0),
                   child: Icon(
-                    CupertinoIcons.game_controller_solid,
-                    color: Colors.deepOrange,
+                    Icons.sports_esports,
+                    color: Color(0xFFFF6E40),
                     size: 26,
                   ),
                 ),
                 const SizedBox(width: 8), 
-                const Text(
+                Text(
                   'gamenect',
                   style: TextStyle(
-                    color: Colors.deepOrange,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontSize: 22,
+                    shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)],
                   ),
                 ),
               ],
@@ -205,6 +258,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           colors: [Colors.amber, Colors.orange.shade600],
                         ),
                         borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -238,13 +294,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   },
                   icon: const Icon(
                     Icons.workspace_premium_rounded,
-                    color: Colors.deepOrange,
+                    color: Color(0xFFFF6E40),
                     size: 20,
                   ),
                   label: const Text(
                     'Nâng cấp',
                     style: TextStyle(
-                      color: Colors.deepOrange,
+                      color: Color(0xFFFF6E40),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -252,86 +308,62 @@ class _ProfilePageState extends State<ProfilePage> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                 ),
-              
-              // Menu Settings và Đăng xuất
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  CupertinoIcons.settings,
-                  color: Colors.grey,
-                  size: 24,
-                ),
-                onSelected: (value) async {
-                  if (value == 'logout') {
-                    // Hiển thị dialog xác nhận đăng xuất
-                    final shouldLogout = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Đăng xuất'),
-                        content: const Text('Bạn có chắc muốn đăng xuất?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Hủy'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                            child: const Text('Đăng xuất'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (shouldLogout == true) {
-                      if (!context.mounted) return;
-                      final authService = Provider.of<AuthService>(context, listen: false);
-                      await authService.signOut();
-                      if (!context.mounted) return;
-                      Navigator.pushReplacementNamed(context, '/login');
-                    }
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'settings',
-                    child: Row(
-                      children: [
-                        Icon(CupertinoIcons.settings, size: 20),
-                        SizedBox(width: 8),
-                        Text('Cài đặt'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(CupertinoIcons.square_arrow_right, 
-                          size: 20, 
-                          color: Colors.red
-                        ),
-                        SizedBox(width: 8),
-                        Text('Đăng xuất', 
-                          style: TextStyle(color: Colors.red)
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
 
           // Body hiển thị loading, empty state hoặc profile content
-          body: provider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : provider.userData == null
-              ? _buildEmptyState()
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
+          body: Stack(
+            children: [
+              // Background Orbs
+              Positioned(
+                top: 50, right: -50,
+                child: Container(
+                  width: 300, height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: 100, spreadRadius: 40)],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -80, left: -80,
+                child: Container(
+                  width: 350, height: 350,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFBF360C).withValues(alpha: 0.15),
+                    boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: 120, spreadRadius: 50)],
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+              
+              SafeArea(
+                child: provider.isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40)))
+                    : provider.userData == null
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        color: const Color(0xFFFF6E40),
+                        backgroundColor: const Color(0xFF1A1A1E),
+                        displacement: 20,
+                        onRefresh: () async {
+                          await Provider.of<ProfileProvider>(context, listen: false).loadUserProfile();
+                        },
+                        child: NotificationListener<ScrollNotification>(
+                            onNotification: (n) {
+                              try { TabBarVisibility.of(context).update(n); } catch (_) {}
+                              return false;
+                            },
+                            child: SingleChildScrollView(
+                        child: Column(
+                          children: [
                       Stack(
                         children: [
                           // Avatar lớn ở giữa màn hình, tap để xem ProfileCard
@@ -358,45 +390,57 @@ class _ProfilePageState extends State<ProfilePage> {
                               );
                             },
                             child: Container(
-                              height: MediaQuery.of(context).size.width * 0.8,
-                              width: MediaQuery.of(context).size.width * 0.8,
-                              margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.1),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
+                                height: MediaQuery.of(context).size.width * 0.8,
+                                width: MediaQuery.of(context).size.width * 0.8,
+                                margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.1),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                      blurRadius: 30,
+                                      spreadRadius: 5,
+                                    ),
+                                  ],
+                                  image: DecorationImage(
+                                    image: NetworkImage(
+                                      provider.userData!.avatarUrl ?? 'https://via.placeholder.com/400',
+                                    ),
+                                    fit: BoxFit.cover,
                                   ),
-                                ],
-                                image: DecorationImage(
-                                  image: NetworkImage(
-                                    provider.userData!.avatarUrl ?? 'https://via.placeholder.com/400',
-                                  ),
-                                  fit: BoxFit.cover,
                                 ),
                               ),
-                            ),
                           ),
                           // Nút Edit ở góc dưới bên phải avatar
                           Positioned(
                             bottom: 16,
                             right: 16,
-                            child: FloatingActionButton(
-                              onPressed: () {
-                                // Mở màn hình chỉnh sửa profile
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const ProfileScreen(),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(30),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: FloatingActionButton(
+                                  onPressed: () {
+                                    // Mở màn hình chỉnh sửa profile
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const ProfileScreen(),
+                                      ),
+                                    );
+                                  },
+                                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    side: BorderSide(color: Colors.white.withValues(alpha: 0.2), width: 1),
                                   ),
-                                );
-                              },
-                              backgroundColor: Colors.white,
-                              child: const Icon(
-                                CupertinoIcons.pencil,
-                                color: Colors.deepOrange,
+                                  child: const Icon(
+                                    CupertinoIcons.pencil,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -415,12 +459,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   '${provider.userData!.age}',
-                                  style: const TextStyle(fontSize: 22),
+                                  style: const TextStyle(fontSize: 22, color: Colors.white70),
                                 ),
                               ],
                             ),
@@ -429,165 +474,176 @@ class _ProfilePageState extends State<ProfilePage> {
                             // Card hiển thị vị trí và cài đặt matching
                             Consumer<LocationProvider>(
                               builder: (context, locationProvider, child) {
-                                return Card(
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              CupertinoIcons.location_solid,
-                                              color: Colors.deepOrange,
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            const Text(
-                                              'Vị trí & Khoảng cách',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                                      ),
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                CupertinoIcons.location_solid,
+                                                color: Color(0xFFFF6E40),
+                                                size: 20,
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        
-                                        // Hiển thị vị trí hiện tại
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Vị trí hiện tại:',
-                                              style: TextStyle(color: Colors.grey, fontSize: 13),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              locationProvider.currentLocation ?? 'Chưa cập nhật',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 14,
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                'Vị trí & Khoảng cách',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
                                               ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        
-                                        // Hiển thị khoảng cách tìm kiếm
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Khoảng cách tìm kiếm:',
-                                              style: TextStyle(color: Colors.grey),
-                                            ),
-                                            Text(
-                                              '${locationProvider.maxDistance.toInt()} km',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                color: Colors.deepOrange,
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          
+                                          // Hiển thị vị trí hiện tại
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Vị trí hiện tại:',
+                                                style: TextStyle(color: Colors.white54, fontSize: 13),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        
-                                        // Hiển thị độ tuổi tìm kiếm
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Độ tuổi:',
-                                              style: TextStyle(color: Colors.grey),
-                                            ),
-                                            Text(
-                                              '${locationProvider.minAge} - ${locationProvider.maxAge} tuổi',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                color: Colors.deepOrange,
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                locationProvider.currentLocation ?? 'Chưa cập nhật',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 14,
+                                                  color: Colors.white,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        
-                                        // 2 nút: Lấy vị trí và Cài đặt match
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: OutlinedButton.icon(
-                                                onPressed: _testLocationPermission,
-                                                icon: locationProvider.isLoading
-                                                    ? const SizedBox(
-                                                        width: 16,
-                                                        height: 16,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          
+                                          // Hiển thị khoảng cách tìm kiếm
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Khoảng cách tìm kiếm:',
+                                                style: TextStyle(color: Colors.white54),
+                                              ),
+                                              Text(
+                                                '${locationProvider.maxDistance.toInt()} km',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFFFF6E40),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          
+                                          // Hiển thị độ tuổi tìm kiếm
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Độ tuổi:',
+                                                style: TextStyle(color: Colors.white54),
+                                              ),
+                                              Text(
+                                                '${locationProvider.minAge} - ${locationProvider.maxAge} tuổi',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFFFF6E40),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          
+                                          // 2 nút: Lấy vị trí và Cài đặt match
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton.icon(
+                                                  onPressed: _testLocationPermission,
+                                                  icon: locationProvider.isLoading
+                                                      ? const SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child: CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: Color(0xFFFF6E40),
+                                                          ),
+                                                        )
+                                                      : const Icon(
+                                                          CupertinoIcons.refresh,
+                                                          size: 18,
                                                         ),
-                                                      )
-                                                    : const Icon(
-                                                        CupertinoIcons.refresh,
-                                                        size: 18,
-                                                      ),
-                                                label: Text(
-                                                  locationProvider.isLoading
-                                                      ? 'Đang lấy...'
-                                                      : 'Lấy vị trí',
-                                                  style: const TextStyle(fontSize: 13),
-                                                ),
-                                                style: OutlinedButton.styleFrom(
-                                                  foregroundColor: Colors.deepOrange,
-                                                  side: const BorderSide(
-                                                    color: Colors.deepOrange,
+                                                  label: Text(
+                                                    locationProvider.isLoading
+                                                        ? 'Đang lấy...'
+                                                        : 'Lấy vị trí',
+                                                    style: const TextStyle(fontSize: 13),
                                                   ),
-                                                  padding: const EdgeInsets.symmetric(
-                                                    vertical: 8,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: ElevatedButton.icon(
-                                                onPressed: () {
-                                                  // Mở màn hình cài đặt matching
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          const LocationSettingsScreen(),
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor: const Color(0xFFFF6E40),
+                                                    side: BorderSide(
+                                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
                                                     ),
-                                                  );
-                                                },
-                                                icon: const Icon(
-                                                  CupertinoIcons.settings,
-                                                  size: 18,
-                                                ),
-                                                label: const Text(
-                                                  'Cài đặt match',
-                                                  style: TextStyle(fontSize: 13),
-                                                ),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.deepOrange,
-                                                  foregroundColor: Colors.white,
-                                                  padding: const EdgeInsets.symmetric(
-                                                    vertical: 8,
+                                                    padding: const EdgeInsets.symmetric(
+                                                      vertical: 10,
+                                                    ),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: ElevatedButton.icon(
+                                                  onPressed: () {
+                                                    // Mở màn hình cài đặt matching
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            const LocationSettingsScreen(),
+                                                      ),
+                                                    );
+                                                  },
+                                                  icon: const Icon(
+                                                    CupertinoIcons.settings,
+                                                    size: 18,
+                                                  ),
+                                                  label: const Text(
+                                                    'Cài đặt match',
+                                                    style: TextStyle(fontSize: 13),
+                                                  ),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: const Color(0xFFFF6E40),
+                                                    foregroundColor: Colors.white,
+                                                    padding: const EdgeInsets.symmetric(
+                                                      vertical: 10,
+                                                    ),
+                                                    elevation: 0,
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                       ],
                                     ),
                                   ),
+                                  )
                                 );
                               },
                             ),
@@ -607,10 +663,31 @@ class _ProfilePageState extends State<ProfilePage> {
                                 runSpacing: 8,
                                 children: provider.userData!.favoriteGames
                                     .map(
-                                      (game) => Chip(
-                                        label: Text(game),
-                                        backgroundColor: Colors.deepOrange
-                                            .withValues(alpha: 0.1),
+                                      (game) => Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4), width: 1),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                                              blurRadius: 8,
+                                              spreadRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(CupertinoIcons.game_controller_solid, size: 14, color: Color(0xFFFF6E40)),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              game, 
+                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     )
                                     .toList(),
@@ -660,10 +737,33 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       
+                      const SizedBox(height: 16),
+                      
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: OutlinedButton.icon(
+                          onPressed: _handleLogout,
+                          icon: const Icon(CupertinoIcons.square_arrow_right, color: Color(0xFFFF3B30)),
+                          label: const Text('Đăng xuất', style: TextStyle(color: Color(0xFFFF3B30))),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFFF3B30)),
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
                       const SizedBox(height: 32),
                     ],
                   ),
                 ),
+              ), // đóng NotificationListener
+              )
+              )
+            ],
+          ),
         );
       },
     );
@@ -712,7 +812,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 8),
         content,
@@ -727,13 +827,13 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16)),
+          Text(label, style: const TextStyle(fontSize: 16, color: Colors.white70)),
           Text(
             value,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.deepOrange,
+              color: Color(0xFFFF6E40),
             ),
           ),
         ],

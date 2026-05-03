@@ -4,7 +4,7 @@ import '../../user/user_app.dart';
 import '../../user/screens/profile/edit_profile_screen.dart';
 import '../../user/screens/auth/phone_login_screen.dart';
 import '../../user/screens/auth/email_login_screen.dart';
-import '../../admin/screens/admin_test_users_screen.dart';
+import '../../admin/screens/users/admin_test_users_screen.dart';
 import '../../user/screens/chat/chat_screen.dart';
 import '../../user/screens/call/video_call_screen.dart';
 import '../../main.dart'; // For AuthWrapper

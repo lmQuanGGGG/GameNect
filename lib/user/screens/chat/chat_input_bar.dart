@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:ui';
+import 'dart:async';
 import '../../../core/providers/chat_provider.dart';
 import '../media/media_preview_screen.dart';
 
-/// Thanh nhập liệu bên dưới cùng của Chat Screen
-/// Bao gồm: Text input, Nút thêm Media, Nút Ghi âm / Gửi
-class ChatInputBar extends StatelessWidget {
+/// Thanh nhập liệu Liquid Glass Floating Pill
+/// Hỗ trợ: Ghi âm Zero-Delay (onPointerDown) và Vuốt sang trái để hủy (Slide to cancel).
+class ChatInputBar extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool isRecording;
@@ -34,142 +36,296 @@ class ChatInputBar extends StatelessWidget {
   });
 
   @override
+  State<ChatInputBar> createState() => _ChatInputBarState();
+}
+
+class _ChatInputBarState extends State<ChatInputBar> {
+  double _startX = 0.0;
+  bool _isCanceledBySlide = false;
+
+  Timer? _recordTimer;
+  int _recordDuration = 0; // Tính bằng giây
+
+  void _startTimer() {
+    _recordDuration = 0;
+    _recordTimer?.cancel();
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _recordDuration++;
+        });
+      }
+    });
+  }
+
+  void _stopTimer() {
+    _recordTimer?.cancel();
+    _recordTimer = null;
+    if (mounted) {
+      setState(() {
+        _recordDuration = 0;
+      });
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  void dispose() {
+    _recordTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (widget.controller.text.trim().isEmpty) {
+      _startX = event.position.dx;
+      _isCanceledBySlide = false;
+      _startTimer();
+      widget.onStartRecording();
+    }
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (!widget.isRecording || _isCanceledBySlide) return;
+
+    final currentX = event.position.dx;
+    // Nếu vuốt sang trái hơn 60 pixels
+    if (_startX - currentX > 60) {
+      _isCanceledBySlide = true;
+      _stopTimer();
+      widget.onCancelRecording();
+    }
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    if (widget.isRecording && !_isCanceledBySlide) {
+      _stopTimer();
+      widget.onStopRecording();
+    }
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (widget.isRecording && !_isCanceledBySlide) {
+      _stopTimer();
+      widget.onCancelRecording();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withValues(alpha: 0.2),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        12,
+        4,
+        12,
+        bottomPadding == 0 ? 12 : bottomPadding,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Nút cộng (+) để gửi ảnh/video
-              Container(
-                width: 36,
-                height: 36,
-                margin: const EdgeInsets.only(bottom: 2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    width: 1,
-                  ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.15),
+                    Colors.white.withValues(alpha: 0.05),
+                  ],
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.add, color: Color(0xFFFF453A), size: 20),
-                  onPressed: () => _handleMediaPick(context),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 1,
                 ),
               ),
-              const SizedBox(width: 8),
-
-              // TextField nhập tin nhắn
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 120),
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    maxLines: null,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      hintText: 'iMessage',
-                      hintStyle: TextStyle(
-                        color: Colors.grey.withValues(alpha: 0.5),
-                        fontSize: 16,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          width: 1,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          width: 1,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFFF453A),
-                          width: 1.5,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      fillColor: Colors.black.withValues(alpha: 0.3),
-                      filled: true,
-                      isDense: true,
-                    ),
-                    onChanged: (text) {
-                      chatProvider.setTyping(matchId, isTyping: text.isNotEmpty);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Nút mic/send
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: controller,
-                builder: (context, value, child) {
-                  final isEmpty = value.text.trim().isEmpty;
-                  return GestureDetector(
-                    onLongPressStart: isEmpty ? (_) => onStartRecording() : null,
-                    onLongPressEnd: isEmpty ? (_) => onStopRecording() : null,
-                    onLongPressCancel: isEmpty ? () => onCancelRecording() : null,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      margin: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Nút (+) gửi ảnh/video
+                  if (!widget.isRecording)
+                    Container(
+                      width: 40,
+                      height: 40,
+                      margin: const EdgeInsets.only(bottom: 2, left: 2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isRecording
-                              ? const Color(0xFFFF453A)
-                              : Colors.white.withValues(alpha: 0.2),
-                          width: isRecording ? 2 : 1,
-                        ),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                       child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          isEmpty ? Icons.mic : Icons.send,
-                          color: isEmpty
-                              ? (isRecording ? const Color(0xFFFF453A) : Colors.white)
-                              : const Color(0xFFFF453A),
-                          size: 20,
+                        icon: const Icon(
+                          Icons.add_rounded,
+                          color: Color(0xFFFF6E40),
+                          size: 22,
                         ),
-                        onPressed: () {
-                          if (!isEmpty) {
-                            onSendMessage(value.text.trim());
-                            controller.clear();
-                            chatProvider.setTyping(matchId, isTyping: false);
-                          }
-                        },
+                        onPressed: () => _handleMediaPick(context),
                       ),
                     ),
-                  );
-                },
+
+                  const SizedBox(width: 8),
+
+                  // TextField hoặc Label Đang ghi âm
+                  Expanded(
+                    child: widget.isRecording
+                        ? _buildRecordingStatus()
+                        : Container(
+                            constraints: const BoxConstraints(maxHeight: 120),
+                            child: TextField(
+                              controller: widget.controller,
+                              focusNode: widget.focusNode,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                              maxLines: null,
+                              textInputAction: TextInputAction.newline,
+                              decoration: InputDecoration(
+                                hintText: 'iMessage',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                  fontSize: 15,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 12,
+                                ),
+                                isDense: true,
+                              ),
+                              onChanged: (text) {
+                                chatProvider.setTyping(
+                                  widget.matchId,
+                                  isTyping: text.isNotEmpty,
+                                );
+                              },
+                            ),
+                          ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Nút Mic / Send (Zero Delay)
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: widget.controller,
+                    builder: (context, value, child) {
+                      final isEmpty = value.text.trim().isEmpty;
+                      return Listener(
+                        onPointerDown: isEmpty ? _handlePointerDown : null,
+                        onPointerMove: isEmpty ? _handlePointerMove : null,
+                        onPointerUp: isEmpty ? _handlePointerUp : null,
+                        onPointerCancel: isEmpty ? _handlePointerCancel : null,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          margin: const EdgeInsets.only(bottom: 2, right: 2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: widget.isRecording
+                                  ? [
+                                      const Color(0xFFFF6E40),
+                                      const Color(0xFFBF360C),
+                                    ]
+                                  : [
+                                      const Color(
+                                        0xFFFF6E40,
+                                      ).withValues(alpha: 0.8),
+                                      const Color(
+                                        0xFFFF8A65,
+                                      ).withValues(alpha: 0.8),
+                                    ],
+                            ),
+                            boxShadow: [
+                              if (widget.isRecording)
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFFF6E40,
+                                  ).withValues(alpha: 0.5),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                            ],
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              isEmpty ? Icons.mic_rounded : Icons.send_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              if (!isEmpty) {
+                                widget.onSendMessage(value.text.trim());
+                                widget.controller.clear();
+                                chatProvider.setTyping(
+                                  widget.matchId,
+                                  isTyping: false,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRecordingStatus() {
+    return Container(
+      height: 44,
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.mic_rounded, color: Color(0xFFFF6E40), size: 18),
+          const SizedBox(width: 6),
+          // Bộ đếm thời gian
+          Text(
+            _formatDuration(_recordDuration),
+            style: const TextStyle(
+              color: Color(0xFFFF6E40),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            '•  Vuốt ⬅️ để hủy',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -178,35 +334,61 @@ class ChatInputBar extends StatelessWidget {
     final picker = ImagePicker();
     final pickedFile = await showModalBottomSheet<XFile?>(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.85),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          ),
         ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               ListTile(
-                leading: const Icon(Icons.photo, color: Color(0xFFFF453A)),
-                title: const Text('Chọn ảnh', style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.photo_rounded,
+                  color: Color(0xFFFF6E40),
+                ),
+                title: const Text(
+                  'Chọn ảnh',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () async {
-                  final file = await picker.pickImage(source: ImageSource.gallery);
-                  if (context.mounted) {
-                    Navigator.pop(context, file);
-                  }
+                  final file = await picker.pickImage(
+                    source: ImageSource.gallery,
+                  );
+                  if (context.mounted) Navigator.pop(context, file);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.videocam, color: Color(0xFFFF453A)),
-                title: const Text('Chọn video', style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.videocam_rounded,
+                  color: Color(0xFFFF6E40),
+                ),
+                title: const Text(
+                  'Chọn video',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () async {
-                  final file = await picker.pickVideo(source: ImageSource.gallery);
-                  if (context.mounted) {
-                    Navigator.pop(context, file);
-                  }
+                  final file = await picker.pickVideo(
+                    source: ImageSource.gallery,
+                  );
+                  if (context.mounted) Navigator.pop(context, file);
                 },
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -214,22 +396,20 @@ class ChatInputBar extends StatelessWidget {
     );
 
     if (pickedFile != null && context.mounted) {
-      final isVideo = pickedFile.path.toLowerCase().endsWith('.mp4') ||
+      final isVideo =
+          pickedFile.path.toLowerCase().endsWith('.mp4') ||
           pickedFile.path.toLowerCase().endsWith('.mov');
 
       final caption = await Navigator.push<String>(
         context,
         MaterialPageRoute(
-          builder: (_) => MediaPreviewScreen(
-            file: File(pickedFile.path),
-            isVideo: isVideo,
-          ),
+          builder: (_) =>
+              MediaPreviewScreen(file: File(pickedFile.path), isVideo: isVideo),
         ),
       );
 
-      // Nếu caption không null nghĩa là user bấm Gửi
       if (caption != null) {
-        onSendMedia(pickedFile.path, isVideo: isVideo);
+        widget.onSendMedia(pickedFile.path, isVideo: isVideo);
       }
     }
   }

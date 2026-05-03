@@ -1031,7 +1031,7 @@ Sau thanh toán:
 ## 12. QUAN TRỌNG KHI CODE
 
 ### Rules chung:
-1. **State management:** Luôn dùng Provider. Không setState trực tiếp khi có Provider.
+1. **State management:** Luôn dùng `Provider`. Không setState trực tiếp khi có Provider. Không dùng InheritedWidget hay Riverpod — dự án này chuẩn hóa 100% Provider.
 2. **Firestore:** Dùng `merge: true` khi set để không ghi đè dữ liệu hiện có.
 3. **Navigation:** Dùng `navigatorKey.currentState` cho navigation từ notification handlers (ngoài widget tree).
 4. **Null safety:** Tất cả fields nullable cần xử lý `??` default value.
@@ -1069,6 +1069,9 @@ flutter clean && flutter pub get
 flutter build appbundle --release
 # File: build/app/outputs/bundle/release/app-release.aab
 
+# Release iOS
+flutter build ios --release
+
 # Deploy Cloud Functions
 cd functions && firebase deploy --only functions
 ```
@@ -1080,4 +1083,286 @@ cd functions && firebase deploy --only functions
 
 ---
 
-*Tài liệu này được tạo tự động bởi AI agent vào 2026-04-01. Cập nhật khi có thay đổi lớn về kiến trúc.*
+## 13. YÊU CẦU CODE CHUẨN (BẮT BUỘC CHO AGENT)
+
+> **Agent phải đọc và tuân thủ section này TRƯỚC KHI viết bất kỳ dòng code nào.**
+
+### 13.1. Tiêu chuẩn Code Clean
+
+```
+❌ SAI — Agent KHÔNG được làm:
+- Đặt tên biến a, b, x, tmp, data1 không rõ ý nghĩa
+- Viết hàm dài hơn 80 dòng mà không tách nhỏ
+- Hardcode màu sắc hoặc giá trị magic number trực tiếp trong widget
+- Nested if/else quá 3 tầng
+- Copy-paste code trùng lặp không extract thành widget/method
+- Bỏ qua error handling trong async methods
+
+✅ ĐÚNG — Agent PHẢI làm:
+- Tên biến/method phải tự giải thích (self-documenting)
+- Mỗi hàm chỉ làm 1 việc (Single Responsibility)
+- Extract widget nhỏ thành private method `_buildXxx()`
+- Mọi async operation phải có try/catch
+- Dùng const constructor khi widget không thay đổi
+```
+
+### 13.2. Cấu trúc File Bắt Buộc
+
+Mọi file màn hình phải tuân theo thứ tự sau:
+```dart
+// 1. Imports (dart: → package: → '../' relative)
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/xxx_provider.dart';
+
+// 2. StatefulWidget / StatelessWidget class
+class XxxScreen extends StatefulWidget { ... }
+
+// 3. State class
+class _XxxScreenState extends State<XxxScreen> {
+
+  // 3a. Khai báo state variables
+  bool _isLoading = false;
+
+  // 3b. initState
+  @override
+  void initState() { ... }
+
+  // 3c. dispose
+  @override
+  void dispose() { ... }
+
+  // 3d. Business logic / helper methods
+  Future<void> _loadData() async { ... }
+  void _handleAction() { ... }
+
+  // 3e. Build widgets (build → _buildXxx)
+  @override
+  Widget build(BuildContext context) { ... }
+
+  Widget _buildHeader() { ... }
+  Widget _buildContent() { ... }
+}
+```
+
+### 13.3. State Management — Provider Rules
+
+**Quy tắc bất di bất dịch:**
+
+```dart
+// ✅ Đọc state để rebuild UI
+final provider = context.watch<XxxProvider>();
+// hoặc
+Consumer<XxxProvider>(builder: (ctx, p, _) => ...);
+
+// ✅ Gọi action, không cần rebuild
+context.read<XxxProvider>().doSomething();
+
+// ✅ Gọi trong initState / async callbacks
+Provider.of<XxxProvider>(context, listen: false).doSomething();
+
+// ❌ KHÔNG dùng Provider.of với listen: true trong build (dùng context.watch thay thế)
+// ❌ KHÔNG setState khi dữ liệu đã được quản lý bởi Provider
+// ❌ KHÔNG tạo Provider mới bên trong widget tree
+```
+
+**Khi thêm Provider mới:**
+1. Tạo file trong `lib/core/providers/xxx_provider.dart`
+2. Extend `ChangeNotifier`
+3. Gọi `notifyListeners()` sau khi state thay đổi
+4. Register trong `main.dart` MultiProvider TRƯỚC khi dùng
+5. Inject dependency qua constructor hoặc `ChangeNotifierProxyProvider` (không tạo service mới bên trong provider)
+
+**Provider pattern chuẩn:**
+```dart
+class XxxProvider extends ChangeNotifier {
+  // State
+  bool _isLoading = false;
+  List<XxxModel> _items = [];
+  String? _error;
+
+  // Getters (bất biến từ ngoài)
+  bool get isLoading => _isLoading;
+  List<XxxModel> get items => List.unmodifiable(_items);
+  String? get error => _error;
+
+  // Actions
+  Future<void> loadItems() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _items = await _service.getItems();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+}
+```
+
+### 13.4. UI/Design Rules
+
+Thiết kế của app đang dùng **Liquid Glass Design System**:
+
+| Token | Giá trị |
+|---|---|
+| Background chính | `#101012` |
+| Accent chính | `#FF6E40` (deep orange) |
+| Glass background | `Colors.white.withValues(alpha: 0.05~0.20)` |
+| Glass border | `Colors.white.withValues(alpha: 0.08~0.15)` |
+| Blur | `ImageFilter.blur(sigmaX: 10~20, sigmaY: 10~20)` |
+| Border radius lớn | `28~40px` |
+| Border radius nhỏ | `12~20px` |
+
+**Khi tạo container glass:**
+```dart
+ClipRRect(
+  borderRadius: BorderRadius.circular(24),
+  child: BackdropFilter(
+    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.12),
+          width: 1.5,
+        ),
+      ),
+      child: ...,
+    ),
+  ),
+)
+```
+
+**Màu sắc:**
+- KHÔNG dùng `.withOpacity()` (deprecated) — dùng `.withValues(alpha: x)` thay thế
+- KHÔNG hardcode màu hex ngẫu nhiên — stick with color tokens trên
+- Accent gradient: `[Color(0xFFFF6E40), Color(0xFFFF9E80)]`
+
+### 13.5. Naming Conventions
+
+| Loại | Convention | Ví dụ |
+|---|---|---|
+| Class | PascalCase | `GameTrendingScreen` |
+| Method/Variable | camelCase | `_loadTrendingGames()` |
+| Private | bắt đầu `_` | `_isLoading`, `_buildHeader()` |
+| Constant | camelCase hoặc SCREAMING_SNAKE nếu static const | `kCardRadius`, `_defaultBlur` |
+| File | snake_case | `game_trending_screen.dart` |
+| Route | kebab-case | `/game-trending` |
+
+### 13.6. Error Handling
+
+```dart
+// ✅ Mọi async call phải có try/catch
+Future<void> _loadData() async {
+  try {
+    final data = await service.getData();
+    setState(() => _data = data);
+  } catch (e, stackTrace) {
+    // Log error
+    debugPrint('Error loading data: $e\n$stackTrace');
+    // Show user-friendly error (KHÔNG throw lên UI raw exception)
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể tải dữ liệu. Thử lại sau.'),
+          backgroundColor: Colors.red.shade800,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+}
+
+// ✅ Kiểm tra mounted trước khi dùng context sau async
+if (mounted) {
+  setState(() { ... });
+}
+```
+
+### 13.7. Hiệu năng
+
+- Dùng `const` constructor khi widget không phụ thuộc vào state
+- `CachedNetworkImage` cho TẤT CẢ ảnh từ URL (không dùng `NetworkImage` trực tiếp)
+- Dùng `ListView.builder` thay `ListView` với children khi list dài
+- `dispose()` tất cả controller, stream subscription, animation controller
+- KHÔNG gọi Provider trong `build()` method của StatelessWidget nếu chỉ cần một lần
+
+### 13.8. Comments và Documentation
+
+```dart
+// ✅ Comment TẠI SAO, không comment CÁI GÌ
+// Bỏ qua snapshot đầu tiên để tránh notify reaction cũ khi mở app
+_isFirstSnapshot = true;
+
+// ❌ Comment thừa (code đã tự nói lên)
+// Set isLoading to true
+_isLoading = true;
+
+/// Tài liệu public API dùng ///, private dùng // bình thường
+/// [userId] — UID của user hiện tại
+/// Returns danh sách moments được sắp xếp theo thời gian giảm dần
+Future<List<MomentModel>> getMomentsForUser(String userId) async { ... }
+```
+
+---
+
+## 14. THAY ĐỔI ĐÃ THỰC HIỆN (CHANGELOG)
+
+### [2026-04-01] — Khởi tạo dự án
+- Cấu trúc cơ bản: Auth, Matching, Chat, Moments, Games, Premium
+
+### [2026-05] — UI/UX Modernization: Liquid Glass
+
+#### Moment Screen (moment_card.dart)
+- **Reaction bar dọc kiểu TikTok** — bên phải màn hình, hiển thị sẵn ❤️😂🔥😍 + nút `+` để chọn thêm
+- **Gộp reactions theo user** — thay vì mỗi emoji là 1 ô, giờ 1 người = 1 chip duy nhất chứa avatar + tất cả emoji họ đã thả
+- **Bottom action bar gọn** — chỉ còn Camera reply + Gửi tin nhắn, emoji picker chuyển lên sidebar
+- **Bottom sheet reactions** — gộp hiển thị người react theo user, không lặp ô
+
+#### Game Trending Screen (game_trending_screen.dart)
+- **Header "Discover"** — icon Liquid Glass (ClipOval + BackdropFilter + viền cam), chữ 32px bold
+- **Search bar Frosted Glass** — BackdropFilter blur, viền mờ, nền trong suốt
+- **Tab bar glass** — indicator là khối kính bán trong suốt thay vì underline
+
+#### Game Detail Screen (game_detail_screen.dart)
+- Giao diện Liquid Glass toàn bộ, gradient overlay, frosted glass cards
+- Tính năng **Share game** — gửi game qua chat cho matched users
+- Message type `game` trong chat (hiển thị dạng card trong bubble)
+
+#### Chat Provider (chat_provider.dart)
+- Thêm `sendGameMessage()` — gửi tin nhắn loại `game` với GameModel data
+
+#### Message Bubble (message_bubble.dart)
+- `_buildGameMessageBubble()` — hiển thị game được share dưới dạng card có ảnh và info
+
+#### Pull-to-Refresh — Tất cả màn hình chính
+| Màn hình | Reload gì |
+|---|---|
+| `match_screen.dart` | `MatchProvider.fetchRecommendations()` |
+| `liked_me_screen.dart` (tab Thích bạn) | `_initializeData()` |
+| `liked_me_screen.dart` (tab Bỏ lỡ) | `_initializeData()` |
+| `profile_screen.dart` | `ProfileProvider.loadUserProfile()` |
+| `moment_feed_tab.dart` | `MomentProvider.listenMoments()` |
+| `game_trending_screen.dart` | `GameProvider.fetchTrendingGames/fetchNewReleases()` |
+
+**Kiểu dáng RefreshIndicator chuẩn:**
+```dart
+RefreshIndicator(
+  color: const Color(0xFFFF6E40),
+  backgroundColor: const Color(0xFF1A1A1E),
+  displacement: 20,
+  onRefresh: () async { ... },
+  child: ...,
+)
+```
+
+---
+
+*Tài liệu này được tạo tự động bởi AI agent. Cập nhật: 2026-05-03.*

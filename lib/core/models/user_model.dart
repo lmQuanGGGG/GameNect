@@ -40,6 +40,7 @@ class UserModel {
   int minAge;                      // Tuổi tối thiểu tìm kiếm
   int maxAge;                      // Tuổi tối đa tìm kiếm
   String interestedInGender;       // Giới tính muốn ghép đôi
+  bool filterCommonGame;           // Chỉ hiển thị người có chung game không
 
   // Các tính năng nâng cao
   bool isVerified;                 // Đã xác thực tài khoản chưa
@@ -76,11 +77,18 @@ class UserModel {
   List<String> blockedUserIds;     // Danh sách user bị chặn
   List<String> reportedUserIds;    // Danh sách user bị report
 
-  // Thống kê
+  // Thống kê (dùng cho ML model v3.0)
   int profileViews;                // Số lượt xem profile
   int totalMatches;                // Tổng số lần ghép đôi
   int totalLikes;                  // Tổng số lượt like
   int totalSuperLikes;             // Tổng số lượt super like
+  // ⭐ Social proof (ML model dùng)
+  int likeCount;                   // likeCount từ Firebase profile
+  int matchCount;                  // matchCount từ Firebase profile
+  int friendCount;                 // friendCount từ Firebase profile
+  int superLikeCount;              // superLikeCount từ Firebase profile
+  bool showOnlineStatus;           // Hiển thị trạng thái online không
+  String? lastSeen;                // ISO datetime — thời điểm hoạt động cuối
 
   // Thông tin gaming
   Map<String, dynamic>? gamingStats; // Thống kê gaming chi tiết
@@ -124,6 +132,7 @@ class UserModel {
     this.minAge = 18,
     this.maxAge = 99,
     this.interestedInGender = 'Tất cả',
+    this.filterCommonGame = false,
     this.isVerified = false,
     this.profilePrompts = const [],
     this.dealbreakers = const [],
@@ -154,6 +163,12 @@ class UserModel {
     this.totalMatches = 0,
     this.totalLikes = 0,
     this.totalSuperLikes = 0,
+    this.likeCount = 0,
+    this.matchCount = 0,
+    this.friendCount = 0,
+    this.superLikeCount = 0,
+    this.showOnlineStatus = false,
+    this.lastSeen,
     this.gamingStats,
     this.gamingPlatforms = const [],
     this.distanceKm,
@@ -206,7 +221,9 @@ class UserModel {
       'rank': rank,
       'location': location,
       'playTime': playTime,
+      'play_time': playTime,        // ⭐ API alias
       'winRate': winRate,
+      'win_rate': winRate,          // ⭐ API alias
       'points': points,
       'avatarUrl': avatarUrl,
       'additionalPhotos': additionalPhotos,
@@ -216,7 +233,9 @@ class UserModel {
       'bio': bio,
       'interests': interests,
       'lookingFor': lookingFor,
+      'looking_for': lookingFor,    // ⭐ API alias
       'gameStyle': gameStyle,
+      'game_style': gameStyle,      // ⭐ API alias
       'dateOfBirth': dateOfBirth.toIso8601String(),
       'latitude': latitude,
       'longitude': longitude,
@@ -229,6 +248,7 @@ class UserModel {
       'minAge': minAge,
       'maxAge': maxAge,
       'interestedInGender': interestedInGender,
+      'filterCommonGame': filterCommonGame,
       'isVerified': isVerified,
       'profilePrompts': profilePrompts,
       'dealbreakers': dealbreakers,
@@ -259,6 +279,18 @@ class UserModel {
       'totalMatches': totalMatches,
       'totalLikes': totalLikes,
       'totalSuperLikes': totalSuperLikes,
+      // ⭐ Social proof cho ML API v3.0
+      'likeCount': likeCount,
+      'matchCount': matchCount,
+      'friendCount': friendCount,
+      'superLikeCount': superLikeCount,
+      'super_like_count': superLikeCount,  // alias API field name
+      'like_count': likeCount,
+      'match_count': matchCount,
+      'friend_count': friendCount,
+      'profile_views': profileViews,
+      'showOnlineStatus': showOnlineStatus,
+      'lastSeen': lastSeen,
       'gamingStats': gamingStats,
       'gamingPlatforms': gamingPlatforms,
       'distanceKm': distanceKm,
@@ -323,6 +355,7 @@ class UserModel {
       minAge: (map['minAge'] ?? 18).toInt(),
       maxAge: (map['maxAge'] ?? 99).toInt(),
       interestedInGender: map['interestedInGender'] ?? 'Tất cả',
+      filterCommonGame: map['filterCommonGame'] ?? false,
       isVerified: map['isVerified'] ?? false,
       profilePrompts: List<String>.from(map['profilePrompts'] ?? []),
       dealbreakers: List<String>.from(map['dealbreakers'] ?? []),
@@ -363,6 +396,14 @@ class UserModel {
       totalMatches: (map['totalMatches'] ?? 0).toInt(),
       totalLikes: (map['totalLikes'] ?? 0).toInt(),
       totalSuperLikes: (map['totalSuperLikes'] ?? 0).toInt(),
+      // ⭐ Social proof
+      likeCount: (map['likeCount'] ?? map['like_count'] ?? 0).toInt(),
+      matchCount: (map['matchCount'] ?? map['match_count'] ?? 0).toInt(),
+      friendCount: (map['friendCount'] ?? map['friend_count'] ?? 0).toInt(),
+      superLikeCount: (map['superLikeCount'] ?? map['super_like_count'] ?? 0).toInt(),
+      showOnlineStatus: map['showOnlineStatus'] ?? false,
+      lastSeen: map['lastSeen']?.toString() ??
+          map['lastActiveTime']?.toString(),
       gamingStats: map['gamingStats'],
       gamingPlatforms: List<String>.from(map['gamingPlatforms'] ?? []),
       distanceKm: map['distanceKm']?.toDouble(),

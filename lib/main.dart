@@ -12,7 +12,7 @@ import 'dart:developer' as developer;
 import 'core/services/auth_service.dart';
 import 'core/services/firestore_service.dart';
 import 'core/services/notification_handler.dart';
-import 'core/controllers/notification_controller.dart'; 
+import 'core/controllers/notification_controller.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/edit_profile_provider.dart';
 import 'core/providers/auth_provider.dart' as local;
@@ -35,7 +35,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Tải biến môi trường từ file .env
   await dotenv.load(fileName: ".env");
-  
+
   // Khởi tạo Firebase với các tùy chọn cho nền tảng hiện tại
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -47,9 +47,12 @@ void main() async {
   // Thiết lập các listener cho AwesomeNotifications
   AwesomeNotifications().setListeners(
     onActionReceivedMethod: AppNotificationHandler.onActionReceivedMethod,
-    onNotificationCreatedMethod: AppNotificationHandler.onNotificationCreatedMethod,
-    onNotificationDisplayedMethod: AppNotificationHandler.onNotificationDisplayedMethod,
-    onDismissActionReceivedMethod: AppNotificationHandler.onDismissActionReceivedMethod,
+    onNotificationCreatedMethod:
+        AppNotificationHandler.onNotificationCreatedMethod,
+    onNotificationDisplayedMethod:
+        AppNotificationHandler.onNotificationDisplayedMethod,
+    onDismissActionReceivedMethod:
+        AppNotificationHandler.onDismissActionReceivedMethod,
   );
 
   // Chạy ứng dụng chính
@@ -102,10 +105,7 @@ class GameNectApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: const [
-          Locale('vi', 'VN'),
-          Locale('en', 'US'),
-        ],
+        supportedLocales: const [Locale('vi', 'VN'), Locale('en', 'US')],
         locale: const Locale('vi', 'VN'),
         navigatorKey: navigatorKey,
       ),
@@ -119,7 +119,10 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AuthService authService = Provider.of<AuthService>(context, listen: false);
+    final AuthService authService = Provider.of<AuthService>(
+      context,
+      listen: false,
+    );
 
     return StreamBuilder<User?>(
       stream: authService.authStateChanges,
@@ -135,7 +138,10 @@ class AuthWrapper extends StatelessWidget {
                   SizedBox(height: 24),
                   CircularProgressIndicator(color: Colors.deepOrange),
                   SizedBox(height: 16),
-                  Text('Đang khởi động...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  Text(
+                    'Đang khởi động...',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
                 ],
               ),
             ),
@@ -151,18 +157,36 @@ class AuthWrapper extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 16),
-                    const Text('Lỗi xác thực', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Lỗi xác thực',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text('${snapshot.error}', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+                    Text(
+                      '${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
-                      onPressed: () => Navigator.pushReplacementNamed(context, '/'),
+                      onPressed: () =>
+                          Navigator.pushReplacementNamed(context, '/'),
                       icon: const Icon(Icons.refresh),
                       label: const Text('Thử lại'),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -174,18 +198,37 @@ class AuthWrapper extends StatelessWidget {
 
         if (snapshot.hasData && snapshot.data != null) {
           developer.log('User logged in: ${snapshot.data!.uid}', name: 'Auth');
-          
+
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             try {
-              final fcmToken = await NotificationController().getFirebaseToken();
-              developer.log('FCM Token retrieved after login: $fcmToken', name: 'Auth');
-              
+              final fcmToken = await NotificationController()
+                  .getFirebaseToken();
+              developer.log(
+                'FCM Token retrieved after login: $fcmToken',
+                name: 'Auth',
+              );
+
               if (!context.mounted) return;
-              final locationProvider = Provider.of<LocationProvider>(context, listen: false);
-              final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-              final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-              final matchProvider = Provider.of<MatchProvider>(context, listen: false);
-              final momentProvider = Provider.of<MomentProvider>(context, listen: false);
+              final locationProvider = Provider.of<LocationProvider>(
+                context,
+                listen: false,
+              );
+              final profileProvider = Provider.of<ProfileProvider>(
+                context,
+                listen: false,
+              );
+              final chatProvider = Provider.of<ChatProvider>(
+                context,
+                listen: false,
+              );
+              final matchProvider = Provider.of<MatchProvider>(
+                context,
+                listen: false,
+              );
+              final momentProvider = Provider.of<MomentProvider>(
+                context,
+                listen: false,
+              );
 
               await locationProvider.updateUserLocation(snapshot.data!.uid);
 
@@ -194,12 +237,15 @@ class AuthWrapper extends StatelessWidget {
               }
 
               if (profileProvider.userData != null) {
-                locationProvider.loadSettingsFromUser(profileProvider.userData!);
+                locationProvider.loadSettingsFromUser(
+                  profileProvider.userData!,
+                );
               }
 
               final currentUserId = FirebaseAuth.instance.currentUser?.uid;
               if (currentUserId != null) {
-                final matches = await matchProvider.fetchMatchedUsersWithMatchId(currentUserId);
+                final matches = await matchProvider
+                    .fetchMatchedUsersWithMatchId(currentUserId);
                 for (var match in matches) {
                   final matchId = match['matchId'] as String;
                   final peerUser = match['user'] as UserModel;
@@ -207,7 +253,10 @@ class AuthWrapper extends StatelessWidget {
                   chatProvider.listenForIncomingCalls(matchId, peerUser);
                 }
 
-                developer.log('Starting moment reactions listener...', name: 'Auth');
+                developer.log(
+                  'Starting moment reactions listener...',
+                  name: 'Auth',
+                );
                 await momentProvider.listenMoments(currentUserId);
                 developer.log('Moment listener started', name: 'Auth');
               }
@@ -215,7 +264,7 @@ class AuthWrapper extends StatelessWidget {
               developer.log('Error getting FCM token: $e', name: 'Auth');
             }
           });
-          
+
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
                 .collection('users')
@@ -231,19 +280,25 @@ class AuthWrapper extends StatelessWidget {
                       children: [
                         CircularProgressIndicator(color: Colors.deepOrange),
                         SizedBox(height: 16),
-                        Text('Đang kiểm tra quyền truy cập...', style: TextStyle(color: Colors.grey)),
+                        Text(
+                          'Đang kiểm tra quyền truy cập...',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
                   ),
                 );
               }
 
-              if (userSnapshot.hasError || !userSnapshot.hasData || !userSnapshot.data!.exists) {
+              if (userSnapshot.hasError ||
+                  !userSnapshot.hasData ||
+                  !userSnapshot.data!.exists) {
                 return LoginScreen();
               }
 
-              final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-              
+              final userData =
+                  userSnapshot.data!.data() as Map<String, dynamic>?;
+
               if (userData == null) {
                 return LoginScreen();
               }

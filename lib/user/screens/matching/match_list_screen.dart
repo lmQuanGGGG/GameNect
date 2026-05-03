@@ -9,6 +9,7 @@ import 'dart:ui';
 import '../premium/subscription_screen.dart';
 import '../../../core/providers/profile_provider.dart';
 import 'dart:developer' as developer;
+import '../../widgets/tab_bar_visibility.dart';
 
 // Màn hình danh sách match và tin nhắn
 // Hiển thị dãy avatar ngang của các match và danh sách chat dọc
@@ -54,28 +55,39 @@ class _MatchListScreenState extends State<MatchListScreen> {
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF101012),
       appBar: AppBar(
-        backgroundColor: Colors.white.withValues(alpha: 0.5),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         toolbarHeight: 60,
         titleSpacing: 0,
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.3),
+            ),
+          ),
+        ),
         title: Row(
           children: [
             const Padding(
               padding: EdgeInsets.only(left: 12.0),
               child: Icon(
                 Icons.sports_esports,
-                color: Colors.deepOrange,
+                color: Color(0xFFFF6E40),
                 size: 26,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'gamenect',
               style: TextStyle(
-                color: Colors.deepOrange,
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontSize: 22,
+                shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)],
               ),
             ),
           ],
@@ -149,8 +161,42 @@ class _MatchListScreenState extends State<MatchListScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _matchStream, // Dùng stream đã tạo trong initState
+      body: Stack(
+        children: [
+          // Background Orbs
+          Positioned(
+            top: 50, left: -50,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: 100, spreadRadius: 40)],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 100, right: -80,
+            child: Container(
+              width: 350, height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFBF360C).withValues(alpha: 0.15),
+                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: 120, spreadRadius: 50)],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+
+          // Content
+          SafeArea(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _matchStream,
         builder: (context, snapshot) {
           // Xử lý các trạng thái loading, error, no data
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -203,18 +249,27 @@ class _MatchListScreenState extends State<MatchListScreen> {
 
           developer.log('Sorted by message time: ${sortedByMessageTime.map((m) => '${(m['user'] as UserModel).username}: ${m['lastMessageTime']}')}', name: 'MatchListScreen');
 
-          return ListView(
+          return NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              // Truyền scroll event lên TabBarVisibility để auto-hide TabBar
+              try {
+                TabBarVisibility.of(context).update(n);
+              } catch (_) {}
+              return false;
+            },
+            child: ListView(
             padding: EdgeInsets.zero,
             children: [
               // Header cho dãy avatar
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 16, bottom: 4),
                 child: Text(
-                  'Danh sách tương hợp',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                  'TƯƠNG HỢP MỚI',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
@@ -326,8 +381,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                                 onPressed: () =>
                                                     Navigator.pop(ctx, true),
                                                 style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      Colors.deepOrange,
+                                                  backgroundColor: const Color(0xFFFF6E40),
                                                   foregroundColor: Colors.white,
                                                   padding:
                                                       const EdgeInsets.symmetric(
@@ -377,50 +431,52 @@ class _MatchListScreenState extends State<MatchListScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Avatar với viền gradient
+                            // Avatar với viền gradient Liquid
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFee9ca7),
-                                    Color(0xFFffdde1),
-                                  ],
+                                  colors: [Color(0xFFFF6E40), Color(0xFFFF8A65)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 2),
+                                    color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
                                   ),
                                 ],
                               ),
-                              padding: const EdgeInsets.all(3),
-                              child: CircleAvatar(
-                                radius: 30,
-                                backgroundImage:
-                                    user.avatarUrl != null &&
-                                        user.avatarUrl!.isNotEmpty
-                                    ? CachedNetworkImageProvider(
-                                        user.avatarUrl!,
-                                      )
-                                    : null,
-                                child: user.avatarUrl == null
-                                    ? const Icon(Icons.person, size: 30)
-                                    : null,
+                              padding: const EdgeInsets.all(2.5),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFF101012),
+                                ),
+                                padding: const EdgeInsets.all(2),
+                                child: CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                      ? CachedNetworkImageProvider(user.avatarUrl!)
+                                      : null,
+                                  child: user.avatarUrl == null
+                                      ? const Icon(Icons.person, size: 28, color: Colors.white)
+                                      : null,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             // Tên user
                             SizedBox(
-                              width: 60,
+                              width: 66,
                               child: Text(
                                 user.username,
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
@@ -433,47 +489,49 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   ),
                 ),
               ),
-              // Thanh tìm kiếm
+              // Thanh tìm kiếm (Liquid Glass Pill)
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Tìm kiếm tên...',
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 0,
-                      horizontal: 16,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                      ),
+                      child: TextField(
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Tìm kiếm tên...',
+                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                          prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.7)),
+                          filled: false,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (value) => setState(() => searchText = value),
+                      ),
                     ),
                   ),
-                  onChanged: (value) {
-                    setState(() {
-                      searchText = value;
-                    });
-                  },
                 ),
               ),
               // Header cho danh sách tin nhắn
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 12, bottom: 4),
                 child: Text(
-                  'Tin nhắn',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                  'TIN NHẮN',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
-              const Divider(height: 1),
+              const SizedBox(height: 8),
               // Danh sách chat dọc, sắp xếp theo thời gian tin nhắn cuối
               ...sortedByMessageTime.map((item) {
                 final matchId = item['matchId'] as String;
@@ -492,59 +550,57 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     );
                   },
                   child: ListTile(
-                    leading: CircleAvatar(
-                      radius: 28,
-                      backgroundImage:
-                          user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                          ? CachedNetworkImageProvider(user.avatarUrl!)
-                          : null,
-                      child: user.avatarUrl == null
-                          ? const Icon(Icons.person, size: 28)
-                          : null,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    leading: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                      ),
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                            ? CachedNetworkImageProvider(user.avatarUrl!)
+                            : null,
+                        child: user.avatarUrl == null ? const Icon(Icons.person, size: 28, color: Colors.white) : null,
+                      ),
                     ),
                     title: Text(
                       user.username,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.normal,
-                      ),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${user.age} tuổi • ${user.location}',
-                          style: const TextStyle(fontSize: 13),
+                          style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)),
                         ),
-                        // Hiển thị preview tin nhắn cuối nếu có
                         if (lastMessage != null)
                           Text(
                             lastMessage,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.4)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                       ],
                     ),
-                    // Hiển thị thời gian tin nhắn cuối
                     trailing: lastMessageTime != null
                         ? Text(
                             _formatTime(lastMessageTime),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFFF6E40), fontWeight: FontWeight.w500),
                           )
                         : null,
                   ),
                 );
               }).toList(),
             ],
-          );
+           ), // đóng ListView
+          ); // đóng NotificationListener
         },
+      ),
+      ),
+      ],
       ),
     );
   }

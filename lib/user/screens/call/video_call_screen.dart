@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -51,6 +52,31 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   // Flag để track xem cuộc gọi có được trả lời không
   bool _callAnswered = false;
+
+  // Real-time Timer
+  Timer? _activeCallTimer;
+  int _activeDuration = 0;
+
+  // Draggable PiP Coordinates
+  double _localViewX = 24.0;
+  double _localViewY = 140.0;
+
+  void _startActiveTimer() {
+    if (_activeCallTimer != null) return;
+    _activeCallTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _activeDuration++;
+        });
+      }
+    });
+  }
+
+  String _formatActiveDuration() {
+    final m = (_activeDuration ~/ 60).toString().padLeft(2, '0');
+    final s = (_activeDuration % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   @override
   void initState() {
@@ -164,6 +190,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               setState(() {
                 _remoteUid = remoteUid;
                 _callAnswered = true; // Đánh dấu cuộc gọi đã được trả lời
+                _startActiveTimer(); // Bắt đầu đếm thời gian thực
               });
             }
           },
@@ -241,6 +268,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
+    _activeCallTimer?.cancel();
     _callStatusSubscription?.cancel(); // Hủy subscription Firestore
     _callTimeoutTimer?.cancel(); // Hủy timer timeout
     _dispose(); // Cleanup Agora engine
@@ -259,6 +287,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   // Kết thúc cuộc gọi và lưu lịch sử
   Future<void> _leaveChannel() async {
+    _activeCallTimer?.cancel();
     _callTimeoutTimer?.cancel();
     _callStatusSubscription?.cancel();
     
@@ -331,175 +360,301 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Lắng nghe trạng thái cuộc gọi từ Firestore để tự động thoát khi ended
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('calls').doc(widget.channelName).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data?.get('status') == 'ended') {
-          // Thoát màn hình gọi nếu trạng thái là ended
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (Navigator.canPop(context)) Navigator.pop(context);
           });
         }
 
-        // Hiển thị loading khi đang khởi tạo engine
         if (_engine == null || !_isInitialized) {
-          return Scaffold(
-            backgroundColor: Colors.black,
+          return const Scaffold(
+            backgroundColor: Color(0xFF101012),
             body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(color: Colors.white),
-                  const SizedBox(height: 16),
-                  const Text('Đang kết nối...', style: TextStyle(color: Colors.white)),
-                ],
-              ),
+              child: CircularProgressIndicator(color: Color(0xFFFF6E40)),
             ),
           );
         }
 
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: const Color(0xFF101012),
           body: Stack(
             children: [
-              // UI cho voice call: hiển thị avatar và tên
-              if (widget.isVoiceCall)
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.white24,
-                        backgroundImage: widget.peerAvatarUrl != null && widget.peerAvatarUrl!.isNotEmpty
-                            ? NetworkImage(widget.peerAvatarUrl!)
-                            : null,
-                        child: widget.peerAvatarUrl == null || widget.peerAvatarUrl!.isEmpty
-                            ? const Icon(Icons.person, size: 60, color: Colors.white)
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        widget.peerUsername,
-                        style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 10),
-                      const Text('Đang gọi thoại...', style: TextStyle(color: Colors.white70, fontSize: 18)),
-                    ],
+              // ================= BACKGROUND =================
+              if (widget.isVoiceCall) ...[
+                // Nền đen chủ đạo
+                Positioned.fill(child: Container(color: const Color(0xFF101012))),
+                // Orbs phát sáng ảo diệu cho Voice Call
+                Positioned(
+                  top: MediaQuery.of(context).size.height * 0.2,
+                  left: -50,
+                  child: Container(
+                    width: 300, height: 300,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.15), blurRadius: 100, spreadRadius: 40),
+                      ],
+                    ),
                   ),
-                )
-              // UI cho video call: hiển thị video remote và local
-              else ...[
-                // Video remote chiếm toàn màn hình
+                ),
+                Positioned(
+                  bottom: MediaQuery.of(context).size.height * 0.2,
+                  right: -80,
+                  child: Container(
+                    width: 350, height: 350,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFBF360C).withValues(alpha: 0.15),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.15), blurRadius: 120, spreadRadius: 50),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ] else ...[
+                // Video Remote Full Màn Hình
                 Positioned.fill(
                   child: _remoteUid != null
-                    ? AgoraVideoView(
-                        controller: VideoViewController.remote(
-                          rtcEngine: _engine!,
-                          canvas: VideoCanvas(uid: _remoteUid),
-                          connection: RtcConnection(channelId: widget.channelName),
-                        ),
-                      )
-                    : Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF232526), Color(0xFF414345)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                      ? AgoraVideoView(
+                          controller: VideoViewController.remote(
+                            rtcEngine: _engine!,
+                            canvas: VideoCanvas(uid: _remoteUid),
+                            connection: RtcConnection(channelId: widget.channelName),
+                          ),
+                        )
+                      : Container(
+                          color: const Color(0xFF101012),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.person, size: 80, color: Colors.white24),
+                                const SizedBox(height: 16),
+                                Text('Đang kết nối tới ${widget.peerUsername}...', style: const TextStyle(color: Colors.white54, fontSize: 16)),
+                              ],
+                            ),
                           ),
                         ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.person, size: 100, color: Colors.white54),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Đang chờ ${widget.peerUsername} vào phòng...',
-                                style: const TextStyle(color: Colors.white70, fontSize: 18),
-                              ),
+                ),
+              ],
+
+              // ================= GRADIENT OVERLAYS =================
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 180,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.7),
+                              Colors.black.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
                       ),
+                      const Spacer(),
+                      Container(
+                        height: 250,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.8),
+                              Colors.black.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                // Video local (của mình) ở góc dưới bên phải
-                Positioned(
-                  bottom: 100,
-                  right: 20,
-                  child: Container(
-                    width: 100,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white, width: 2),
+              ),
+
+              // ================= HEADER: INFO & TIMER =================
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 0, right: 0,
+                child: Column(
+                  children: [
+                    Text(
+                      widget.peerUsername,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        shadows: [Shadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 2))],
+                      ),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: _isCameraOff
-                          ? Container(
-                              color: Colors.black54,
-                              child: const Center(
-                                child: Icon(Icons.videocam_off, color: Colors.white, size: 40),
+                    const SizedBox(height: 8),
+                    Text(
+                      _callAnswered ? _formatActiveDuration() : 'Đang đổ chuông...',
+                      style: TextStyle(
+                        color: _callAnswered ? const Color(0xFFFF6E40) : Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.0,
+                        shadows: const [Shadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 1))],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ================= VOICE CALL AVATAR (Pulsating) =================
+              if (widget.isVoiceCall)
+                Center(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 1.0, end: _callAnswered ? 1.05 : 1.0),
+                    duration: const Duration(milliseconds: 1000),
+                    curve: Curves.easeInOut,
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              if (_callAnswered)
+                                BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 40, spreadRadius: 10),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 80,
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            backgroundImage: widget.peerAvatarUrl?.isNotEmpty == true
+                                ? NetworkImage(widget.peerAvatarUrl!)
+                                : null,
+                            child: widget.peerAvatarUrl?.isEmpty ?? true
+                                ? const Icon(Icons.person, size: 60, color: Colors.white)
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              // ================= LOCAL VIDEO (Draggable PiP) =================
+              if (!widget.isVoiceCall)
+                Positioned(
+                  bottom: _localViewY,
+                  right: _localViewX,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        // Kéo thả và giới hạn trong khung hình
+                        final screenW = MediaQuery.of(context).size.width;
+                        final screenH = MediaQuery.of(context).size.height;
+                        
+                        _localViewX -= details.delta.dx;
+                        _localViewY -= details.delta.dy;
+                        
+                        // Clamp để không văng ra ngoài
+                        _localViewX = _localViewX.clamp(16.0, screenW - 136.0); // 120 = width + 16 padding
+                        _localViewY = _localViewY.clamp(130.0, screenH - 180.0); // Chừa chỗ cho Control Bar dưới
+                      });
+                    },
+                    child: Container(
+                      width: 110, height: 160,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2, offset: const Offset(0, 10)),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14.5),
+                        child: _isCameraOff
+                            ? BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  child: const Center(child: Icon(Icons.videocam_off, color: Colors.white54, size: 36)),
+                                ),
+                              )
+                            : AgoraVideoView(
+                                controller: VideoViewController(
+                                  rtcEngine: _engine!,
+                                  canvas: const VideoCanvas(uid: 0),
+                                ),
                               ),
-                            )
-                          : AgoraVideoView(
-                              controller: VideoViewController(
-                                rtcEngine: _engine!,
-                                canvas: const VideoCanvas(uid: 0),
-                              ),
-                            ),
+                      ),
                     ),
                   ),
                 ),
-              ],
-              // Các nút điều khiển ở dưới cùng (Instagram style)
+
+              // ================= LIQUID GLASS CONTROL BAR =================
               Positioned(
-                bottom: 40,
-                left: 0,
-                right: 0,
-                child: Column(
-                  children: [
-                    // Nút kết thúc gọi màu đỏ
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+                left: 24, right: 24,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(40),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(40),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
+                        ],
                       ),
-                      icon: const Icon(Icons.call_end, color: Colors.white),
-                      label: const Text('Kết thúc', style: TextStyle(fontSize: 18, color: Colors.white)),
-                      onPressed: () async {
-                        // Kết thúc cuộc gọi và lưu lịch sử
-                        await _leaveChannel();
-                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildGlassButton(
+                            icon: _isMuted ? Icons.mic_off : Icons.mic,
+                            isActive: !_isMuted,
+                            onTap: _toggleMute,
+                          ),
+                          _buildGlassButton(
+                            icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
+                            isActive: !_isCameraOff,
+                            onTap: _toggleCamera,
+                          ),
+                          _buildGlassButton(
+                            icon: Icons.cameraswitch_rounded,
+                            isActive: true,
+                            onTap: _switchCamera,
+                          ),
+                          // Nút End Call đặc biệt (Đỏ)
+                          GestureDetector(
+                            onTap: _leaveChannel,
+                            child: Container(
+                              width: 54, height: 54,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFFFF3B30),
+                                boxShadow: [
+                                  BoxShadow(color: const Color(0xFFFF3B30).withValues(alpha: 0.4), blurRadius: 16, spreadRadius: 2, offset: const Offset(0, 4)),
+                                ],
+                              ),
+                              child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 28),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 18),
-                    // Dãy nút điều khiển: Mute, Camera, Switch Camera
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildCircleButton(
-                          icon: _isMuted ? Icons.mic_off : Icons.mic,
-                          color: _isMuted ? Colors.red : Colors.white,
-                          onTap: _toggleMute,
-                        ),
-                        const SizedBox(width: 28),
-                        _buildCircleButton(
-                          icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
-                          color: _isCameraOff ? Colors.red : Colors.white,
-                          onTap: _toggleCamera,
-                        ),
-                        const SizedBox(width: 28),
-                        _buildCircleButton(
-                          icon: Icons.cameraswitch,
-                          color: Colors.white,
-                          onTap: _switchCamera,
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -509,19 +664,18 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     );
   }
 
-  // Widget helper để tạo nút tròn điều khiển
-  Widget _buildCircleButton({required IconData icon, required Color color, required VoidCallback onTap}) {
+  // Nút bấm hiệu ứng kính mờ bên trong Control Bar
+  Widget _buildGlassButton({required IconData icon, required bool isActive, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 54,
-        height: 54,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 54, height: 54,
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.5),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white24, width: 2),
+          color: isActive ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.3),
         ),
-        child: Icon(icon, color: color, size: 28),
+        child: Icon(icon, color: isActive ? Colors.white : const Color(0xFF101012), size: 26),
       ),
     );
   }

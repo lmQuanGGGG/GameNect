@@ -321,35 +321,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
+        backgroundColor: Color(0xFF101012),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
       );
     }
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF101012),
       appBar: AppBar(
         title: Text(_isUpdating ? 'Chỉnh sửa hồ sơ' : 'Tạo hồ sơ', style: const TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Stack(
         children: [
-          Positioned.fill(
+          // Background Orbs
+          Positioned(
+            top: 50, right: -50,
             child: Container(
+              width: 300, height: 300,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue.shade900.withValues(alpha: 0.85),
-                    Colors.deepOrange.shade400.withValues(alpha: 0.55),
-                    Colors.black.withValues(alpha: 0.8),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                shape: BoxShape.circle,
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: 100, spreadRadius: 40)],
               ),
             ),
           ),
+          Positioned(
+            bottom: -80, left: -80,
+            child: Container(
+              width: 350, height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFBF360C).withValues(alpha: 0.15),
+                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: 120, spreadRadius: 50)],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          
           Align(
             alignment: Alignment.topCenter,
             child: SingleChildScrollView(
@@ -366,11 +383,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         constraints: const BoxConstraints(maxWidth: 500),
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.13),
+                          color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.5),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
                           boxShadow: [
-                            BoxShadow(color: Colors.blue.withValues(alpha: 0.10), blurRadius: 24, offset: const Offset(0, 8)),
+                            BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, 8)),
                           ],
                         ),
                         child: Form(
@@ -381,7 +398,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Hình ảnh', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue[700])),
+                                  Text('Hình ảnh', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                                   const SizedBox(height: 18),
                                   AvatarPickerSection(
                                     avatarImage: _avatarImage,
@@ -395,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 24),
                                   
-                                  Text('Thông tin cơ bản', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue[700])),
+                                  Text('Thông tin cơ bản', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                                   const SizedBox(height: 18),
                                   BasicInfoSection(
                                     usernameController: _usernameController,
@@ -411,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 24),
                                   
-                                  Text('Thông tin Gaming', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue[700])),
+                                  Text('Thông tin Gaming', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                                   const SizedBox(height: 18),
                                   GamingSection(
                                     rank: _rank,
@@ -437,18 +454,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(height: 32),
                                   
                                   Center(
-                                    child: ElevatedButton(
-                                      onPressed: _handleSave,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.deepOrange[400],
-                                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                        elevation: 8,
-                                        shadowColor: Colors.deepOrange,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                            blurRadius: 16,
+                                            spreadRadius: 2,
+                                          ),
+                                        ],
                                       ),
-                                      child: Text(
-                                        _isUpdating ? 'Cập nhật hồ sơ' : 'Lưu hồ sơ',
-                                        style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                                      child: ElevatedButton(
+                                        onPressed: _handleSave,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFFF6E40),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          elevation: 0,
+                                        ),
+                                        child: Text(
+                                          _isUpdating ? 'Cập nhật hồ sơ' : 'Lưu hồ sơ',
+                                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                                        ),
                                       ),
                                     ),
                                   ),

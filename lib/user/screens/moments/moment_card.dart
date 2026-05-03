@@ -58,12 +58,20 @@ class MomentCard extends StatelessWidget {
       builder: (context) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          margin: const EdgeInsets.all(12),
+          margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+            color: const Color(0xFF101012).withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(36),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.25),
+                blurRadius: 30,
+                spreadRadius: 2,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -92,9 +100,16 @@ class MomentCard extends StatelessWidget {
                     child: Container(
                       width: 68, height: 68,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: Colors.white.withValues(alpha: 0.05),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
                     ),
@@ -127,9 +142,16 @@ class MomentCard extends StatelessWidget {
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+                  color: const Color(0xFF101012).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -141,9 +163,16 @@ class MomentCard extends StatelessWidget {
                     const SizedBox(height: 20),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
                       ),
                       child: TextField(
                         controller: controller,
@@ -201,11 +230,16 @@ class MomentCard extends StatelessWidget {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepOrange,
+                            backgroundColor: Colors.transparent,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: const Color(0xFFFF6E40).withValues(alpha: 0.5)),
+                            ),
                             elevation: 0,
+                          ).copyWith(
+                            backgroundColor: WidgetStateProperty.resolveWith((states) => const Color(0xFFFF6E40).withValues(alpha: 0.8)),
                           ),
                           child: const Text('Gửi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         ),
@@ -222,6 +256,12 @@ class MomentCard extends StatelessWidget {
   }
 
   void _showReactionUsers(BuildContext context, List reactions) {
+    // Group reactions by userId
+    final Map<String, List<String>> byUser = {};
+    for (final r in reactions) {
+      final uid = r['userId'] as String? ?? '';
+      byUser.putIfAbsent(uid, () => []).add(r['emoji'] as String? ?? '❤️');
+    }
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -255,54 +295,49 @@ class MomentCard extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   shrinkWrap: true,
-                  children: reactions.map<Widget>((reaction) {
+                  children: byUser.entries.map<Widget>((entry) {
                     return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(reaction['userId'])
-                          .get(),
+                      future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
                       builder: (context, snapshot) {
                         final user = snapshot.data?.data() as Map<String, dynamic>?;
                         final avatarUrl = user?['avatarUrl'];
-                        final username = user?['username'] ?? reaction['userId'];
+                        final username = user?['username'] ?? entry.key;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            leading: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
-                              ),
-                              child: CircleAvatar(
-                                radius: 24,
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
                                 backgroundColor: Colors.grey[800],
                                 backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
                                 child: avatarUrl == null
-                                    ? Text(
-                                        username.isNotEmpty ? username[0].toUpperCase() : '?',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                                      )
+                                    ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))
                                     : null,
                               ),
-                            ),
-                            title: Text(username,
-                                style: const TextStyle(
-                                    color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-                            trailing: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(username,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
                               ),
-                              child: Text(reaction['emoji'] ?? '❤️',
-                                  style: const TextStyle(fontSize: 24)),
-                            ),
+                              // All emojis from this user
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: entry.value.map((e) =>
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4),
+                                      child: Text(e, style: const TextStyle(fontSize: 22)),
+                                    )
+                                ).toList(),
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -376,10 +411,10 @@ class MomentCard extends StatelessWidget {
                 ),
               ),
 
-              // User info + caption + reactions
+              // User info + caption
               Positioned(
-                left: 20, right: 20,
-                bottom: moment.reactions.isNotEmpty ? 140 : 120,
+                left: 20, right: 80,
+                bottom: 120,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -433,150 +468,140 @@ class MomentCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis),
                     ],
 
-                    // Reactions chips
+                    // Reactions grouped by user (like TikTok)
                     if (moment.reactions.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8, runSpacing: 8,
-                        children: moment.reactions.take(5).map<Widget>((reaction) {
-                          return GestureDetector(
-                            onTap: () => _showReactionUsers(context, moment.reactions),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.3), width: 1),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      FutureBuilder<DocumentSnapshot>(
-                                        future: FirebaseFirestore.instance
-                                            .collection('users')
-                                            .doc(reaction['userId'])
-                                            .get(),
-                                        builder: (context, snapshot) {
-                                          final user = snapshot.data?.data() as Map<String, dynamic>?;
-                                          final avatarUrl = user?['avatarUrl'];
-                                          final uname = user?['username'] ?? '';
-                                          return CircleAvatar(
-                                            radius: 10,
-                                            backgroundColor: Colors.grey[700],
-                                            backgroundImage: avatarUrl != null
-                                                ? NetworkImage(avatarUrl)
-                                                : null,
-                                            child: avatarUrl == null
-                                                ? Text(
-                                                    uname.isNotEmpty ? uname[0].toUpperCase() : '?',
-                                                    style: const TextStyle(
-                                                        color: Colors.white, fontSize: 10,
-                                                        fontWeight: FontWeight.w600))
-                                                : null,
-                                          );
-                                        },
+                      const SizedBox(height: 14),
+                      GestureDetector(
+                        onTap: () => _showReactionUsers(context, moment.reactions),
+                        child: Builder(builder: (context) {
+                          // Group by user
+                          final Map<String, List<String>> byUser = {};
+                          for (final r in moment.reactions) {
+                            final uid = r['userId'] as String? ?? '';
+                            byUser.putIfAbsent(uid, () => []).add(r['emoji'] as String? ?? '❤️');
+                          }
+                          return Wrap(
+                            spacing: 8, runSpacing: 8,
+                            children: byUser.entries.take(4).map<Widget>((entry) {
+                              return FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                                builder: (context, snapshot) {
+                                  final user = snapshot.data?.data() as Map<String, dynamic>?;
+                                  final av = user?['avatarUrl'];
+                                  final uname = user?['username'] ?? '';
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(24),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 11,
+                                              backgroundColor: Colors.grey[700],
+                                              backgroundImage: av != null ? NetworkImage(av) : null,
+                                              child: av == null
+                                                  ? Text(uname.isNotEmpty ? uname[0].toUpperCase() : '?',
+                                                      style: const TextStyle(color: Colors.white, fontSize: 9,
+                                                          fontWeight: FontWeight.w700))
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            // All emojis inline
+                                            ...entry.value.take(3).map((e) =>
+                                              Text(e, style: const TextStyle(fontSize: 14))
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      const SizedBox(width: 5),
-                                      Text(reaction['emoji'] ?? '❤️',
-                                          style: const TextStyle(fontSize: 14)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
+                                    ),
+                                  );
+                                },
+                              );
+                            }).toList(),
                           );
-                        }).toList(),
+                        }),
                       ),
                     ],
                   ],
                 ),
               ),
 
-              // Action buttons bar
+              // TikTok-style vertical emoji bar on the RIGHT
               Positioned(
-                left: 20, right: 20, bottom: 40,
-                child: Row(
+                right: 12,
+                bottom: 130,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Reactions + emoji picker
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(30),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Container(
-                            height: 56,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.4), width: 1.5),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 15, offset: const Offset(0, 5)),
-                              ],
+                    ...['❤️', '😂', '🔥', '😍'].map((emoji) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: GestureDetector(
+                        onTap: () {
+                          Provider.of<MomentProvider>(context, listen: false)
+                              .reactToMoment(moment.id, currentUserId, emoji);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(emoji,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 28)),
+                              duration: const Duration(milliseconds: 600),
+                              backgroundColor: Colors.transparent,
+                              elevation: 0,
+                              behavior: SnackBarBehavior.floating,
                             ),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              physics: const BouncingScrollPhysics(),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ...['❤️', '😂'].map((emoji) => Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        Provider.of<MomentProvider>(context, listen: false)
-                                            .reactToMoment(moment.id, currentUserId, emoji);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(emoji,
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(fontSize: 24)),
-                                            duration: const Duration(milliseconds: 600),
-                                            backgroundColor: Colors.transparent,
-                                            elevation: 0,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      },
-                                      child: Container(
-                                        width: 40, height: 40,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.15),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                            child: Text(emoji,
-                                                style: const TextStyle(fontSize: 20))),
-                                      ),
-                                    ),
-                                  )),
-                                  GestureDetector(
-                                    onTap: () => _showReactionPicker(context, moment.id, currentUserId),
-                                    child: Container(
-                                      width: 40, height: 40,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.15),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.add_rounded,
-                                          color: Colors.white, size: 22),
-                                    ),
-                                  ),
-                                ],
+                          );
+                        },
+                        child: ClipOval(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: Container(
+                              width: 48, height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1),
                               ),
+                              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
                             ),
                           ),
                         ),
                       ),
+                    )),
+                    // + button
+                    GestureDetector(
+                      onTap: () => _showReactionPicker(context, moment.id, currentUserId),
+                      child: ClipOval(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                          child: Container(
+                            width: 48, height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
+                            ),
+                            child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                          ),
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+
+              // Action buttons bar (camera + send only)
+              Positioned(
+                left: 20, right: 20, bottom: 40,
+                child: Row(
+                  children: [
 
                     const SizedBox(width: 12),
 

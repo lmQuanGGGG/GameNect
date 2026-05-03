@@ -13,7 +13,7 @@
  * 1. Push notifications cho tin nhắn, cuộc gọi, reactions
  * 2. PayOS webhook để xử lý thanh toán Premium
  */
-const {setGlobalOptions} = require("firebase-functions");
+
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {defineSecret} = require("firebase-functions/params");
@@ -25,13 +25,13 @@ admin.initializeApp();
 // Load secret key từ Firebase Secret Manager
 const payosChecksumKey = defineSecret("PAYOS_CHECKSUM_KEY");
 
-// Giới hạn tối đa 10 instances chạy đồng thời
-setGlobalOptions({ maxInstances: 10 });
+// setGlobalOptions được cấu hình trong index1.js (region, memory, timeout, maxInstances)
 
 // Export các function push notification
 exports.sendMessageNotification = pushNotifications.sendMessageNotification;
 exports.sendCallNotification = pushNotifications.sendCallNotification;
 exports.sendMomentReactionNotification = pushNotifications.sendMomentReactionNotification;
+exports.sendLikeNotification = pushNotifications.sendLikeNotification;
 
 /**
  * PayOS Webhook Handler

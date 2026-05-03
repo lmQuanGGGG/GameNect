@@ -55,21 +55,28 @@ class MatchProvider with ChangeNotifier {
         }
       }
 
-      // Lọc user: chưa swipe, đúng tuổi, giới tính, khoảng cách, có chung game
+      // Lọc cứng: bỏ user đã swipe, không đúng giới tính, vượt khoảng cách tối đa
+      // filterCommonGame = true → chỉ lấy người có chung ít nhất 1 game (user tự chọn)
+      final filterGame = currentUser.filterCommonGame;
       final filteredCandidates = candidateUsers.where((user) {
-        final notSwiped = !swipedUserIds.contains(user.id);
-        final ageOk = user.age >= minAge && user.age <= maxAge;
-        final notCurrentUser = user.id != currentUser.id; 
-        final genderOk = interestedInGender == 'Tất cả' || user.gender == interestedInGender;
-        final distanceOk = user.distanceKm == null || user.distanceKm! <= maxDistance;
-
-        // THÊM ĐIỀU KIỆN CHUNG GAME
-        final hasCommonGame = user.favoriteGames.any((game) => currentUser.favoriteGames.contains(game));
-
-        return notCurrentUser && notSwiped && ageOk && genderOk && distanceOk && hasCommonGame;
+        final notCurrentUser = user.id != currentUser.id;
+        final notSwiped     = !swipedUserIds.contains(user.id);
+        final ageOk         = user.age >= minAge && user.age <= maxAge;
+        final genderOk      = interestedInGender == 'Tất cả' ||
+                              user.gender == interestedInGender;
+        final distanceOk    = user.distanceKm == null ||
+                              user.distanceKm! <= maxDistance;
+        // Game filter — chỉ áp dụng khi user bật tùy chọn này
+        final gameOk        = !filterGame ||
+                              user.favoriteGames.any(currentUser.favoriteGames.contains);
+        return notCurrentUser && notSwiped && ageOk && genderOk && distanceOk && gameOk;
       }).toList();
 
-      debugPrint('Filtered candidates: ${filteredCandidates.length}/${candidateUsers.length}');
+      final withCommonGame = filteredCandidates
+          .where((u) => u.favoriteGames.any(currentUser.favoriteGames.contains))
+          .length;
+      debugPrint('Filtered: ${filteredCandidates.length}/${candidateUsers.length} '
+          '(chung game: $withCommonGame | filterGame=$filterGame)');
 
       // Chuẩn bị dữ liệu gửi lên API
       final url = Uri.parse('https://web-production-188ce.up.railway.app/recommend');
@@ -400,6 +407,10 @@ class MatchProvider with ChangeNotifier {
             } else {
               lastMessage = isVideo ? 'Đã gửi video' : 'Đã gửi hình ảnh';
             }
+            break;
+          
+          case 'game':
+            lastMessage = isMe ? 'Bạn: Đã chia sẻ một trò chơi' : 'Đã chia sẻ một trò chơi';
             break;
           
           default:

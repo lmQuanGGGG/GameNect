@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/profile_card.dart'; // Thay vì user_card.dart
 import '../../../core/services/firestore_service.dart';
 import 'match_list_screen.dart';
 import '../premium/subscription_screen.dart';
+import '../../widgets/tab_bar_visibility.dart';
 
 // Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 
@@ -107,9 +109,7 @@ class _MatchScreenState extends State<MatchScreen> {
                 // Điều hướng đến màn hình danh sách match
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const MatchListScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const MatchListScreen()),
                 );
               },
               child: const Text(
@@ -126,31 +126,45 @@ class _MatchScreenState extends State<MatchScreen> {
   @override
   Widget build(BuildContext context) {
     final users = matchProvider.recommendations;
-    
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF101012),
       // AppBar với logo và các nút hành động
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         toolbarHeight: 60,
         titleSpacing: 0,
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(color: Colors.black.withValues(alpha: 0.3)),
+          ),
+        ),
         title: Row(
           children: [
             const Padding(
               padding: EdgeInsets.only(left: 12.0),
               child: Icon(
                 Icons.sports_esports,
-                color: Colors.deepOrange,
+                color: Color(0xFFFF6E40),
                 size: 26,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'gamenect',
               style: TextStyle(
-                color: Colors.deepOrange,
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontSize: 22,
+                shadows: [
+                  Shadow(
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
+                    blurRadius: 12,
+                  ),
+                ],
               ),
             ),
           ],
@@ -166,7 +180,9 @@ class _MatchScreenState extends State<MatchScreen> {
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Colors.amber, Colors.orange.shade600],
@@ -200,18 +216,19 @@ class _MatchScreenState extends State<MatchScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) => const SubscriptionScreen()),
+                        builder: (_) => const SubscriptionScreen(),
+                      ),
                     );
                   },
                   icon: const Icon(
                     Icons.workspace_premium_rounded,
-                    color: Colors.deepOrange,
+                    color: Color(0xFFFF6E40),
                     size: 20,
                   ),
                   label: const Text(
                     'Nâng cấp',
                     style: TextStyle(
-                      color: Colors.deepOrange,
+                      color: Color(0xFFFF6E40),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -227,10 +244,10 @@ class _MatchScreenState extends State<MatchScreen> {
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: const Color(0xFFFF6E40).withValues(alpha: 0.1),
                 shape: const CircleBorder(),
                 padding: const EdgeInsets.all(0),
-                minimumSize: const Size(30, 30),
+                minimumSize: const Size(40, 40),
                 elevation: 0,
               ),
               onPressed: () async {
@@ -263,118 +280,194 @@ class _MatchScreenState extends State<MatchScreen> {
               },
               child: const Icon(
                 Icons.settings,
-                color: Colors.white,
+                color: Color(0xFFFF6E40),
                 size: 20,
               ),
             ),
           ),
         ],
       ),
-      body: matchProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : users.isEmpty
-          ? const Center(child: Text('Không có đề xuất nào'))
-          : SizedBox(
-              height: MediaQuery.of(context).size.height - kToolbarHeight,
-              child: CardSwiper(
-                controller: controller,
-                cardsCount: users.length,
-                // Xây dựng từng card profile
-                cardBuilder:
-                    (
-                      context,
-                      index,
-                      horizontalOffsetPercentage,
-                      verticalOffsetPercentage,
-                    ) {
-                      if (index < 0 || index >= users.length) {
-                        return const SizedBox(); // Trả về widget rỗng nếu index không hợp lệ
-                      }
-                      return ProfileCard(user: users[index]);
-                    },
-                padding: EdgeInsets.zero, // Loại bỏ padding nếu CardSwiper hỗ trợ
-                numberOfCardsDisplayed: users.length < 3
-                    ? users.length
-                    : 3, // Hiển thị tối đa 3 card chồng lên nhau
-                isLoop: false, // Không lặp lại danh sách
-                // Xử lý sự kiện swipe
-                onSwipe: (
-                  int previousIndex,
-                  int? currentIndex,
-                  CardSwiperDirection direction,
-                ) async {
-                  if (previousIndex < 0 || previousIndex >= users.length) return true;
-                  final user = users[previousIndex];
-                  final currentUserId =
-                      FirebaseAuth.instance.currentUser?.uid;
-                  final firestoreService = Provider.of<FirestoreService>(
-                    context,
-                    listen: false,
-                  );
-
-                  if (currentUserId != null) {
-                    if (direction == CardSwiperDirection.right) {
-                      // Swipe phải: like user
-                      // Lưu lịch sử swipe vào Firestore
-                      await firestoreService.saveSwipeHistory(
-                        userId: currentUserId,
-                        targetUserId: user.id,
-                        action: 'like',
-                      );
-
-                      // Kiểm tra xem có match lẫn nhau không
-                      final isMutual = await firestoreService
-                          .checkMutualLike(
-                            userId: currentUserId,
-                            targetUserId: user.id,
-                          );
-
-                      if (isMutual) {
-                        // Tạo match mới
-                        await firestoreService.createNewMatch(
-                          userIds: [currentUserId, user.id],
-                          game: 'Tên game',
-                          expiresAt: DateTime.now().add(
-                            const Duration(hours: 24),
-                          ),
-                        );
-
-                        // QUAN TRỌNG: Đợi animation xong rồi mới show dialog
-                        if (mounted) {
-                          // Đợi 500ms để CardSwiper animation hoàn tất
-                          await Future.delayed(
-                            const Duration(milliseconds: 500),
-                          );
-
-                          if (mounted) {
-                            _showMatchDialog(
-                              context,
-                              user.username,
-                              user.avatarUrl ?? '',
-                            );
-                          }
-                        }
-                      }
-                    } else if (direction == CardSwiperDirection.left) {
-                      // Swipe trái: dislike user
-                      // Lưu lịch sử swipe vào Firestore
-                      await firestoreService.saveSwipeHistory(
-                        userId: currentUserId,
-                        targetUserId: user.id,
-                        action: 'dislike',
-                      );
-                    }
-                  }
-                  return true;
-                },
-                // Khi hết danh sách đề xuất
-                onEnd: () {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Hết đề xuất!')));
-                },
+      body: Stack(
+        children: [
+          // Background Orbs để tạo hiệu ứng Liquid Glass cho Topbar
+          Positioned(
+            top: 0,
+            left: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                    blurRadius: 100,
+                    spreadRadius: 40,
+                  ),
+                ],
               ),
             ),
+          ),
+
+          // Nội dung chính an toàn dưới Topbar
+          SafeArea(
+            child: RefreshIndicator(
+              color: const Color(0xFFFF6E40),
+              backgroundColor: const Color(0xFF1A1A1E),
+              displacement: 20,
+              onRefresh: () async {
+                final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+                final userModel = await firestoreService.getCurrentUser();
+                final candidateUsers = await firestoreService.getAllUsers();
+                if (userModel != null) {
+                  await Provider.of<MatchProvider>(context, listen: false)
+                      .fetchRecommendations(userModel, candidateUsers);
+                  if (mounted) setState(() {});
+                }
+              },
+              child: Listener(
+                // Dùng Listener thay GestureDetector vì CardSwiper nuốt hết gesture events.
+                // Listener nhận raw pointer events TRƯỚC khi bất kỳ widget nào tiêu thụ chúng.
+                onPointerMove: (event) {
+                  try {
+                    final controller = TabBarVisibility.of(context);
+                    final dy = event.delta.dy;
+                    if (dy < -5) {
+                      controller.setVisible(false); // vuốt lên → ẩn
+                    } else if (dy > 5) {
+                      controller.setVisible(true);  // vuốt xuống → hiện
+                    }
+                  } catch (_) {}
+                },
+              child: matchProvider.isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFF6E40),
+                      ),
+                    )
+                  : users.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Không có đề xuất nào',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    )
+                  : SizedBox(
+                      height:
+                          MediaQuery.of(context).size.height -
+                          kToolbarHeight -
+                          20,
+                      child: CardSwiper(
+                        controller: controller,
+                        cardsCount: users.length,
+                        // Xây dựng từng card profile
+                        cardBuilder:
+                            (
+                              context,
+                              index,
+                              horizontalOffsetPercentage,
+                              verticalOffsetPercentage,
+                            ) {
+                              if (index < 0 || index >= users.length) {
+                                return const SizedBox(); // Trả về widget rỗng nếu index không hợp lệ
+                              }
+                              return ProfileCard(user: users[index]);
+                            },
+                        padding: EdgeInsets
+                            .zero, // Loại bỏ padding nếu CardSwiper hỗ trợ
+                        numberOfCardsDisplayed: users.length < 3
+                            ? users.length
+                            : 3, // Hiển thị tối đa 3 card chồng lên nhau
+                        isLoop: false, // Không lặp lại danh sách
+                        // Xử lý sự kiện swipe
+                        onSwipe:
+                            (
+                              int previousIndex,
+                              int? currentIndex,
+                              CardSwiperDirection direction,
+                            ) async {
+                              if (previousIndex < 0 ||
+                                  previousIndex >= users.length)
+                                return true;
+                              final user = users[previousIndex];
+                              final currentUserId =
+                                  FirebaseAuth.instance.currentUser?.uid;
+                              final firestoreService =
+                                  Provider.of<FirestoreService>(
+                                    context,
+                                    listen: false,
+                                  );
+
+                              if (currentUserId != null) {
+                                if (direction == CardSwiperDirection.right) {
+                                  // Swipe phải: like user
+                                  // Lưu lịch sử swipe vào Firestore
+                                  await firestoreService.saveSwipeHistory(
+                                    userId: currentUserId,
+                                    targetUserId: user.id,
+                                    action: 'like',
+                                  );
+
+                                  // Kiểm tra xem có match lẫn nhau không
+                                  final isMutual = await firestoreService
+                                      .checkMutualLike(
+                                        userId: currentUserId,
+                                        targetUserId: user.id,
+                                      );
+
+                                  if (isMutual) {
+                                    // Tạo match mới
+                                    await firestoreService.createNewMatch(
+                                      userIds: [currentUserId, user.id],
+                                      game: 'Tên game',
+                                      expiresAt: DateTime.now().add(
+                                        const Duration(hours: 24),
+                                      ),
+                                    );
+
+                                    // QUAN TRỌNG: Đợi animation xong rồi mới show dialog
+                                    if (mounted) {
+                                      // Đợi 500ms để CardSwiper animation hoàn tất
+                                      await Future.delayed(
+                                        const Duration(milliseconds: 500),
+                                      );
+
+                                      if (mounted) {
+                                        _showMatchDialog(
+                                          context,
+                                          user.username,
+                                          user.avatarUrl ?? '',
+                                        );
+                                      }
+                                    }
+                                  }
+                                } else if (direction ==
+                                    CardSwiperDirection.left) {
+                                  // Swipe trái: dislike user
+                                  // Lưu lịch sử swipe vào Firestore
+                                  await firestoreService.saveSwipeHistory(
+                                    userId: currentUserId,
+                                    targetUserId: user.id,
+                                    action: 'dislike',
+                                  );
+                                }
+                              }
+                              return true;
+                            },
+                        // Khi hết danh sách đề xuất
+                        onEnd: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Hết đề xuất!')),
+                          );
+                        },
+                      ),
+                    ),
+            ), // đóng GestureDetector
+          ),
+          ), // đóng RefreshIndicator
+        ],
+      ),
     );
   }
 }

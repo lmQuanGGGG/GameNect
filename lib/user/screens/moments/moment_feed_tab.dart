@@ -114,8 +114,9 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
 
             final hasMoments = provider.moments.isNotEmpty;
 
+            Widget content;
             if (isGridMode) {
-              return CustomScrollView(
+              content = CustomScrollView(
                 slivers: [
                   SliverToBoxAdapter(
                     child: Padding(
@@ -125,13 +126,13 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                   ),
                   if (hasMoments)
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 120),
                       sliver: SliverGrid(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                          childAspectRatio: 0.75,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.65,
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) => MomentGridItem(
@@ -147,7 +148,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 ],
               );
             } else {
-              return Padding(
+              content = Padding(
                 padding: EdgeInsets.only(top: topPadding),
                 child: PageView.builder(
                   controller: _pageController,
@@ -164,6 +165,19 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 ),
               );
             }
+
+            return RefreshIndicator(
+              color: Colors.deepOrange,
+              backgroundColor: const Color(0xFF1A1A1E),
+              displacement: 20,
+              onRefresh: () async {
+                final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                if (currentUid != null) {
+                  await provider.listenMoments(currentUid);
+                }
+              },
+              child: content,
+            );
           },
         ),
 

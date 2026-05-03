@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
+import '../models/game_model.dart';
 import '../services/notification_service.dart';
 
 // ChatProvider quản lý trạng thái và logic liên quan đến chat, sử dụng ChangeNotifier để cập nhật UI khi dữ liệu thay đổi.
@@ -126,6 +127,32 @@ Future<void> sendMediaWithNotify(
     );
   }
 
+  // Hàm chia sẻ Game
+  Future<void> sendGameMessage(
+    String matchId,
+    GameModel game, {
+    UserModel? peerUser,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    await FirestoreService().sendGameMessage(
+      matchId: matchId,
+      game: game,
+      peerUser: peerUser,
+    );
+    await fetchMessages(matchId);
+    _isLoading = false;
+    notifyListeners();
+
+    if (peerUser != null) {
+      await handleMessageNotification(
+        matchId,
+        'Đã chia sẻ một trò chơi',
+        peerUser,
+      );
+    }
+  }
+
   // Hàm trả về stream danh sách tin nhắn, đồng thời kiểm tra nếu có tin nhắn mới từ đối phương thì gửi thông báo, tránh gửi lặp lại bằng cách kiểm tra id/timestamp
   Stream<List<Map<String, dynamic>>> messagesStream(String matchId, UserModel peerUser) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -144,6 +171,8 @@ Future<void> sendMediaWithNotify(
               notifyText = 'Đã gửi 1 hình ảnh/video';
             } else if (lastMsg['type'] == 'react') {
               notifyText = 'Đã thả cảm xúc';
+            } else if (lastMsg['type'] == 'game') {
+              notifyText = 'Đã chia sẻ một trò chơi';
             } else {
               notifyText = lastMsg['text'] ?? '';
             }

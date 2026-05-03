@@ -272,4 +272,33 @@ extension ChatServiceExtension on FirestoreService {
       SetOptions(merge: true),
     );
   }
+
+  // Chia sẻ Game vào đoạn chat
+  Future<void> sendGameMessage({
+    required String matchId,
+    required GameModel game,
+    UserModel? peerUser,
+  }) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(matchId)
+        .collection('messages')
+        .add({
+          'senderId': userId,
+          'type': 'game',
+          'gameId': game.id,
+          'gameName': game.name,
+          'gameImage': game.backgroundImage,
+          'gameRating': game.rating,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+    await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
+      'lastMessage': 'Đã chia sẻ một trò chơi',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'lastMessageSenderId': userId,
+    });
+  }
 }

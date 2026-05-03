@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../core/providers/subscription_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
+
 
 // Màn hình cấu hình các gói Premium dành cho admin.
 // Kiểm tra quyền admin trước khi cho phép truy cập màn hình này.

@@ -30,6 +30,7 @@ class LocationProvider extends ChangeNotifier {
   int _minAge = 18;
   int _maxAge = 99;
   String _interestedInGender = 'Tất cả';
+  bool _filterCommonGame = false; // Chỉ hiển thị người có chung game
 
   // Các getter để truy cập dữ liệu từ bên ngoài
   bool get isLoading => _isLoading;
@@ -45,6 +46,7 @@ class LocationProvider extends ChangeNotifier {
   int get minAge => _minAge;
   int get maxAge => _maxAge;
   String get interestedInGender => _interestedInGender;
+  bool get filterCommonGame => _filterCommonGame;
 
   // Hàm xin quyền truy cập vị trí từ hệ điều hành
   Future<bool> requestLocationPermission() async {
@@ -165,6 +167,7 @@ class LocationProvider extends ChangeNotifier {
     _minAge = user.minAge;
     _maxAge = user.maxAge;
     _interestedInGender = user.interestedInGender;
+    _filterCommonGame = user.filterCommonGame;
     _latitude = user.latitude;
     _longitude = user.longitude;
     _address = user.address;
@@ -204,6 +207,12 @@ class LocationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Hàm bật/tắt lọc theo game chung
+  void setFilterCommonGame(bool value) {
+    _filterCommonGame = value;
+    notifyListeners();
+  }
+
   // Hàm lưu các cài đặt matching lên Firestore cho user
   Future<bool> saveSettings(String userId) async {
     try {
@@ -220,6 +229,7 @@ class LocationProvider extends ChangeNotifier {
         minAge: _minAge,
         maxAge: _maxAge,
         interestedInGender: _interestedInGender,
+        filterCommonGame: _filterCommonGame,
       );
 
       _logger.info('Đã lưu settings thành công');

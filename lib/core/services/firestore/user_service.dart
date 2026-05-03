@@ -88,6 +88,7 @@ extension UserServiceExtension on FirestoreService {
     int? minAge,
     int? maxAge,
     String? interestedInGender,
+    bool? filterCommonGame,
   }) async {
     try {
       final Map<String, dynamic> updates = {};
@@ -96,6 +97,7 @@ extension UserServiceExtension on FirestoreService {
       if (minAge != null) updates['minAge'] = minAge;
       if (maxAge != null) updates['maxAge'] = maxAge;
       if (interestedInGender != null) updates['interestedInGender'] = interestedInGender;
+      if (filterCommonGame != null) updates['filterCommonGame'] = filterCommonGame;
 
       if (updates.isNotEmpty) {
         await _db.collection('users').doc(userId).update(updates);

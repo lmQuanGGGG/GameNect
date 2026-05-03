@@ -1,23 +1,32 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const admin = require('firebase-admin');
 
-// Cấu hình global cho tất cả Cloud Functions
-// Region: Asia Southeast 1 (Singapore) - gần VN nhất
-// Memory: 512MB - đủ cho push notification
-// Timeout: 30s - timeout mặc định
-setGlobalOptions({ region: 'asia-southeast1', memory: '512MiB', timeoutSeconds: 30 });
+setGlobalOptions({ region: 'asia-southeast1', memory: '512MiB', timeoutSeconds: 30, maxInstances: 10 });
 
-/**
- * Cloud Function: Gửi push notification khi có tin nhắn mới
- * 
- * Path: chats/{matchId}/messages/{messageId}
- * Flow:
- * 1. Lấy thông tin tin nhắn và match
- * 2. Xác định người nhận (user còn lại trong match)
- * 3. Lấy FCM token của người nhận
- * 4. Gửi notification với payload Android-optimized
- */
+// ─────────────────────────────────────────────
+// Helper: Gửi FCM hybrid notification
+// ─────────────────────────────────────────────
+async function sendFcmNotification({ token, title, body, channelId, androidPriority = 'high', data = {} }) {
+  return admin.messaging().send({
+    token,
+    notification: { title, body },
+    android: {
+      priority: 'high',
+      notification: { channelId, sound: 'default', priority: androidPriority },
+    },
+    apns: {
+      payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } },
+      headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+    },
+    data,
+  });
+}
+
+// ─────────────────────────────────────────────
+// 1. sendMessageNotification
+//    Trigger: chats/{matchId}/messages/{messageId} — document mới
+// ─────────────────────────────────────────────
 exports.sendMessageNotification = onDocumentCreated(
   'chats/{matchId}/messages/{messageId}',
   async (event) => {
@@ -27,280 +36,207 @@ exports.sendMessageNotification = onDocumentCreated(
 
       const message = snap.data();
       const matchId = event.params.matchId;
-      console.log('New message:', message);
+
+      // Bỏ qua react message (không cần notification)
+      if (message.type === 'react') return console.log('React message — skip');
 
       const db = admin.firestore();
-      
-      // Lấy thông tin match để biết ai là người nhận
+
+      // Lấy match để tìm người nhận
       const matchDoc = await db.collection('matches').doc(matchId).get();
       if (!matchDoc.exists) return console.log('Match not found');
 
-      const matchData = matchDoc.data();
-      // Người nhận là user còn lại (không phải sender)
-      const receiverId = matchData.user1Id === message.senderId
-        ? matchData.user2Id
-        : matchData.user1Id;
+      // userIds là array [userId1, userId2]
+      const userIds = matchDoc.data().userIds || [];
+      const receiverId = userIds.find(id => id !== message.senderId);
+      if (!receiverId) return console.log('Receiver not found in userIds');
 
-      console.log('Receiver ID:', receiverId);
-
-      // Lấy FCM token của người nhận
+      // Lấy FCM token người nhận
       const receiverDoc = await db.collection('users').doc(receiverId).get();
       if (!receiverDoc.exists) return console.log('Receiver not found');
-
       const fcmToken = receiverDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token');
+      if (!fcmToken) return console.log('No FCM token for receiver');
 
-      // Lấy tên người gửi để hiển thị trong notification
+      // Lấy tên người gửi
       const senderDoc = await db.collection('users').doc(message.senderId).get();
-      const senderName = senderDoc.exists
-        ? senderDoc.data()?.username || 'User'
-        : 'User';
+      const senderName = senderDoc.exists ? senderDoc.data()?.username || 'User' : 'User';
 
-      // Format nội dung tin nhắn
-      let messageBody = message.message || '';
-      if (message.imageUrl) messageBody = 'Sent a photo'; // Nếu là ảnh
-      else if (message.type === 'call') messageBody = 'Missed call'; // Nếu là cuộc gọi nhỡ
+      // Format nội dung tin nhắn (field là 'text', không phải 'message')
+      let body = message.text || '';
+      if (message.mediaUrl) body = message.isVideo ? 'Đã gửi video 🎥' : 'Đã gửi ảnh 🖼️';
+      else if (message.audioUrl) body = 'Đã gửi tin nhắn thoại 🎤';
+      else if (message.type === 'call') body = 'Cuộc gọi nhỡ 📞';
 
-      // QUAN TRỌNG: Payload cho Android với cả notification và data
-      // Notification: Hiển thị trên notification tray
-      // Data: Dữ liệu để app xử lý khi tap vào notification
-      const payload = {
+      const response = await sendFcmNotification({
         token: fcmToken,
-        android: {
-          priority: 'high', // Priority cao để notification hiện ngay
-          notification: {
-            channelId: 'gamenect_channel', // Channel ID phải match với app
-            sound: 'default', 
-            clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Action khi tap vào 
-          },
-        },
-        notification: {
-          title: senderName,
-          body: messageBody,
-          sound: 'default',  
-          click_action: 'FLUTTER_NOTIFICATION_CLICK', 
-        },
-        // Data payload cho app Flutter xử lý
-        data: {
-          type: 'chat', // Loại notification
-          matchId: matchId,
-          peerUserId: message.senderId,
-          peerUsername: senderName,
-          message: messageBody,
-          // Các field cho awesome_notifications plugin
-          'content.id': Date.now().toString(),
-          'content.channelKey': 'gamenect_channel',
-          'content.title': senderName,
-          'content.body': messageBody,
-          'content.notificationLayout': 'Messaging',
-          'content.category': 'Message',
-          'content.wakeUpScreen': true, // Đánh thức màn hình
-          // Payload để app navigate đến chat screen
-          'content.payload.type': 'chat',
-          'content.payload.matchId': matchId,
-          'content.payload.peerUserId': message.senderId,
-          'content.payload.peerUsername': senderName,
-        },
-      };
-
-      console.log('Sending notification...');
-      const response = await admin.messaging().send(payload);
-      console.log('Notification sent:', response);
-      return response;
-    } catch (error) {
-      console.error('Error:', error);
-      return null;
+        title: senderName,
+        body,
+        channelId: 'gamenect_channel',
+        data: { type: 'chat', matchId, peerUserId: message.senderId, peerUsername: senderName, message: body },
+      });
+      console.log('Message notification sent:', response);
+    } catch (e) {
+      console.error('sendMessageNotification error:', e);
     }
   }
 );
 
-/**
- * Cloud Function: Gửi push notification khi có cuộc gọi đến
- * 
- * Trigger: Khi có document mới được tạo trong collection calls
- * Path: calls/{matchId}
- * 
- * Flow:
- * 1. Lấy thông tin cuộc gọi
- * 2. Lấy FCM token của người nhận
- * 3. Gửi notification với priority cao và action buttons
- * 4. Hiển thị full screen intent để có thể trả lời ngay
- */
-exports.sendCallNotification = onDocumentCreated(
+// ─────────────────────────────────────────────
+// 2. sendCallNotification
+//    Trigger: calls/{matchId} — document được ghi (tạo mới hoặc cập nhật)
+//    Chỉ gửi khi status chuyển sang 'active' (cuộc gọi mới bắt đầu)
+// ─────────────────────────────────────────────
+exports.sendCallNotification = onDocumentWritten(
   'calls/{matchId}',
   async (event) => {
     try {
-      const call = event.data?.data();
+      const before = event.data.before;
+      const after = event.data.after;
+
+      // Document bị xóa → bỏ qua
+      if (!after.exists) return;
+
+      const afterData = after.data();
+      const beforeData = before.exists ? before.data() : null;
+
+      // Chỉ xử lý khi status chuyển sang 'active'
+      if (afterData.status !== 'active') return;
+      // Nếu trước đó đã là 'active' (update thông thường) → bỏ qua
+      if (beforeData && beforeData.status === 'active') return console.log('Call update — skip');
+
       const matchId = event.params.matchId;
-      if (!call) return;
-
-      console.log('New call:', call);
-
       const db = admin.firestore();
-      
-      // Lấy FCM token của người nhận cuộc gọi
-      const receiverDoc = await db.collection('users').doc(call.receiverId).get();
-      if (!receiverDoc.exists) return console.log('Receiver not found');
 
+      // Lấy FCM token người nhận
+      const receiverDoc = await db.collection('users').doc(afterData.receiverId).get();
+      if (!receiverDoc.exists) return console.log('Receiver not found');
       const fcmToken = receiverDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token');
+      if (!fcmToken) return console.log('No FCM token for receiver');
 
       // Lấy tên người gọi
-      const callerDoc = await db.collection('users').doc(call.callerId).get();
-      const callerName = callerDoc.exists
-        ? callerDoc.data()?.username || 'User'
-        : 'User';
+      const callerDoc = await db.collection('users').doc(afterData.callerId).get();
+      const callerName = callerDoc.exists ? callerDoc.data()?.username || 'User' : 'User';
 
-      // Payload cho notification cuộc gọi
-      // Priority max và full screen intent để hiển thị ngay cả khi màn hình khóa
-      const payload = {
+      const callType = afterData.type === 'voice' ? 'thoại' : 'video';
+
+      // CALL dùng HYBRID:
+      // - killed state: OS hiển thị notification → user tap → mở app → màn hình cuộc gọi
+      // - background/foreground: mySilentDataHandle tạo notification CÓ nút Nghe/Từ chối
+      const response = await sendFcmNotification({
         token: fcmToken,
-        android: {
-          priority: 'high',
-          notification: {
-            channelId: 'call_channel', // Channel riêng cho cuộc gọi
-            sound: 'default',
-            priority: 'max', // Priority cao nhất
-            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-          },
-        },
-        notification: {
-          title: 'Cuộc gọi đến',
-          body: `${callerName} đang gọi cho bạn`,
-          sound: 'default',  
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',  
-        },
-        // Data payload với action buttons để nhận/từ chối cuộc gọi
-        data: {
-          type: 'call',
-          matchId: matchId,
-          peerUserId: call.callerId,
-          peerUsername: callerName,
-          'content.id': matchId,
-          'content.channelKey': 'call_channel',
-          'content.title': 'Cuộc gọi đến',
-          'content.body': `${callerName} đang gọi cho bạn`,
-          'content.category': 'Call',
-          'content.wakeUpScreen': true, // Đánh thức màn hình
-          'content.fullScreenIntent': true, // Hiển thị full screen
-          'content.criticalAlert': true, // Alert quan trọng
-          'content.locked': true, // Hiển thị khi màn hình khóa
-          'content.payload.type': 'call',
-          'content.payload.matchId': matchId,
-          'content.payload.peerUserId': call.callerId,
-          'content.payload.peerUsername': callerName,
-          // Action buttons để trả lời hoặc từ chối
-          'actionButtons.0.key': 'accept',
-          'actionButtons.0.label': 'Nghe',
-          'actionButtons.0.autoDismissible': true, // Tự động dismiss khi tap
-          'actionButtons.1.key': 'decline',
-          'actionButtons.1.label': 'Từ chối',
-          'actionButtons.1.autoDismissible': true,  
-        },
-      };
-
-      console.log('Sending call notification...');
-      const response = await admin.messaging().send(payload);
-      console.log('Call notification sent');
-      return response;
-    } catch (error) {
-      console.error('Error:', error);
-      return null;
+        title: `📞 Cuộc gọi ${callType} đến`,
+        body: `${callerName} đang gọi cho bạn`,
+        channelId: 'call_channel',
+        androidPriority: 'max',
+        data: { type: 'call', matchId, callType, peerUserId: afterData.callerId, peerUsername: callerName },
+      });
+      console.log('Call notification sent:', response);
+    } catch (e) {
+      console.error('sendCallNotification error:', e);
     }
   }
 );
 
-/**
- * Cloud Function: Gửi push notification khi có người react vào moment
- * 
- * Trigger: Khi có document mới được tạo trong subcollection reactions
- * Path: moments/{momentId}/reactions/{reactionId}
- * 
- * Flow:
- * 1. Lấy thông tin reaction
- * 2. Lấy thông tin moment để biết chủ nhân
- * 3. Skip nếu tự react vào moment của mình
- * 4. Gửi notification cho chủ moment
- */
-exports.sendMomentReactionNotification = onDocumentCreated(
-  'moments/{momentId}/reactions/{reactionId}',
+// ─────────────────────────────────────────────
+// 3. sendMomentReactionNotification
+//    Trigger: moments/{momentId} — document được cập nhật
+//    Detect khi reactions array có thêm phần tử mới
+// ─────────────────────────────────────────────
+exports.sendMomentReactionNotification = onDocumentUpdated(
+  'moments/{momentId}',
   async (event) => {
     try {
-      const reaction = event.data?.data();
+      const before = event.data.before.data();
+      const after = event.data.after.data();
       const momentId = event.params.momentId;
-      if (!reaction) return;
 
-      console.log('New reaction:', reaction);
+      const beforeReactions = before.reactions || [];
+      const afterReactions = after.reactions || [];
+
+      // Không có reaction mới → bỏ qua
+      if (afterReactions.length <= beforeReactions.length) return;
+
+      // Lấy reaction mới nhất (vừa được thêm vào)
+      const newReaction = afterReactions[afterReactions.length - 1];
+      const momentOwnerId = after.userId;
+
+      // Bỏ qua nếu tự react vào moment của mình
+      if (newReaction.userId === momentOwnerId) return console.log('Self reaction — skip');
 
       const db = admin.firestore();
-      
-      // Lấy thông tin moment để biết ai là chủ nhân
-      const momentDoc = await db.collection('moments').doc(momentId).get();
-      if (!momentDoc.exists) return console.log('Moment not found');
 
-      const momentOwnerId = momentDoc.data()?.userId;
-      // Skip nếu tự react vào moment của mình
-      if (reaction.userId === momentOwnerId) return console.log('Self reaction, skip');
-
-      // Lấy FCM token của chủ moment
+      // Lấy FCM token chủ moment
       const ownerDoc = await db.collection('users').doc(momentOwnerId).get();
-      if (!ownerDoc.exists) return console.log('Owner not found');
-
+      if (!ownerDoc.exists) return console.log('Moment owner not found');
       const fcmToken = ownerDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token');
+      if (!fcmToken) return console.log('No FCM token for owner');
 
       // Lấy tên người react
-      const reactorDoc = await db.collection('users').doc(reaction.userId).get();
-      const reactorName = reactorDoc.exists
-        ? reactorDoc.data()?.username || 'Someone'
-        : 'Someone';
+      const reactorDoc = await db.collection('users').doc(newReaction.userId).get();
+      const reactorName = reactorDoc.exists ? reactorDoc.data()?.username || 'Someone' : 'Someone';
 
-      // Payload notification moment reaction
-      const payload = {
+      const emoji = newReaction.emoji || '❤️';
+      const response = await sendFcmNotification({
         token: fcmToken,
-        android: {
-          priority: 'high',
-          notification: {
-            channelId: 'moment_channel', // Channel riêng cho moment
-            sound: 'default',
-            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-          },
-        },
-        notification: {
-          title: `${reactorName} đã thả cảm xúc ${reaction.emoji || '❤️'}`,
-          body: 'Vào moment của bạn',
-          sound: 'default',  
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',  
-        },
-        // Data payload để app navigate đến moment screen
+        title: `${reactorName} đã thả ${emoji}`,
+        body: 'vào moment của bạn',
+        channelId: 'moment_channel',
         data: {
           type: 'moment_reaction',
-          momentId: momentId,
-          reactorUserId: reaction.userId,
+          momentId,
+          reactorUserId: newReaction.userId,
           reactorUsername: reactorName,
-          emoji: reaction.emoji || '❤️',
-          momentOwnerId: momentOwnerId,
-          'content.id': momentId,
-          'content.channelKey': 'moment_channel',
-          'content.title': `${reactorName} đã thả cảm xúc ${reaction.emoji || '❤️'}`,
-          'content.body': 'Vào moment của bạn',
-          'content.category': 'Social',
-          'content.payload.type': 'moment_reaction',
-          'content.payload.momentId': momentId,
-          'content.payload.reactorUserId': reaction.userId,
-          'content.payload.reactorUsername': reactorName,
-          'content.payload.emoji': reaction.emoji || '❤️',
-          'content.payload.momentOwnerId': momentOwnerId,
+          emoji,
+          momentOwnerId,
         },
-      };
+      });
+      console.log('Moment reaction notification sent:', response);
+    } catch (e) {
+      console.error('sendMomentReactionNotification error:', e);
+    }
+  }
+);
 
-      console.log('Sending moment notification...');
-      const response = await admin.messaging().send(payload);
-      console.log('Moment notification sent');
-      return response;
-    } catch (error) {
-      console.error('Error:', error);
-      return null;
+// ─────────────────────────────────────────────
+// 4. sendLikeNotification
+//    Trigger: swipe_history/{swipeId} — document mới
+//    Gửi thông báo khi có người like mình (action = 'like')
+// ─────────────────────────────────────────────
+exports.sendLikeNotification = onDocumentCreated(
+  'swipe_history/{swipeId}',
+  async (event) => {
+    try {
+      const swipe = event.data?.data();
+      if (!swipe) return;
+
+      // Chỉ xử lý khi là 'like', bỏ qua 'dislike'
+      if (swipe.action !== 'like') return console.log('Not a like — skip');
+
+      const targetUserId = swipe.targetUserId;  // Người được like
+      const likerUserId = swipe.userId;          // Người like
+
+      const db = admin.firestore();
+
+      // Lấy FCM token người được like
+      const targetDoc = await db.collection('users').doc(targetUserId).get();
+      if (!targetDoc.exists) return console.log('Target user not found');
+      const fcmToken = targetDoc.data()?.fcmToken;
+      if (!fcmToken) return console.log('No FCM token for target');
+
+      // Lấy tên người like
+      const likerDoc = await db.collection('users').doc(likerUserId).get();
+      const likerName = likerDoc.exists ? likerDoc.data()?.username || 'Ai đó' : 'Ai đó';
+
+      const response = await sendFcmNotification({
+        token: fcmToken,
+        title: '💖 Có người thích bạn!',
+        body: `${likerName} vừa thích bạn — Ghé xem ngay nhé!`,
+        channelId: 'gamenect_channel',
+        data: { type: 'like', likerUserId, likerUsername: likerName },
+      });
+      console.log('Like notification sent:', response);
+    } catch (e) {
+      console.error('sendLikeNotification error:', e);
     }
   }
 );

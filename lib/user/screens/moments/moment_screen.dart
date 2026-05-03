@@ -9,6 +9,7 @@ import '../premium/subscription_screen.dart';
 // Sub-widgets (tách ra theo từng file để dễ bảo trì)
 import 'moment_feed_tab.dart';
 import 'my_moments_tab.dart';
+import '../../widgets/tab_bar_visibility.dart';
 export 'moment_card.dart';
 export 'video_player_widget.dart';
 
@@ -46,13 +47,19 @@ class _MomentScreenState extends State<MomentScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF101012),
       body: Stack(
         children: [
           // Content — 2 tabs
-          TabBarView(
-            controller: _tabController,
-            children: const [MomentFeedTab(), MyMomentsTab()],
+          NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              TabBarVisibility.of(context).update(notification);
+              return false;
+            },
+            child: TabBarView(
+              controller: _tabController,
+              children: const [MomentFeedTab(), MyMomentsTab()],
+            ),
           ),
 
           // Glassmorphism header (logo + tab bar)
@@ -60,17 +67,10 @@ class _MomentScreenState extends State<MomentScreen>
             top: 0, left: 0, right: 0,
             child: ClipRRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.deepOrange.withValues(alpha: 0.8),
-                        const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.6),
-                      ],
-                    ),
+                    color: Colors.black.withValues(alpha: 0.3),
                     border: Border(
                       bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
                     ),
@@ -87,14 +87,15 @@ class _MomentScreenState extends State<MomentScreen>
                               const Padding(
                                 padding: EdgeInsets.only(left: 12.0),
                                 child: Icon(Icons.sports_esports,
-                                    color: Colors.deepOrange, size: 26),
+                                    color: Color(0xFFFF6E40), size: 26),
                               ),
                               const SizedBox(width: 8),
-                              const Text('gamenect',
+                              Text('gamenect',
                                   style: TextStyle(
-                                      color: Colors.deepOrange,
+                                      color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 20)),
+                                      fontSize: 22,
+                                      shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)])),
                               const Spacer(),
                               // Premium badge hoặc nút nâng cấp
                               Consumer<ProfileProvider>(
@@ -133,10 +134,10 @@ class _MomentScreenState extends State<MomentScreen>
                                             builder: (_) => const SubscriptionScreen()),
                                       ),
                                       icon: const Icon(Icons.workspace_premium_rounded,
-                                          color: Colors.deepOrange, size: 20),
+                                          color: Color(0xFFFF6E40), size: 20),
                                       label: const Text('Nâng cấp',
                                           style: TextStyle(
-                                              color: Colors.deepOrange, fontWeight: FontWeight.w600)),
+                                              color: Color(0xFFFF6E40), fontWeight: FontWeight.w600)),
                                       style: TextButton.styleFrom(
                                           padding:
                                               const EdgeInsets.symmetric(horizontal: 12)),
@@ -151,7 +152,7 @@ class _MomentScreenState extends State<MomentScreen>
                         // Tab bar
                         TabBar(
                           controller: _tabController,
-                          indicatorColor: Colors.deepOrange,
+                          indicatorColor: const Color(0xFFFF6E40),
                           indicatorWeight: 3,
                           labelColor: Colors.white,
                           unselectedLabelColor: Colors.white60,

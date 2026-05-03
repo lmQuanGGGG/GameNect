@@ -157,12 +157,12 @@ class MyMomentsTab extends StatelessWidget {
         }
 
         return GridView.builder(
-          padding: EdgeInsets.fromLTRB(8, topPadding, 8, 8),
+          padding: EdgeInsets.fromLTRB(8, topPadding, 8, 120),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 0.75,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.65,
           ),
           itemCount: myMoments.length,
           itemBuilder: (context, index) {
@@ -170,57 +170,77 @@ class MyMomentsTab extends StatelessWidget {
             return GestureDetector(
               onTap: () => _showMomentDetail(context, moment, userId),
               onLongPress: () => _deleteMoment(context, moment.id),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Thumbnail image/video
-                    Image.network(
-                      (moment.isVideo && moment.thumbnailUrl != null)
-                          ? moment.thumbnailUrl!
-                          : moment.mediaUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(color: Colors.grey[900]),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.7),
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                        ),
-                      ),
-                    ),
-                    if (moment.isVideo)
-                      Positioned(
-                        top: 10, left: 10,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.play_arrow_rounded,
-                              color: Colors.white, size: 20),
-                        ),
-                      ),
-                    if (moment.caption?.isNotEmpty == true)
-                      Positioned(
-                        bottom: 12, left: 12, right: 12,
-                        child: Text(moment.caption!,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
-                      ),
                   ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Thumbnail image/video
+                      Image.network(
+                        (moment.isVideo && moment.thumbnailUrl != null)
+                            ? moment.thumbnailUrl!
+                            : moment.mediaUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Container(color: Colors.grey[900]),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.2),
+                              Colors.black.withValues(alpha: 0.8),
+                            ],
+                            stops: const [0.0, 0.6, 1.0],
+                          ),
+                        ),
+                      ),
+                      if (moment.isVideo)
+                        Positioned(
+                          top: 12, right: 12,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                ),
+                                child: const Icon(Icons.play_arrow_rounded,
+                                    color: Colors.white, size: 20),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (moment.caption?.isNotEmpty == true)
+                        Positioned(
+                          bottom: 12, left: 12, right: 12,
+                          child: Text(moment.caption!,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.3),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
