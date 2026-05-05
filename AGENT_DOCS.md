@@ -1311,6 +1311,15 @@ _isLoading = true;
 Future<List<MomentModel>> getMomentsForUser(String userId) async { ... }
 ```
 
+### 13.9. Cập nhật Tài Liệu AGENT_DOCS
+
+> **QUAN TRỌNG:** Agent phải tự động cập nhật file `AGENT_DOCS.md` mỗi khi có thay đổi về:
+> - Tính năng mới được thêm vào hoặc sửa đổi.
+> - Cấu trúc file, thư mục bị thay đổi.
+> - Thêm package hoặc dependency mới.
+> - Thay đổi liên quan đến cấu hình Firebase, logic quan trọng, v.v.
+> Hãy thêm tóm tắt vào phần "THAY ĐỔI ĐÃ THỰC HIỆN (CHANGELOG)" (Section 14) để giữ tài liệu luôn mới nhất, giúp các agent sau nắm bắt context dễ dàng.
+
 ---
 
 ## 14. THAY ĐỔI ĐÃ THỰC HIỆN (CHANGELOG)
@@ -1363,6 +1372,18 @@ RefreshIndicator(
 )
 ```
 
+### [2026-05-05] — Sửa lỗi luồng thanh toán PayOS
+- **Vấn đề:** Nút "Đăng ký ngay" không mở được trang thanh toán PayOS (lỗi plugin `flutter_web_browser` không hoạt động ổn định trên các máy đời mới hoặc không deep-link được vào app ngân hàng).
+- **Giải pháp:** Xóa package `flutter_web_browser` trong code và thay thế bằng `url_launcher` với mode `LaunchMode.externalApplication` để tự động mở trình duyệt ngoài, giúp việc thanh toán qua app ngân hàng trơn tru hơn.
+- **File ảnh hưởng:** `lib/user/screens/premium/subscription_screen.dart`
+
+### [2026-05-05] — Đồng bộ giao diện xem profile cá nhân
+- **Vấn đề:** Khi vào tab Hồ sơ (ProfileScreen) và bấm vào avatar chính mình để xem card chi tiết, HOẶC khi bấm "Lưu hồ sơ" ở màn hình chỉnh sửa, giao diện hiển thị là màu trắng (cũ) không đồng nhất với giao diện "Liquid Glass Dark Premium" khi xem profile người khác.
+- **Giải pháp:** Xóa đoạn code dùng `Scaffold` inline màu trắng ở cả 2 màn hình, thay thế bằng widget chuẩn `PeerProfileScreen(peerUser: provider.userData!)` dùng chung cho toàn app.
+- **File ảnh hưởng:** 
+  - `lib/user/screens/profile/profile_screen.dart`
+  - `lib/user/screens/profile/edit_profile_screen.dart`
+
 ---
 
-*Tài liệu này được tạo tự động bởi AI agent. Cập nhật: 2026-05-03.*
+*Tài liệu này được tạo tự động bởi AI agent. Cập nhật: 2026-05-05.*

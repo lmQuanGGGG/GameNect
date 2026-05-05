@@ -18,6 +18,7 @@ import '../../../core/providers/location_provider.dart';
 import 'avatar_picker_section.dart';
 import 'basic_info_section.dart';
 import 'gaming_section.dart';
+import '../shared/peer_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -298,11 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => Scaffold(
-                appBar: AppBar(title: Text(newUser.username), backgroundColor: Colors.white, foregroundColor: Colors.deepOrange),
-                backgroundColor: Colors.white,
-                body: Center(child: ProfileCard(user: newUser)),
-              ),
+              builder: (_) => PeerProfileScreen(peerUser: newUser),
             ),
           );
         } catch (e) {

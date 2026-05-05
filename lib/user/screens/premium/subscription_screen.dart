@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
-import 'package:flutter_web_browser/flutter_web_browser.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/subscription_provider.dart';
 
 // Màn hình đăng ký gói Premium
@@ -236,22 +236,20 @@ class _SubscriptionScreenContent extends StatelessWidget {
                                   }
                                 });
 
-                                // Mở trang thanh toán trong Custom Tabs (Android) hoặc Safari View Controller (iOS)
-                                await FlutterWebBrowser.openWebPage(
-                                  url: checkoutUrl,
-                                  customTabsOptions: const CustomTabsOptions(
-                                    colorScheme: CustomTabsColorScheme.dark,
-                                    shareState: CustomTabsShareState.off,
-                                    showTitle: true,
-                                    urlBarHidingEnabled: true,
-                                  ),
-                                  safariVCOptions: const SafariViewControllerOptions(
-                                    barCollapsingEnabled: true,
-                                    preferredBarTintColor: Colors.black,
-                                    preferredControlTintColor: Colors.white,
-                                    dismissButtonStyle: SafariViewControllerDismissButtonStyle.close,
-                                  ),
-                                );
+                                // Mở trang thanh toán bằng trình duyệt ngoài để hỗ trợ deep link app ngân hàng tốt nhất
+                                final uri = Uri.parse(checkoutUrl);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Không thể mở trình duyệt. Vui lòng thử lại!'), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
 
                                 // Người dùng đóng trình duyệt -> kiểm tra trạng thái lần cuối
                                 if (!completed) {

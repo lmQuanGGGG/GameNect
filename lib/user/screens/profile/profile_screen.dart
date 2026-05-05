@@ -12,6 +12,7 @@ import 'package:logging/logging.dart';
 import 'dart:ui';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
+import '../shared/peer_profile_screen.dart';
 
 // Màn hình hồ sơ cá nhân của user
 // Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
@@ -369,22 +370,12 @@ class _ProfilePageState extends State<ProfilePage> {
                           // Avatar lớn ở giữa màn hình, tap để xem ProfileCard
                           GestureDetector(
                             onTap: () {
-                              // Mở màn hình mới hiển thị ProfileCard với swipe
+                              // Mở màn hình mới hiển thị ProfileCard với giao diện chuẩn
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => Scaffold(
-                                    appBar: AppBar(
-                                      title: Text(provider.userData!.username),
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: Colors.deepOrange,
-                                    ),
-                                    backgroundColor: Colors.white,
-                                    body: Center(
-                                      child: ProfileCard(
-                                        user: provider.userData!,
-                                      ),
-                                    ),
+                                  builder: (_) => PeerProfileScreen(
+                                    peerUser: provider.userData!,
                                   ),
                                 ),
                               );
