@@ -455,15 +455,25 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                   color: Color(0xFF101012),
                                 ),
                                 padding: const EdgeInsets.all(2),
-                                child: CircleAvatar(
-                                  radius: 28,
-                                  backgroundColor: Colors.white.withValues(alpha: 0.1),
-                                  backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                                      ? CachedNetworkImageProvider(user.avatarUrl!)
-                                      : null,
-                                  child: user.avatarUrl == null
-                                      ? const Icon(Icons.person, size: 28, color: Colors.white)
-                                      : null,
+                                child: ClipOval(
+                                  child: SizedBox(
+                                    width: 56,
+                                    height: 56,
+                                    child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl: user.avatarUrl!,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                                            errorWidget: (context, url, error) => Container(
+                                              color: Colors.white.withValues(alpha: 0.1),
+                                              child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                            ),
+                                          )
+                                        : Container(
+                                            color: Colors.white.withValues(alpha: 0.1),
+                                            child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                          ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -556,13 +566,25 @@ class _MatchListScreenState extends State<MatchListScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
                       ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white.withValues(alpha: 0.1),
-                        backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider(user.avatarUrl!)
-                            : null,
-                        child: user.avatarUrl == null ? const Icon(Icons.person, size: 28, color: Colors.white) : null,
+                      child: ClipOval(
+                        child: SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: user.avatarUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                  ),
+                                )
+                              : Container(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                ),
+                        ),
                       ),
                     ),
                     title: Text(

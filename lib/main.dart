@@ -4,6 +4,7 @@ import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,27 +34,32 @@ import 'user/user_app.dart';
 void main() async {
   // Đảm bảo Flutter đã được khởi tạo trước khi thực hiện bất kỳ hoạt động bất đồng bộ nào
   WidgetsFlutterBinding.ensureInitialized();
-  // Tải biến môi trường từ file .env
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    developer.log('Không tìm thấy file .env (chấp nhận được trên Web Production)', name: 'Config');
+  }
 
   // Khởi tạo Firebase với các tùy chọn cho nền tảng hiện tại
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Khởi tạo thông báo cục bộ và từ xa với chế độ debug
-  await NotificationController.initializeLocalNotifications(debug: true);
-  await NotificationController.initializeRemoteNotifications(debug: true);
-  await NotificationController.requestPermissions();
+  if (!kIsWeb) {
+    await NotificationController.initializeLocalNotifications(debug: true);
+    await NotificationController.initializeRemoteNotifications(debug: true);
+    await NotificationController.requestPermissions();
 
-  // Thiết lập các listener cho AwesomeNotifications
-  AwesomeNotifications().setListeners(
-    onActionReceivedMethod: AppNotificationHandler.onActionReceivedMethod,
-    onNotificationCreatedMethod:
-        AppNotificationHandler.onNotificationCreatedMethod,
-    onNotificationDisplayedMethod:
-        AppNotificationHandler.onNotificationDisplayedMethod,
-    onDismissActionReceivedMethod:
-        AppNotificationHandler.onDismissActionReceivedMethod,
-  );
+    // Thiết lập các listener cho AwesomeNotifications
+    AwesomeNotifications().setListeners(
+      onActionReceivedMethod: AppNotificationHandler.onActionReceivedMethod,
+      onNotificationCreatedMethod:
+          AppNotificationHandler.onNotificationCreatedMethod,
+      onNotificationDisplayedMethod:
+          AppNotificationHandler.onNotificationDisplayedMethod,
+      onDismissActionReceivedMethod:
+          AppNotificationHandler.onDismissActionReceivedMethod,
+    );
+  }
 
   // Chạy ứng dụng chính
   runApp(const GameNectApp());

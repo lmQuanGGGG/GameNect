@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../core/providers/game_provider.dart';
 import '../../../core/models/game_model.dart';
 import 'game_detail_screen.dart';
@@ -65,28 +66,47 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Row(
                 children: [
-                  ClipOval(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF6E40).withValues(alpha: 0.25),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                              blurRadius: 16,
-                              spreadRadius: 1,
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: ClipOval(
+                      child: kIsWeb
+                          ? Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 24),
+                            )
+                          : BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6E40).withValues(alpha: 0.25),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                      blurRadius: 16,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(right: 2.0), // Căn giữa icon back
+                                  child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 24),
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.videogame_asset_rounded, color: Colors.white, size: 24),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -117,35 +137,56 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicatorPadding: const EdgeInsets.all(4),
-                    indicator: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
-                      border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
-                          blurRadius: 10,
+                child: kIsWeb
+                    ? TabBar(
+                        controller: _tabController,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicatorPadding: const EdgeInsets.all(4),
+                        indicator: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                          border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 1),
                         ),
-                      ],
-                    ),
-                    labelColor: const Color(0xFFFF6E40),
-                    unselectedLabelColor: Colors.grey[500],
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
-                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
-                    dividerColor: Colors.transparent,
-                    splashFactory: NoSplash.splashFactory,
-                    tabs: const [
-                      Tab(text: 'Trending'),
-                      Tab(text: 'New Releases'),
-                    ],
-                  ),
-                ),
+                        labelColor: const Color(0xFFFF6E40),
+                        unselectedLabelColor: Colors.grey[500],
+                        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
+                        dividerColor: Colors.transparent,
+                        splashFactory: NoSplash.splashFactory,
+                        tabs: const [
+                          Tab(text: 'Trending'),
+                          Tab(text: 'New Releases'),
+                        ],
+                      )
+                    : BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: TabBar(
+                          controller: _tabController,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicatorPadding: const EdgeInsets.all(4),
+                          indicator: BoxDecoration(
+                            borderRadius: BorderRadius.circular(30),
+                            color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                            border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          labelColor: const Color(0xFFFF6E40),
+                          unselectedLabelColor: Colors.grey[500],
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
+                          dividerColor: Colors.transparent,
+                          splashFactory: NoSplash.splashFactory,
+                          tabs: const [
+                            Tab(text: 'Trending'),
+                            Tab(text: 'New Releases'),
+                          ],
+                        ),
+                      ),
               ),
             ),
 
@@ -182,49 +223,82 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 15,
+              blurRadius: kIsWeb ? 8 : 15,
               offset: const Offset(0, 5),
             ),
           ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              color: Colors.white.withValues(alpha: 0.05),
-              child: TextField(
-        controller: _searchController,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Search for games...',
-          hintStyle: TextStyle(color: Colors.grey[600]),
-          prefixIcon: Icon(Icons.search, color: _primaryColor),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.grey),
-                  onPressed: () {
-                    _searchController.clear();
-                    context.read<GameProvider>().clearSearch();
-                    setState(() {});
-                  },
+          child: kIsWeb
+              ? Container(
+                  color: const Color(0xFF1C1C1F),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search for games...',
+                      hintStyle: TextStyle(color: Colors.grey[600]),
+                      prefixIcon: Icon(Icons.search, color: _primaryColor),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                context.read<GameProvider>().clearSearch();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    ),
+                    onChanged: (query) {
+                      setState(() {});
+                      if (query.length >= 3) {
+                        context.read<GameProvider>().searchGames(query);
+                      } else if (query.isEmpty) {
+                        context.read<GameProvider>().clearSearch();
+                      }
+                    },
+                  ),
                 )
-              : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            ),
-            onChanged: (query) {
-              setState(() {});
-              if (query.length >= 3) {
-                context.read<GameProvider>().searchGames(query);
-              } else if (query.isEmpty) {
-                context.read<GameProvider>().clearSearch();
-              }
-            },
-          ),
+              : BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Search for games...',
+                        hintStyle: TextStyle(color: Colors.grey[600]),
+                        prefixIcon: Icon(Icons.search, color: _primaryColor),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.grey),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  context.read<GameProvider>().clearSearch();
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      ),
+                      onChanged: (query) {
+                        setState(() {});
+                        if (query.length >= 3) {
+                          context.read<GameProvider>().searchGames(query);
+                        } else if (query.isEmpty) {
+                          context.read<GameProvider>().clearSearch();
+                        }
+                      },
+                    ),
+                  ),
+                ),
         ),
-      ),
-      ),
       ),
     );
   }

@@ -1,4 +1,29 @@
 {
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob: ws: wss:; script-src 'self' 'unsafe-eval' 'unsafe-inline' https: blob:; worker-src 'self' blob:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws: blob:;"
+          }
+        ]
+      }
+    ]
+  },
   "functions": [
     {
       "source": "functions",
@@ -10,7 +35,6 @@
         "firebase-debug.*.log",
         "*.local"
       ]
-     
     }
   ]
 }

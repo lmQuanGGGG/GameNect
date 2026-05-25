@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 
 // Lớp NotificationController quản lý toàn bộ logic thông báo của ứng dụng.
@@ -23,6 +24,7 @@ class NotificationController {
   // Hàm khởi tạo các kênh thông báo local (Awesome Notifications).
   // Mỗi kênh dùng cho một loại thông báo: tin nhắn, cuộc gọi, moment, thông báo cơ bản.
   static Future<void> initializeLocalNotifications({required bool debug}) async {
+    if (kIsWeb) return;
     await AwesomeNotifications().initialize(
       null,
       [
@@ -77,6 +79,7 @@ class NotificationController {
   // Hàm khởi tạo nhận thông báo từ FCM (Firebase Cloud Messaging).
   // Đăng ký các callback xử lý khi nhận silent data, nhận token mới, nhận native token.
   static Future<void> initializeRemoteNotifications({required bool debug}) async {
+    if (kIsWeb) return;
     await Firebase.initializeApp();
     await AwesomeNotificationsFcm().initialize(
       onFcmSilentDataHandle: mySilentDataHandle,
@@ -89,6 +92,7 @@ class NotificationController {
   // Hàm yêu cầu quyền gửi thông báo cho app.
   // Nếu chưa được cấp quyền, sẽ hiện popup xin quyền từ hệ điều hành.
   static Future<void> requestPermissions() async {
+    if (kIsWeb) return;
     final isAllowed = await AwesomeNotifications().isNotificationAllowed();
     if (!isAllowed) {
       await AwesomeNotifications().requestPermissionToSendNotifications();
@@ -99,6 +103,7 @@ class NotificationController {
   // Token này dùng để gửi thông báo từ server về đúng thiết bị.
   // Sau khi lấy được token, sẽ lưu vào Firestore để backend sử dụng.
   Future<String?> getFirebaseToken() async {
+    if (kIsWeb) return null;
     if (await AwesomeNotificationsFcm().isFirebaseAvailable) {
       try {
         _fcmToken = await AwesomeNotificationsFcm().requestFirebaseAppToken();
@@ -123,12 +128,14 @@ class NotificationController {
   // Hàm đăng ký nhận thông báo theo topic (chủ đề).
   // Dùng cho các thông báo broadcast đến nhiều user cùng lúc.
   Future<void> subscribeToTopic(String topic) async {
+    if (kIsWeb) return;
     await AwesomeNotificationsFcm().subscribeToTopic(topic);
     developer.log('Subscribed to topic: $topic', name: 'FCM');
   }
 
   // Hàm hủy đăng ký nhận thông báo theo topic.
   Future<void> unsubscribeFromTopic(String topic) async {
+    if (kIsWeb) return;
     await AwesomeNotificationsFcm().unsubscribeToTopic(topic);
     developer.log('Unsubscribed from topic: $topic', name: 'FCM');
   }
@@ -152,6 +159,7 @@ class NotificationController {
   // - Call: data-only → mySilentDataHandle tạo notification CÓ nút Nghe/Từ chối (như Zalo)
   @pragma("vm:entry-point")
   static Future<void> mySilentDataHandle(FcmSilentData silentData) async {
+    if (kIsWeb) return;
     developer.log(
       'Silent Data received | lifecycle: ${silentData.createdLifeCycle} | data: ${silentData.data}',
       name: 'FCM',
@@ -218,6 +226,7 @@ class NotificationController {
 
   // Tạo call notification có action buttons — dùng cho mọi trạng thái app
   static Future<void> _createCallNotification(Map<String, String?> data) async {
+    if (kIsWeb) return;
     try {
       final peerUsername = data['peerUsername'] ?? 'User';
       final matchId = data['matchId'] ?? '';
@@ -269,6 +278,7 @@ class NotificationController {
   // Lưu token vào Firestore để backend sử dụng gửi thông báo.
   @pragma("vm:entry-point")
   static Future<void> myFcmTokenHandle(String token) async {
+    if (kIsWeb) return;
     developer.log('FCM Token Handle: $token', name: 'FCM');
     await _saveTokenToFirestore(token);
   }
@@ -276,6 +286,7 @@ class NotificationController {
   // Hàm xử lý khi nhận Native Token (APNS cho iOS).
   @pragma("vm:entry-point")
   static Future<void> myNativeTokenHandle(String token) async {
+    if (kIsWeb) return;
     developer.log('Native Token: $token', name: 'FCM');
   }
 
@@ -311,6 +322,7 @@ class NotificationController {
     required String peerUserId,
     required String message,
   }) async {
+    if (kIsWeb) return;
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
@@ -336,6 +348,7 @@ class NotificationController {
     required String matchId,
     required String peerUserId,
   }) async {
+    if (kIsWeb) return;
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: matchId.hashCode,
@@ -378,6 +391,7 @@ class NotificationController {
     required String reactorUserId,
     required String emoji,
   }) async {
+    if (kIsWeb) return;
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: momentId.hashCode,
@@ -401,6 +415,7 @@ class NotificationController {
     required String body,
     Map<String, String>? payload,
   }) async {
+    if (kIsWeb) return;
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: Random().nextInt(100000),  // Tạo id ngẫu nhiên cho notification

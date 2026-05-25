@@ -16,8 +16,46 @@ async function sendFcmNotification({ token, title, body, channelId, androidPrior
       notification: { channelId, sound: 'default', priority: androidPriority },
     },
     apns: {
-      payload: { aps: { alert: { title, body }, sound: 'default', badge: 1 } },
-      headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+      payload: {
+        aps: {
+          alert: { title, body },
+          sound: 'default',
+          badge: 1,
+          'content-available': 1,  // ← BẮT BUỘC để iOS wake app ở background/killed
+        },
+      },
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'alert',
+      },
+    },
+    data,
+  });
+}
+
+// Helper riêng cho Call notification: dùng 'voip' push type để bypass DND
+// và luôn hiển thị ngay cả khi app bị kill
+async function sendCallFcmNotification({ token, title, body, data = {} }) {
+  return admin.messaging().send({
+    token,
+    notification: { title, body },
+    android: {
+      priority: 'high',
+      notification: { channelId: 'call_channel', sound: 'default', priority: 'max' },
+    },
+    apns: {
+      payload: {
+        aps: {
+          alert: { title, body },
+          sound: 'default',
+          badge: 1,
+          'content-available': 1,
+        },
+      },
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'alert',
+      },
     },
     data,
   });
@@ -119,15 +157,12 @@ exports.sendCallNotification = onDocumentWritten(
 
       const callType = afterData.type === 'voice' ? 'thoại' : 'video';
 
-      // CALL dùng HYBRID:
-      // - killed state: OS hiển thị notification → user tap → mở app → màn hình cuộc gọi
-      // - background/foreground: mySilentDataHandle tạo notification CÓ nút Nghe/Từ chối
-      const response = await sendFcmNotification({
+      // CALL dùng helper riêng để đảm bảo iOS nhận push ngay cả khi app bị kill
+      // content-available: 1 → iOS wake app → mySilentDataHandle tạo notification với Nghe/Từ chối
+      const response = await sendCallFcmNotification({
         token: fcmToken,
         title: `📞 Cuộc gọi ${callType} đến`,
         body: `${callerName} đang gọi cho bạn`,
-        channelId: 'call_channel',
-        androidPriority: 'max',
         data: { type: 'call', matchId, callType, peerUserId: afterData.callerId, peerUsername: callerName },
       });
       console.log('Call notification sent:', response);

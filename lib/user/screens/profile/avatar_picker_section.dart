@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+// Dùng XFile thay File để hỗ trợ Web (dart:io File không chạy trên web)
 class AvatarPickerSection extends StatelessWidget {
-  final File? avatarImage;
+  final XFile? avatarImage;
   final String? avatarUrl;
-  final List<File> additionalImages;
+  final List<XFile> additionalImages;
   final List<String> additionalPhotoUrls;
   
   final VoidCallback onPickAvatar;
@@ -30,25 +31,32 @@ class AvatarPickerSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Avatar picker
+        // Avatar picker — dùng Image.network cho web (XFile.path là blob URL)
         Center(
           child: GestureDetector(
             onTap: onPickAvatar,
-            child: CircleAvatar(
-              radius: 50,
-              backgroundImage: avatarImage != null
-                  ? FileImage(avatarImage!)
-                  : (avatarUrl != null
-                        ? CachedNetworkImageProvider(avatarUrl!)
-                        : null),
-              child:
-                  avatarImage == null && avatarUrl == null
-                  ? const Icon(
-                      Icons.person,
-                      size: 50,
-                      color: Colors.grey,
-                    )
-                  : null,
+            child: ClipOval(
+              child: SizedBox(
+                width: 100,
+                height: 100,
+                child: avatarImage != null
+                    ? Image.network(
+                        avatarImage!.path,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 50, color: Colors.grey),
+                      )
+                    : (avatarUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: avatarUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const CircularProgressIndicator(),
+                            errorWidget: (context, url, error) => const Icon(Icons.person, size: 50, color: Colors.grey),
+                          )
+                        : Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.person, size: 50, color: Colors.grey),
+                          )),
+              ),
             ),
           ),
         ),
@@ -100,6 +108,26 @@ class AvatarPickerSection extends StatelessWidget {
                 );
               }
 
+              Widget imageWidget;
+              if (index < additionalPhotoUrls.length) {
+                imageWidget = CachedNetworkImage(
+                  imageUrl: additionalPhotoUrls[index],
+                  fit: BoxFit.cover,
+                  width: 100,
+                  height: 100,
+                  placeholder: (context, url) => Container(color: Colors.grey[300]),
+                  errorWidget: (context, url, error) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                );
+              } else {
+                imageWidget = Image.network(
+                  additionalImages[index - additionalPhotoUrls.length].path,
+                  fit: BoxFit.cover,
+                  width: 100,
+                  height: 100,
+                  errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                );
+              }
+
               return Stack(
                 children: [
                   GestureDetector(
@@ -108,14 +136,9 @@ class AvatarPickerSection extends StatelessWidget {
                       width: 100,
                       height: 100,
                       margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
+                      child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: index < additionalPhotoUrls.length
-                              ? CachedNetworkImageProvider(additionalPhotoUrls[index])
-                              : FileImage(additionalImages[index - additionalPhotoUrls.length]) as ImageProvider,
-                          fit: BoxFit.cover,
-                        ),
+                        child: imageWidget,
                       ),
                     ),
                   ),

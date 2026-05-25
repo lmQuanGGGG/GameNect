@@ -4,11 +4,23 @@ part of '../firestore_service.dart';
 // Quản lý CRUD cho user, location, settings
 
 extension UserServiceExtension on FirestoreService {
-  // Upload ảnh lên Firebase Storage
-  Future<String?> uploadImage(File image, String userId, String path) async {
+  // Upload ảnh lên Firebase Storage dùng File (mobile only - deprecated, dùng uploadImageBytes thay thế)
+  Future<String?> uploadImage(dynamic image, String userId, String path) async {
     try {
       final ref = _storage.ref().child('users/$userId/$path');
       await ref.putFile(image);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      throw Exception('Không thể tải ảnh lên: $e');
+    }
+  }
+
+  // Upload ảnh lên Firebase Storage dùng bytes (hỗ trợ cả Web và Mobile)
+  Future<String?> uploadImageBytes(Uint8List bytes, String userId, String path) async {
+    try {
+      final ref = _storage.ref().child('users/$userId/$path');
+      final metadata = SettableMetadata(contentType: 'image/jpeg');
+      await ref.putData(bytes, metadata);
       return await ref.getDownloadURL();
     } catch (e) {
       throw Exception('Không thể tải ảnh lên: $e');

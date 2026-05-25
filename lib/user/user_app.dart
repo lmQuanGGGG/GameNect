@@ -55,7 +55,7 @@ class UserApp extends StatelessWidget {
             elevation: 8,
           ),
         ),
-        initialRoute: initialRoute ?? '/main', // Đổi route mặc định thành main
+        initialRoute: initialRoute ?? '/main',
         routes: {
           '/main': (context) => const MainScreen(), // Thêm route cho MainScreen
           '/home': (context) => const HomeScreen(),

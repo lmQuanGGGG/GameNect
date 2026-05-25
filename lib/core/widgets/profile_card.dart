@@ -1,6 +1,17 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import '../../core/models/user_model.dart';
+
+// Custom ScrollBehavior cho phép kéo bằng chuột trên Web
+class _WebDragScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.stylus,
+      };
+}
 
 // Widget hiển thị card thông tin chi tiết của user
 // Bao gồm ảnh đại diện, thông tin cá nhân, game stats và sở thích
@@ -33,88 +44,134 @@ class _ProfileCardState extends State<ProfileCard> {
       allPhotos.addAll(widget.user.additionalPhotos);
     }
 
-    // Tỉ lệ 3:4 để hiển thị đẹp như card Tinder
-    final double cardWidth = MediaQuery.of(context).size.width;
-    final double cardHeight = cardWidth * 4 / 3;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Dùng constraints.maxWidth để lấy chiều rộng thực tế của widget (hỗ trợ web constrained)
+        final double cardWidth = constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : MediaQuery.of(context).size.width;
+        final double cardHeight = cardWidth * 4 / 3;
 
-    if (allPhotos.isEmpty) {
-      return ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        child: Container(
-          width: cardWidth,
-          height: cardHeight,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.2), width: 1.5),
-          ),
-          child: const Center(
-            child: Icon(Icons.person, size: 80, color: Colors.white24),
-          ),
-        ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(30),
-        topRight: Radius.circular(30),
-      ),
-      child: SizedBox(
-        width: cardWidth,
-        height: cardHeight,
-        child: Stack(
-          children: [
-            // PageView cho phép vuốt qua lại giữa các ảnh
-            PageView.builder(
-              controller: _pageController,
-              itemCount: allPhotos.length,
-              itemBuilder: (context, index) {
-                return Image.network(
-                  allPhotos[index],
-                  fit: BoxFit.cover,
-                  width: cardWidth,
-                  height: cardHeight,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Icon(Icons.error_outline, size: 50)),
-                );
-              },
-              onPageChanged: (index) {
-                setState(() {
-                  _currentPage = index;
-                });
-              },
+        if (allPhotos.isEmpty) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
             ),
-            // Indicator hiển thị vị trí ảnh hiện tại
-            Positioned(
-              top: 16,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  allPhotos.length,
-                  (index) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    width: 40,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: _currentPage == index
-                          ? Colors.deepOrange
-                          : Colors.white.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(3),
+            child: Container(
+              width: cardWidth,
+              height: cardHeight,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.2), width: 1.5),
+              ),
+              child: const Center(
+                child: Icon(Icons.person, size: 80, color: Colors.white24),
+              ),
+            ),
+          );
+        }
+
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+          child: SizedBox(
+            width: cardWidth,
+            height: cardHeight,
+            child: Stack(
+              children: [
+                // ScrollConfiguration cho phép kéo bằng chuột trên Web
+                ScrollConfiguration(
+                  behavior: _WebDragScrollBehavior(),
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: allPhotos.length,
+                    itemBuilder: (context, index) {
+                      return Image.network(
+                        allPhotos[index],
+                        fit: BoxFit.cover,
+                        width: cardWidth,
+                        height: cardHeight,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(child: Icon(Icons.error_outline, size: 50)),
+                      );
+                    },
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentPage = index;
+                      });
+                    },
+                  ),
+                ),
+                // Indicator hiển thị vị trí ảnh hiện tại
+                Positioned(
+                  top: 16,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      allPhotos.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        width: 40,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: _currentPage == index
+                              ? Colors.deepOrange
+                              : Colors.white.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                // Tap zones để chuyển ảnh (bấm trái/phải)
+                if (allPhotos.length > 1) ...[
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: cardWidth * 0.4,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_currentPage > 0) {
+                          _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                      child: Container(color: Colors.transparent),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: cardWidth * 0.4,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_currentPage < allPhotos.length - 1) {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                      child: Container(color: Colors.transparent),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+        );
+      }, // end builder
+    ); // end LayoutBuilder
   }
 
   // Xây dựng card hiển thị số liệu game như play time và win rate

@@ -534,10 +534,11 @@ class MomentCard extends StatelessWidget {
                 ),
               ),
 
-              // TikTok-style vertical emoji bar on the RIGHT
-              Positioned(
-                right: 12,
-                bottom: 130,
+              // TikTok-style vertical emoji bar on the RIGHT (only for others' moments)
+              if (moment.userId != currentUserId)
+                Positioned(
+                  right: 12,
+                  bottom: 130,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

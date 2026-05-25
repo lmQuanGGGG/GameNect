@@ -8,7 +8,7 @@ class RawgService {
   // ======================================================
   // RAWG API KEY - LẤY TỪ .env GIỐNG EDIT_PROFILE_SCREEN
   // ======================================================
-  final String _apiKey = dotenv.env['RAWG_API_KEY']!;
+  final String _apiKey = dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
   static const String _baseUrl = 'https://api.rawg.io/api';
   
   final _logger = Logger();

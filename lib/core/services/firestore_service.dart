@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'dart:typed_data'; // Uint8List cho uploadImageBytes (Web compatible)
 import '../models/user_model.dart';
 import '../models/match_model.dart';
 import '../models/swipe_history_model.dart';

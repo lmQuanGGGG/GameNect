@@ -533,26 +533,25 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                       horizontal: 24,
                                       vertical: 8,
                                     ),
-                                    leading: CircleAvatar(
-                                      radius: 24,
-                                      backgroundImage:
-                                          user.avatarUrl != null &&
-                                              user.avatarUrl!.isNotEmpty
-                                          ? CachedNetworkImageProvider(
-                                              user.avatarUrl!,
-                                            )
-                                          : null,
-                                      backgroundColor: Colors.white.withValues(
-                                        alpha: 0.1,
+                                    leading: ClipOval(
+                                      child: SizedBox(
+                                        width: 48,
+                                        height: 48,
+                                        child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                            ? CachedNetworkImage(
+                                                imageUrl: user.avatarUrl!,
+                                                fit: BoxFit.cover,
+                                                placeholder: (context, url) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                                                errorWidget: (context, url, error) => Container(
+                                                  color: Colors.white.withValues(alpha: 0.1),
+                                                  child: const Icon(Icons.person, color: Colors.white),
+                                                ),
+                                              )
+                                            : Container(
+                                                color: Colors.white.withValues(alpha: 0.1),
+                                                child: const Icon(Icons.person, color: Colors.white),
+                                              ),
                                       ),
-                                      child:
-                                          user.avatarUrl == null ||
-                                              user.avatarUrl!.isEmpty
-                                          ? const Icon(
-                                              Icons.person,
-                                              color: Colors.white,
-                                            )
-                                          : null,
                                     ),
                                     title: Text(
                                       user.username ?? 'User',

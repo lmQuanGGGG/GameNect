@@ -357,17 +357,8 @@ class LocationService {
     try {
       final position = await getCurrentLocation();
       if (position == null) {
-        // ✅ FALLBACK: Trả về vị trí mặc định thay vì null
-        _logger.warning('⚠️ Không lấy được GPS, dùng vị trí mặc định');
-        return {
-          'latitude': 21.028511,
-          'longitude': 105.804817,
-          'address': 'Hà Nội',
-          'city': 'Hà Nội',
-          'country': 'Việt Nam',
-          'location': 'Hà Nội, Việt Nam',
-          'lastLocationUpdate': DateTime.now().toIso8601String(),
-        };
+        _logger.warning('⚠️ Không lấy được GPS, trả về null để giữ nguyên vị trí cũ');
+        return null;
       }
 
       final addressData = await getAddressFromCoordinates(
@@ -390,16 +381,7 @@ class LocationService {
     } catch (e, st) {
       _logger.severe('Lỗi getLocationData: $e', e, st);
 
-      //  FALLBACK cuối cùng
-      return {
-        'latitude': 21.028511,
-        'longitude': 105.804817,
-        'address': 'Hà Nội',
-        'city': 'Hà Nội',
-        'country': 'Việt Nam',
-        'location': 'Hà Nội, Việt Nam',
-        'lastLocationUpdate': DateTime.now().toIso8601String(),
-      };
+      return null;
     }
   }
 

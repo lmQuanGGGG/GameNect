@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:gamenect_new/core/widgets/profile_card.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+// Không dùng dart:io File vì không hỗ trợ Web
 import 'dart:developer' as developer;
 import '../../../core/models/user_model.dart';
 import '../../../core/services/firestore_service.dart';
@@ -45,13 +45,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isUpdating = false;
   
-  final String _apiKey = dotenv.env['RAWG_API_KEY']!;
+  final String _apiKey = dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
   final FirestoreService _firestoreService = FirestoreService();
   
-  File? _avatarImage;
+  XFile? _avatarImage;
   String? _avatarUrl;
   
-  final List<File> _additionalImages = [];
+  final List<XFile> _additionalImages = [];
   List<String> _additionalPhotoUrls = [];
   
   final ImagePicker _picker = ImagePicker();
@@ -162,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _avatarImage = File(pickedFile.path);
+        _avatarImage = pickedFile; // Lưu XFile trực tiếp, không dùng File(path)
       });
     }
   }
@@ -176,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _additionalImages.add(File(pickedFile.path));
+        _additionalImages.add(pickedFile);
       });
     }
   }
@@ -187,9 +187,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         if (index < _additionalPhotoUrls.length) {
           _additionalPhotoUrls.removeAt(index);
-          _additionalImages.add(File(pickedFile.path));
+          _additionalImages.add(pickedFile);
         } else {
-          _additionalImages[index - _additionalPhotoUrls.length] = File(pickedFile.path);
+          _additionalImages[index - _additionalPhotoUrls.length] = pickedFile;
         }
       });
     }
@@ -209,14 +209,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       if (_avatarImage != null) {
         final avatarFileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        _avatarUrl = await _firestoreService.uploadImage(_avatarImage!, userId, avatarFileName);
+        final bytes = await _avatarImage!.readAsBytes();
+        _avatarUrl = await _firestoreService.uploadImageBytes(bytes, userId, avatarFileName);
         if (_avatarUrl == null) throw Exception('Không thể tải lên ảnh đại diện');
       }
 
       List<String> newPhotoUrls = List.from(_additionalPhotoUrls);
       for (int i = 0; i < _additionalImages.length; i++) {
         final fileName = 'photo_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-        final url = await _firestoreService.uploadImage(_additionalImages[i], userId, fileName);
+        final bytes = await _additionalImages[i].readAsBytes();
+        final url = await _firestoreService.uploadImageBytes(bytes, userId, fileName);
         if (url != null) {
           newPhotoUrls.add(url);
         } else {
@@ -314,9 +316,145 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Tách riêng để xử lý BackdropFilter khác nhau giữa Web và Mobile.
+  /// Web (CanvasKit): BackdropFilter trên nền transparent bị xám → dùng Container màu đặc.
+  /// Mobile: Glassmorphism bình thường với BackdropFilter.
+  Widget _buildFormCard(EditProfileProvider provider) {
+    final formContent = Form(
+      key: _formKey,
+      child: Consumer<EditProfileProvider>(
+        builder: (context, prov, child) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Hình ảnh', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 18),
+              AvatarPickerSection(
+                avatarImage: _avatarImage,
+                avatarUrl: _avatarUrl,
+                additionalImages: _additionalImages,
+                additionalPhotoUrls: _additionalPhotoUrls,
+                onPickAvatar: _pickAvatar,
+                onPickAdditionalPhoto: _pickAdditionalPhoto,
+                onEditAdditionalPhoto: _editAdditionalPhoto,
+                onRemoveAdditionalPhoto: _removeAdditionalPhoto,
+              ),
+              const SizedBox(height: 24),
+              Text('Thông tin cơ bản', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 18),
+              BasicInfoSection(
+                usernameController: _usernameController,
+                birthDateController: _birthDateController,
+                heightController: _heightController,
+                bioController: _bioController,
+                gender: _gender,
+                onGenderChanged: (v) => setState(() => _gender = v!),
+                genderOptions: prov.genderOptions,
+                interests: _interests,
+                onInterestsChanged: (v) => setState(() => _interests = v),
+                interestOptions: prov.interestOptions,
+              ),
+              const SizedBox(height: 24),
+              Text('Thông tin Gaming', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 18),
+              GamingSection(
+                rank: _rank,
+                onRankChanged: (v) => setState(() => _rank = v),
+                rankOptions: prov.rankOptions,
+                favoriteGames: _favoriteGames,
+                onFavoriteGamesChanged: (v) => setState(() => _favoriteGames = v),
+                isSearching: _isSearching,
+                searchResultGames: _searchResultGames,
+                hotGames: _hotGames,
+                onSearchGames: _searchGames,
+                playTime: _playTime,
+                onPlayTimeChanged: (v) => setState(() => _playTime = v),
+                winRate: _winRate,
+                onWinRateChanged: (v) => setState(() => _winRate = v),
+                gameStyle: _gameStyle,
+                onGameStyleChanged: (v) => setState(() => _gameStyle = v!),
+                gameStyleOptions: prov.gameStyleOptions,
+                lookingFor: _lookingFor,
+                onLookingForChanged: (v) => setState(() => _lookingFor = v!),
+                lookingForOptions: prov.lookingForOptions,
+              ),
+              const SizedBox(height: 32),
+              Center(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _handleSave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6E40),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      _isUpdating ? 'Cập nhật hồ sơ' : 'Lưu hồ sơ',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final containerDecoration = BoxDecoration(
+      color: kIsWeb ? const Color(0xFF1A1A1E) : Colors.white.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(28),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+      boxShadow: [
+        BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, 8)),
+      ],
+    );
+
+    if (kIsWeb) {
+      // Web: không dùng BackdropFilter (tránh bug xám CanvasKit trên deploy)
+      return Container(
+        width: 420,
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(24),
+        decoration: containerDecoration,
+        child: formContent,
+      );
+    }
+
+    // Mobile: glassmorphism với BackdropFilter
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          width: 420,
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
+          decoration: containerDecoration,
+          child: formContent,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    final provider = context.watch<EditProfileProvider>();
+    
+    if (_isLoading || provider.isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFF101012),
         body: Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
@@ -342,7 +480,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: 100, spreadRadius: 40)],
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: kIsWeb ? 40 : 100, spreadRadius: kIsWeb ? 20 : 40)],
               ),
             ),
           ),
@@ -353,16 +491,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xFFBF360C).withValues(alpha: 0.15),
-                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: 120, spreadRadius: 50)],
+                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: kIsWeb ? 40 : 120, spreadRadius: kIsWeb ? 20 : 50)],
               ),
             ),
           ),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-              child: Container(color: Colors.transparent),
+          // Trên Web (CanvasKit), BackdropFilter + transparent child gây xám màn hình
+          if (!kIsWeb)
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                child: Container(color: Colors.transparent),
+              ),
             ),
-          ),
           
           Align(
             alignment: Alignment.topCenter,
@@ -371,121 +511,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 children: [
                   SizedBox(height: kToolbarHeight + MediaQuery.of(context).padding.top + 24),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                      child: Container(
-                        width: 420,
-                        constraints: const BoxConstraints(maxWidth: 500),
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
-                          boxShadow: [
-                            BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, 8)),
-                          ],
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Consumer<EditProfileProvider>(
-                            builder: (context, provider, child) {
-                              return Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Hình ảnh', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  const SizedBox(height: 18),
-                                  AvatarPickerSection(
-                                    avatarImage: _avatarImage,
-                                    avatarUrl: _avatarUrl,
-                                    additionalImages: _additionalImages,
-                                    additionalPhotoUrls: _additionalPhotoUrls,
-                                    onPickAvatar: _pickAvatar,
-                                    onPickAdditionalPhoto: _pickAdditionalPhoto,
-                                    onEditAdditionalPhoto: _editAdditionalPhoto,
-                                    onRemoveAdditionalPhoto: _removeAdditionalPhoto,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  
-                                  Text('Thông tin cơ bản', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  const SizedBox(height: 18),
-                                  BasicInfoSection(
-                                    usernameController: _usernameController,
-                                    birthDateController: _birthDateController,
-                                    heightController: _heightController,
-                                    bioController: _bioController,
-                                    gender: _gender,
-                                    onGenderChanged: (v) => setState(() => _gender = v!),
-                                    genderOptions: provider.genderOptions,
-                                    interests: _interests,
-                                    onInterestsChanged: (v) => setState(() => _interests = v),
-                                    interestOptions: provider.interestOptions,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  
-                                  Text('Thông tin Gaming', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  const SizedBox(height: 18),
-                                  GamingSection(
-                                    rank: _rank,
-                                    onRankChanged: (v) => setState(() => _rank = v),
-                                    rankOptions: provider.rankOptions,
-                                    favoriteGames: _favoriteGames,
-                                    onFavoriteGamesChanged: (v) => setState(() => _favoriteGames = v),
-                                    isSearching: _isSearching,
-                                    searchResultGames: _searchResultGames,
-                                    hotGames: _hotGames,
-                                    onSearchGames: _searchGames,
-                                    playTime: _playTime,
-                                    onPlayTimeChanged: (v) => setState(() => _playTime = v),
-                                    winRate: _winRate,
-                                    onWinRateChanged: (v) => setState(() => _winRate = v),
-                                    gameStyle: _gameStyle,
-                                    onGameStyleChanged: (v) => setState(() => _gameStyle = v!),
-                                    gameStyleOptions: provider.gameStyleOptions,
-                                    lookingFor: _lookingFor,
-                                    onLookingForChanged: (v) => setState(() => _lookingFor = v!),
-                                    lookingForOptions: provider.lookingForOptions,
-                                  ),
-                                  const SizedBox(height: 32),
-                                  
-                                  Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                                            blurRadius: 16,
-                                            spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                      child: ElevatedButton(
-                                        onPressed: _handleSave,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFFF6E40),
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                          elevation: 0,
-                                        ),
-                                        child: Text(
-                                          _isUpdating ? 'Cập nhật hồ sơ' : 'Lưu hồ sơ',
-                                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.1),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Fix: trên Web dùng Container solid thay BackdropFilter (tránh bug xám CanvasKit)
+                  _buildFormCard(provider),
                   const SizedBox(height: 40),
                 ],
               ),

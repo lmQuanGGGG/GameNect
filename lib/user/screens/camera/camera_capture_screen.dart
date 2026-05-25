@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../core/providers/moment_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:ui';
 import 'package:logger/logger.dart';
@@ -66,6 +68,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
+
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pickFromGallery().then((_) {
+          if (_capturedMedia == null && mounted) {
+            Navigator.pop(context); // Đóng nếu user cancel picker
+          }
+        });
+      });
+    }
   }
 
   @override
@@ -78,27 +90,28 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   // ── Zoom preset ──────────────────────────────────────────────────────────────
   Future<void> _setZoomPreset(double label, CameraState state) async {
-    if (label == 0.5 && !_isFrontCamera) {
-      // Switch to ultra-wide lens if available
-      if (_sensorDeviceData?.ultraWideAngle != null) {
-        state.setSensorType(
-            0, SensorType.ultraWideAngle, _sensorDeviceData!.ultraWideAngle!.uid);
+    if (label == 0.5) {
+      // Cam sau: có lens siêu rộng thật thì dùng
+      if (!_isFrontCamera && _sensorDeviceData?.ultraWideAngle != null) {
+        state.setSensorType(0, SensorType.ultraWideAngle, _sensorDeviceData!.ultraWideAngle!.uid);
       } else {
-        // Fallback: set to minimum zoom
+        // Cam trước (hoặc cam sau k có lens): góc rộng nhất là mức zoom 0.0
         await state.sensorConfig.setZoom(0.0);
       }
     } else if (label == 1.0) {
-      // Back to main wide-angle lens
-      if (_sensorDeviceData?.wideAngle != null && !_isFrontCamera) {
-        state.setSensorType(
-            0, SensorType.wideAngle, _sensorDeviceData!.wideAngle!.uid);
+      if (!_isFrontCamera) {
+        // Cam sau: về wide-angle chính nếu có
+        if (_sensorDeviceData?.wideAngle != null) {
+          state.setSensorType(0, SensorType.wideAngle, _sensorDeviceData!.wideAngle!.uid);
+        }
+        await state.sensorConfig.setZoom(0.0);
+      } else {
+        // Cam trước: 1× dùng nguyên bản phần cứng (không digital zoom, nét nhất)
+        await state.sensorConfig.setZoom(0.0);
       }
-      await state.sensorConfig.setZoom(0.0);
     } else if (label == 2.0) {
-      // Try telephoto first, else digital zoom
-      if (_sensorDeviceData?.telephoto != null && !_isFrontCamera) {
-        state.setSensorType(
-            0, SensorType.telephoto, _sensorDeviceData!.telephoto!.uid);
+      if (!_isFrontCamera && _sensorDeviceData?.telephoto != null) {
+        state.setSensorType(0, SensorType.telephoto, _sensorDeviceData!.telephoto!.uid);
       } else {
         await state.sensorConfig.setZoom(0.3);
       }
@@ -365,29 +378,52 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       String? mediaUrl;
       String? thumbnailUrl;
 
-      if (_isVideo) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
-        await ref.putFile(File(_capturedMedia!.path));
-        mediaUrl = await ref.getDownloadURL();
-
-        if (_localThumbnailPath != null) {
-          final thumbRef = FirebaseStorage.instance
+      if (kIsWeb) {
+        // === WEB: dùng putData(bytes) thay vì putFile(File) ===
+        final bytes = await _capturedMedia!.readAsBytes();
+        if (_isVideo) {
+          final ref = FirebaseStorage.instance
               .ref()
-              .child('moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg');
-          await thumbRef.putFile(File(_localThumbnailPath!));
-          thumbnailUrl = await thumbRef.getDownloadURL();
+              .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+          await ref.putData(bytes, SettableMetadata(contentType: 'video/mp4'));
+          mediaUrl = await ref.getDownloadURL();
+          // Thumbnail cho video web: dùng placeholder vì video_thumbnail không chạy trên web
+          thumbnailUrl = null;
+        } else {
+          final imageRef = FirebaseStorage.instance
+              .ref()
+              .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          await imageRef.putData(bytes, SettableMetadata(
+              contentType: 'image/jpeg',
+              customMetadata: {'quality': 'high'}));
+          mediaUrl = await imageRef.getDownloadURL();
         }
       } else {
-        final imageRef = FirebaseStorage.instance
-            .ref()
-            .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
-        final metadata = SettableMetadata(
-            contentType: 'image/jpeg',
-            customMetadata: {'quality': 'high'});
-        await imageRef.putFile(File(_capturedMedia!.path), metadata);
-        mediaUrl = await imageRef.getDownloadURL();
+        // === MOBILE: dùng putFile như cũ ===
+        if (_isVideo) {
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+          await ref.putFile(File(_capturedMedia!.path));
+          mediaUrl = await ref.getDownloadURL();
+
+          if (_localThumbnailPath != null) {
+            final thumbRef = FirebaseStorage.instance
+                .ref()
+                .child('moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            await thumbRef.putFile(File(_localThumbnailPath!));
+            thumbnailUrl = await thumbRef.getDownloadURL();
+          }
+        } else {
+          final imageRef = FirebaseStorage.instance
+              .ref()
+              .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          final metadata = SettableMetadata(
+              contentType: 'image/jpeg',
+              customMetadata: {'quality': 'high'});
+          await imageRef.putFile(File(_capturedMedia!.path), metadata);
+          mediaUrl = await imageRef.getDownloadURL();
+        }
       }
 
       if (!mounted) return;
@@ -439,8 +475,15 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         if (mounted) {
           setState(() {
             _isFrontCamera = isFront;
-            _currentZoomLabel = 1.0; // reset on switch
+            _currentZoomLabel = 1.0; // reset zoom label on switch
           });
+          // Set zoom 0.0 và giữ nguyên độ sáng tự nhiên cho cả 2 cam
+          if (isFront) {
+            state.sensorConfig.setZoom(0.0);
+          } else {
+            state.sensorConfig.setZoom(0.0);
+          }
+          state.sensorConfig.setBrightness(_brightnessValue);
         }
       });
     }
@@ -534,10 +577,6 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 _buildExposureSlider(state),
                 const SizedBox(height: 24),
 
-                // ── Photo / Video mode toggle ──────────────────────────────────
-                _buildModeToggle(state),
-                const SizedBox(height: 24),
-
                 // ── Main action row ────────────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -565,6 +604,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+
+                // ── Photo / Video mode toggle ──────────────────────────────────
+                _buildModeToggle(state),
               ],
             ),
           ),
@@ -574,7 +617,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Widget _buildZoomPresets(CameraState state) {
-    // Zoom labels for back: 0.5, 1, 2, 5 — for front: 1, 2
+    // Cam sau: 0.5, 1, 2, 5 — Cam trước: 1, 2
     final labels = _isFrontCamera
         ? [1.0, 2.0]
         : [0.5, 1.0, 2.0, 5.0];
@@ -868,6 +911,13 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             _localThumbnailPath = null;
             _needsLensReset = true;
           });
+          if (kIsWeb && mounted) {
+            _pickFromGallery().then((_) {
+              if (_capturedMedia == null && mounted) {
+                Navigator.pop(context);
+              }
+            });
+          }
         },
         onPost: _uploadAndPost,
         onClose: () {
@@ -881,7 +931,17 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             _localThumbnailPath = null;
             _needsLensReset = true;
           });
+          if (kIsWeb && mounted) {
+            Navigator.pop(context);
+          }
         },
+      );
+    }
+
+    if (kIsWeb) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
       );
     }
 

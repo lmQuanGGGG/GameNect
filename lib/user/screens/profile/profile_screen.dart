@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:gamenect_new/core/widgets/profile_card.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/profile_provider.dart';
@@ -362,15 +363,21 @@ class _ProfilePageState extends State<ProfilePage> {
                               try { TabBarVisibility.of(context).update(n); } catch (_) {}
                               return false;
                             },
-                            child: SingleChildScrollView(
-                        child: Column(
-                          children: [
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Trên web rộng, căn giữa và giới hạn chiều rộng tối đa
+                                final isWide = kIsWeb && constraints.maxWidth > 700;
+                                final avatarSize = isWide
+                                    ? 220.0 // Cố định 220px trên web
+                                    : constraints.maxWidth * 0.8; // 80% trên mobile
+                                Widget content = SingleChildScrollView(
+                                  child: Column(
+                                    children: [
                       Stack(
                         children: [
                           // Avatar lớn ở giữa màn hình, tap để xem ProfileCard
                           GestureDetector(
                             onTap: () {
-                              // Mở màn hình mới hiển thị ProfileCard với giao diện chuẩn
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -381,9 +388,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               );
                             },
                             child: Container(
-                                height: MediaQuery.of(context).size.width * 0.8,
-                                width: MediaQuery.of(context).size.width * 0.8,
-                                margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.1),
+                                height: avatarSize,
+                                width: avatarSize,
+                                margin: EdgeInsets.all(isWide ? 24 : constraints.maxWidth * 0.1),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 3),
@@ -708,27 +715,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       
                       const SizedBox(height: 24),
-                      
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/admin-test-users');
-                          },
-                          icon: const Icon(CupertinoIcons.person_3_fill),
-                          label: const Text('Tạo Test Users (Admin)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueGrey,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
+
                       
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -749,9 +736,21 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 32),
                     ],
                   ),
-                ),
-              ), // đóng NotificationListener
-              )
+                );
+                // Trên web rộng: căn giữa + giới hạn max-width
+                if (isWide) {
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: content,
+                    ),
+                  );
+                }
+                return content;
+              },
+            ),
+        ),
+      ), // đóng NotificationListener
               )
             ],
           ),

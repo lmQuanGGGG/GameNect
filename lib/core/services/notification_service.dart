@@ -1,6 +1,6 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'dart:developer' as developer;
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Hiển thị thông báo tin nhắn mới
@@ -11,6 +11,7 @@ Future<void> showMessageNotification({
   required String peerUserId,
   required String message,
 }) async {
+  if (kIsWeb) return;
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
       // Tạo ID duy nhất dựa trên timestamp để tránh trùng lặp
@@ -41,6 +42,7 @@ Future<void> showCallNotification({
   required String matchId,
   required String peerUserId,
 }) async {
+  if (kIsWeb) return;
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
       // Dùng hashCode của matchId làm ID để cập nhật notification nếu cần
@@ -92,6 +94,7 @@ Future<void> showMomentReactionNotification({
   required String momentId,
   required String emoji,
 }) async {
+  if (kIsWeb) return;
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
       id: momentId.hashCode,
@@ -113,10 +116,12 @@ Future<void> showMomentReactionNotification({
 
 // Hủy một notification cụ thể theo ID
 Future<void> cancelNotification(int id) async {
+  if (kIsWeb) return;
   await AwesomeNotifications().cancel(id);
 }
 
 // Hủy tất cả notifications đang hiển thị
 Future<void> cancelAllNotifications() async {
+  if (kIsWeb) return;
   await AwesomeNotifications().cancelAll();
 }
