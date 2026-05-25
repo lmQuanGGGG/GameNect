@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/widgets/profile_card.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Màn hình xem profile người khác — Liquid Glass Dark Premium
 /// Dùng chung cho: Chat, Lượt thích, Bỏ lỡ, Kết quả tìm kiếm...
@@ -13,7 +14,7 @@ class PeerProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF101012),
+      backgroundColor: context.scaffoldBackgroundColor,
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
@@ -22,10 +23,10 @@ class PeerProfileScreen extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: context.appBarBgColor,
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: context.cardBorderColor,
                     width: 0.5,
                   ),
                 ),
@@ -43,10 +44,10 @@ class PeerProfileScreen extends StatelessWidget {
                           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: context.isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.03),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.15),
+                                color: context.cardBorderColor,
                                 width: 0.8,
                               ),
                             ),
@@ -72,8 +73,8 @@ class PeerProfileScreen extends StatelessWidget {
                       backgroundColor:
                           const Color(0xFFFF6E40).withValues(alpha: 0.3),
                       child: peerUser.avatarUrl == null
-                          ? const Icon(Icons.person,
-                              size: 18, color: Colors.white)
+                          ? Icon(Icons.person,
+                              size: 18, color: context.textColor)
                           : null,
                     ),
                     const SizedBox(width: 10),
@@ -84,8 +85,8 @@ class PeerProfileScreen extends StatelessWidget {
                         children: [
                           Text(
                             peerUser.username,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: context.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -119,10 +120,10 @@ class PeerProfileScreen extends StatelessWidget {
               height: 280,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.08),
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.08 * context.bgOrbOpacityMultiplier),
                     blurRadius: 100,
                     spreadRadius: 40,
                   ),
@@ -139,10 +140,10 @@ class PeerProfileScreen extends StatelessWidget {
               height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.1),
+                color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFBF360C).withValues(alpha: 0.08),
+                    color: const Color(0xFFBF360C).withValues(alpha: 0.08 * context.bgOrbOpacityMultiplier),
                     blurRadius: 120,
                     spreadRadius: 50,
                   ),

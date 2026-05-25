@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../premium/subscription_screen.dart';
 import '../../widgets/glass_button.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Mixin chứa tất cả các dialog của màn hình camera
 /// Giúp giữ camera_capture_screen.dart gọn hơn
@@ -139,36 +140,48 @@ mixin CameraDialogsMixin<T extends StatefulWidget> on State<T> {
               filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
               child: Container(
                 decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: context.isDarkMode
+                        ? Colors.black.withValues(alpha: 0.6)
+                        : Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15), width: 1.5)),
+                        color: context.isDarkMode
+                            ? Colors.white.withValues(alpha: 0.15)
+                            : Colors.black.withValues(alpha: 0.08),
+                        width: 1.5)),
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Thêm chú thích',
+                    Text('Thêm chú thích',
                         style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white)),
+                            color: context.textDialogColor)),
                     const SizedBox(height: 20),
                     Container(
                       decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
+                          color: context.isDarkMode
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.black.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: context.isDarkMode
+                                  ? Colors.white.withValues(alpha: 0.2)
+                                  : Colors.black.withValues(alpha: 0.1),
                               width: 1)),
                       child: TextField(
                         controller: controller,
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        style: TextStyle(
+                          color: context.textDialogColor,
+                          fontSize: 16,
+                        ),
                         maxLines: 4,
                         decoration: InputDecoration(
                             hintText: 'Bạn đang nghĩ gì?',
                             hintStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
+                                color: context.textDialogSecondaryColor,
                                 fontSize: 16),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16)),
@@ -186,7 +199,7 @@ mixin CameraDialogsMixin<T extends StatefulWidget> on State<T> {
                                   horizontal: 20, vertical: 12)),
                           child: Text('Hủy',
                               style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.7),
+                              color: context.textDialogSecondaryColor,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500)),
                         ),

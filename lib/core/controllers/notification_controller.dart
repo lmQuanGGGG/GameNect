@@ -3,9 +3,11 @@ import 'package:awesome_notifications_fcm/awesome_notifications_fcm.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:math';
 
 // Lớp NotificationController quản lý toàn bộ logic thông báo của ứng dụng.
@@ -102,8 +104,40 @@ class NotificationController {
   // Hàm lấy FCM token của thiết bị hiện tại.
   // Token này dùng để gửi thông báo từ server về đúng thiết bị.
   // Sau khi lấy được token, sẽ lưu vào Firestore để backend sử dụng.
-  Future<String?> getFirebaseToken() async {
-    if (kIsWeb) return null;
+  Future<String?> getFirebaseToken({String? vapidKey}) async {
+    if (kIsWeb) {
+      try {
+        bool isSupported = await FirebaseMessaging.instance.isSupported();
+        if (!isSupported) {
+          developer.log('Push notifications not supported on Web. Cannot get token.', name: 'FCM');
+          return null;
+        }
+        
+        final resolvedVapidKey = vapidKey ??
+          const String.fromEnvironment('FCM_VAPID_KEY') ??
+          dotenv.env['FCM_VAPID_KEY'];
+        if (resolvedVapidKey == null || resolvedVapidKey.isEmpty) {
+          developer.log('Missing FCM_VAPID_KEY for Web', name: 'FCM');
+          return null;
+        }
+
+        _fcmToken = await FirebaseMessaging.instance.getToken(
+          vapidKey: resolvedVapidKey,
+        );
+
+        developer.log('Web FCM Token: $_fcmToken', name: 'FCM');
+
+        if (_fcmToken != null) {
+          await _saveTokenToFirestore(_fcmToken!);
+        }
+
+        return _fcmToken;
+      } catch (e) {
+        developer.log('Error getting Web FCM token: $e', name: 'FCM');
+        return null;
+      }
+    }
+
     if (await AwesomeNotificationsFcm().isFirebaseAvailable) {
       try {
         _fcmToken = await AwesomeNotificationsFcm().requestFirebaseAppToken();
@@ -200,7 +234,9 @@ class NotificationController {
             notificationLayout: NotificationLayout.Messaging,
             category: NotificationCategory.Message,
             wakeUpScreen: true,
+            displayOnForeground: true,
           ),
+          actionButtons: [],
         );
       } else if (type == 'moment_reaction') {
         await AwesomeNotifications().createNotification(
@@ -216,7 +252,9 @@ class NotificationController {
             },
             notificationLayout: NotificationLayout.Default,
             category: NotificationCategory.Social,
+            displayOnForeground: true,
           ),
+          actionButtons: [],
         );
       }
     } catch (e) {
@@ -338,6 +376,7 @@ class NotificationController {
         category: NotificationCategory.Message,
         wakeUpScreen: true,
       ),
+      actionButtons: [],
     );
   }
 
@@ -406,6 +445,7 @@ class NotificationController {
         notificationLayout: NotificationLayout.Default,
         category: NotificationCategory.Social,
       ),
+      actionButtons: [],
     );
   }
 

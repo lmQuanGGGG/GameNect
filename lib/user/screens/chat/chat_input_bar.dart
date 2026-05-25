@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'dart:async';
 import '../../../core/providers/chat_provider.dart';
 import '../media/media_preview_screen.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Thanh nhập liệu Liquid Glass Floating Pill
 /// Hỗ trợ: Ghi âm Zero-Delay (onPointerDown) và Vuốt sang trái để hủy (Slide to cancel).
@@ -146,16 +147,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.15),
-                    Colors.white.withValues(alpha: 0.05),
-                  ],
-                ),
+                color: context.cardBgColor,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: context.cardBorderColor,
                   width: 1,
                 ),
               ),
@@ -170,7 +164,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       margin: const EdgeInsets.only(bottom: 2, left: 2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                       ),
                       child: IconButton(
                         icon: const Icon(
@@ -193,8 +187,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             child: TextField(
                               controller: widget.controller,
                               focusNode: widget.focusNode,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: context.textColor,
                                 fontSize: 15,
                               ),
                               maxLines: null,
@@ -202,10 +196,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
                               decoration: InputDecoration(
                                 hintText: 'iMessage',
                                 hintStyle: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.4),
+                                  color: context.textTertiaryColor,
                                   fontSize: 15,
                                 ),
                                 border: InputBorder.none,
+                                filled: false,
+                                fillColor: Colors.transparent,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 12,
@@ -317,10 +313,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             '•  Vuốt ⬅️ để hủy',
             style: TextStyle(
-              color: Colors.white70,
+              color: context.textSecondaryColor,
               fontSize: 13,
               fontWeight: FontWeight.w400,
             ),
@@ -337,10 +333,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.85),
+          color: context.dialogBgColor.withValues(alpha: 0.95),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           border: Border(
-            top: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+            top: BorderSide(color: context.cardBorderColor),
           ),
         ),
         child: SafeArea(
@@ -352,7 +348,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: context.textColor.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -361,9 +357,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   Icons.photo_rounded,
                   color: Color(0xFFFF6E40),
                 ),
-                title: const Text(
+                title: Text(
                   'Chọn ảnh',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.textColor),
                 ),
                 onTap: () async {
                   final file = await picker.pickImage(
@@ -377,9 +373,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   Icons.videocam_rounded,
                   color: Color(0xFFFF6E40),
                 ),
-                title: const Text(
+                title: Text(
                   'Chọn video',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.textColor),
                 ),
                 onTap: () async {
                   final file = await picker.pickVideo(

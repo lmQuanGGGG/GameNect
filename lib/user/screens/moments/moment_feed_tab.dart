@@ -9,6 +9,7 @@ import 'moment_card.dart';
 import 'moment_grid_item.dart';
 import 'trending_games_page.dart';
 import '../camera/camera_capture_screen.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Tab "Khám phá" — hiển thị moments của tất cả bạn bè trong 2 chế độ:
 /// - PageView (vertical scroll, fullscreen mỗi moment)
@@ -61,17 +62,17 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 ],
               ),
             ),
-            child: const Icon(Icons.photo_camera_rounded, size: 80, color: Colors.white70),
+            child: Icon(Icons.photo_camera_rounded, size: 80, color: context.textColor.withValues(alpha: 0.7)),
           ),
           const SizedBox(height: 32),
-          const Text('Chưa có khoảnh khắc nào',
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('Chưa có khoảnh khắc nào',
+              style: TextStyle(color: context.textColor, fontSize: 24, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 50),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 50),
             child: Text('Chia sẻ khoảnh khắc đầu tiên với bạn bè!',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white60, fontSize: 16)),
+                style: TextStyle(color: context.textSecondaryColor, fontSize: 16)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -168,7 +169,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
 
             return RefreshIndicator(
               color: Colors.deepOrange,
-              backgroundColor: const Color(0xFF1A1A1E),
+              backgroundColor: context.cardBgColor,
               displacement: 20,
               onRefresh: () async {
                 final currentUid = FirebaseAuth.instance.currentUser?.uid;
@@ -194,18 +195,18 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: context.cardBgColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                    border: Border.all(color: context.cardBorderColor, width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: Icon(
                     isGridMode ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
-                    color: Colors.white, size: 24,
+                    color: context.textColor, size: 24,
                   ),
                 ),
               ),

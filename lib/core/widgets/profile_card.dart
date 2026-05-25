@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import '../../core/models/user_model.dart';
+import '../theme/theme_helper.dart';
 
 // Custom ScrollBehavior cho phép kéo bằng chuột trên Web
 class _WebDragScrollBehavior extends MaterialScrollBehavior {
@@ -62,11 +63,11 @@ class _ProfileCardState extends State<ProfileCard> {
               width: cardWidth,
               height: cardHeight,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.2), width: 1.5),
+                color: context.cardBgColor,
+                border: Border.all(color: context.cardBorderColor, width: 1.5),
               ),
-              child: const Center(
-                child: Icon(Icons.person, size: 80, color: Colors.white24),
+              child: Center(
+                child: Icon(Icons.person, size: 80, color: context.textTertiaryColor),
               ),
             ),
           );
@@ -122,7 +123,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         decoration: BoxDecoration(
                           color: _currentPage == index
                               ? Colors.deepOrange
-                              : Colors.white.withValues(alpha: 0.5),
+                              : (context.isDarkMode ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.3)),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -179,12 +180,12 @@ class _ProfileCardState extends State<ProfileCard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: context.cardBgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), width: 1.5),
+        border: Border.all(color: context.cardBorderColor, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: 0.08),
+            color: const Color(0xFFFF6E40).withValues(alpha: context.isDarkMode ? 0.08 : 0.04),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -195,15 +196,15 @@ class _ProfileCardState extends State<ProfileCard> {
         children: [
           Icon(icon, color: const Color(0xFFFF6E40)),
           const SizedBox(height: 8),
-          Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          Text(title, style: TextStyle(color: context.textSecondaryColor, fontSize: 14)),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(value,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.textColor)),
               const SizedBox(width: 4),
-              Text(unit, style: const TextStyle(fontSize: 14, color: Colors.white70)),
+              Text(unit, style: TextStyle(fontSize: 14, color: context.textSecondaryColor)),
             ],
           ),
         ],
@@ -217,10 +218,10 @@ class _ProfileCardState extends State<ProfileCard> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: context.textColor,
           ),
         ),
         const SizedBox(height: 12),
@@ -238,18 +239,18 @@ class _ProfileCardState extends State<ProfileCard> {
           const SizedBox(width: 12),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: Colors.white70,
+              color: context.textSecondaryColor,
             ),
           ),
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: context.textColor,
             ),
           ),
         ],
@@ -266,14 +267,14 @@ class _ProfileCardState extends State<ProfileCard> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: context.cardBgColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4), width: 1.5),
           ),
           child: Text(
             game,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: context.textColor,
               fontWeight: FontWeight.w600,
               fontSize: 15,
             ),
@@ -292,14 +293,14 @@ class _ProfileCardState extends State<ProfileCard> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: context.cardBgColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.blue.withValues(alpha: 0.4), width: 1.5),
           ),
           child: Text(
             interest,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: context.textColor,
               fontWeight: FontWeight.w600,
               fontSize: 15,
             ),
@@ -321,7 +322,9 @@ class _ProfileCardState extends State<ProfileCard> {
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF101012).withValues(alpha: 0.65),
+                color: context.isDarkMode 
+                    ? const Color(0xFF101012).withValues(alpha: 0.65)
+                    : Colors.white.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(30),
               ),
             ),
@@ -346,10 +349,10 @@ class _ProfileCardState extends State<ProfileCard> {
                               children: [
                                 Text(
                                   user.username,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: context.textColor,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -406,9 +409,9 @@ class _ProfileCardState extends State<ProfileCard> {
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Text(
                               user.bio,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white70,
+                                color: context.textSecondaryColor,
                               ),
                             ),
                           ),
@@ -423,12 +426,12 @@ class _ProfileCardState extends State<ProfileCard> {
                       ]),
                       const SizedBox(height: 24),
                       // Danh sách game yêu thích
-                      const Text(
+                      Text(
                         'Game yêu thích',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: context.textColor,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -436,12 +439,12 @@ class _ProfileCardState extends State<ProfileCard> {
                       const SizedBox(height: 24),
                       // Danh sách sở thích khác nếu có
                       if (user.interests.isNotEmpty) ...[
-                        const Text(
+                        Text(
                           'Sở thích khác',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: context.textColor,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -453,7 +456,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         leading: const Icon(Icons.location_on, color: Color(0xFFFF6E40)),
                         title: Text(
                           user.location,
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: TextStyle(fontSize: 16, color: context.textColor),
                         ),
                         contentPadding: EdgeInsets.zero,
                       ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import '../../../core/providers/moment_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -70,13 +70,17 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     );
 
     if (kIsWeb) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _pickFromGallery().then((_) {
-          if (_capturedMedia == null && mounted) {
-            Navigator.pop(context); // Đóng nếu user cancel picker
-          }
+      final isMobileWeb = defaultTargetPlatform == TargetPlatform.iOS ||
+                          defaultTargetPlatform == TargetPlatform.android;
+      if (!isMobileWeb) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _pickFromGallery().then((_) {
+            if (_capturedMedia == null && mounted) {
+              Navigator.pop(context); // Đóng nếu user cancel picker
+            }
+          });
         });
-      });
+      }
     }
   }
 
@@ -939,10 +943,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     }
 
     if (kIsWeb) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
-      );
+      final isMobileWeb = defaultTargetPlatform == TargetPlatform.iOS ||
+                          defaultTargetPlatform == TargetPlatform.android;
+      if (!isMobileWeb) {
+        return const Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
+        );
+      }
     }
 
     return Scaffold(

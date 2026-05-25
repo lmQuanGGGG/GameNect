@@ -174,15 +174,25 @@ class MomentCard extends StatelessWidget {
                           )
                         ]
                       ),
-                      child: TextField(
-                        controller: controller,
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Nhập nội dung...',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(16),
+                      child: Theme(
+                        data: ThemeData.dark().copyWith(
+                          textSelectionTheme: const TextSelectionThemeData(
+                            cursorColor: Color(0xFFFF6E40),
+                            selectionColor: Color(0x55FF6E40),
+                            selectionHandleColor: Color(0xFFFF6E40),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: controller,
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          cursorColor: const Color(0xFFFF6E40),
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Nhập nội dung...',
+                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
                         ),
                       ),
                     ),

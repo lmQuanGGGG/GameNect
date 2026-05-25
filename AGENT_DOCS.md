@@ -1384,6 +1384,14 @@ RefreshIndicator(
   - `lib/user/screens/profile/profile_screen.dart`
   - `lib/user/screens/profile/edit_profile_screen.dart`
 
+### [2026-05-26] — Bật Web Push Notifications (FCM)
+- **Thêm service worker:** `web/firebase-messaging-sw.js` để nhận push khi tab đóng.
+- **Đăng ký SW:** `web/index.html` tự động register service worker khi load.
+- **FCM token Web:** `NotificationController.getFirebaseToken()` hỗ trợ Web bằng VAPID key và lưu token vào Firestore.
+- **VAPID key:** ưu tiên nhận từ `--dart-define=FCM_VAPID_KEY=...` để không cần lưu vào repo.
+- **Foreground Web:** hiển thị notification ngay khi tab đang mở qua `WebNotificationService`.
+- **Web routing:** click notification mở URL kèm query params, app tự điều hướng theo `type`.
+
 ---
 
-*Tài liệu này được tạo tự động bởi AI agent. Cập nhật: 2026-05-05.*
+*Tài liệu này được tạo tự động bởi AI agent. Cập nhật: 2026-05-26.*

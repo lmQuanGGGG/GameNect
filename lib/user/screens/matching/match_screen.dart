@@ -12,6 +12,7 @@ import '../../../core/services/firestore_service.dart';
 import 'match_list_screen.dart';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
+import '../../../core/theme/theme_helper.dart';
 
 // Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 
@@ -131,7 +132,7 @@ class _MatchScreenState extends State<MatchScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF101012),
+      backgroundColor: context.scaffoldBackgroundColor,
       // AppBar với logo và các nút hành động
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -141,7 +142,7 @@ class _MatchScreenState extends State<MatchScreen> {
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.black.withValues(alpha: 0.3)),
+            child: Container(color: context.appBarBgColor),
           ),
         ),
         title: Row(
@@ -158,7 +159,7 @@ class _MatchScreenState extends State<MatchScreen> {
             Text(
               'gamenect',
               style: TextStyle(
-                color: Colors.white,
+                color: context.textColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
                 shadows: [
@@ -300,10 +301,10 @@ class _MatchScreenState extends State<MatchScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                     blurRadius: 100,
                     spreadRadius: 40,
                   ),
@@ -349,10 +350,10 @@ class _MatchScreenState extends State<MatchScreen> {
                       ),
                     )
                   : users.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Không có đề xuất nào',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: context.textSecondaryColor),
                       ),
                     )
                   : LayoutBuilder(
@@ -433,9 +434,9 @@ class _MatchScreenState extends State<MatchScreen> {
                               // Cột phải: Info panel user đang xem
                               Expanded(
                                 child: user == null
-                                    ? const Center(
+                                    ? Center(
                                         child: Text('Vuốt card để xem thông tin',
-                                            style: TextStyle(color: Colors.white38)))
+                                            style: TextStyle(color: context.textTertiaryColor)))
                                     : SingleChildScrollView(
                                         padding: const EdgeInsets.all(32),
                                         child: Column(
@@ -458,8 +459,8 @@ class _MatchScreenState extends State<MatchScreen> {
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
                                                     Text(user.username,
-                                                        style: const TextStyle(
-                                                            color: Colors.white, fontSize: 26,
+                                                        style: TextStyle(
+                                                            color: context.textColor, fontSize: 26,
                                                             fontWeight: FontWeight.bold)),
                                                     Text(user.rank,
                                                         style: const TextStyle(
@@ -480,18 +481,18 @@ class _MatchScreenState extends State<MatchScreen> {
                                             const SizedBox(height: 16),
                                             // Bio
                                             if (user.bio.isNotEmpty) ...[
-                                              const Text('Giới thiệu',
-                                                  style: TextStyle(color: Colors.white,
+                                              Text('Giới thiệu',
+                                                  style: TextStyle(color: context.textColor,
                                                       fontWeight: FontWeight.bold, fontSize: 18)),
                                               const SizedBox(height: 8),
                                               Text(user.bio,
-                                                  style: const TextStyle(
-                                                      color: Colors.white70, fontSize: 15, height: 1.5)),
+                                                  style: TextStyle(
+                                                      color: context.textSecondaryColor, fontSize: 15, height: 1.5)),
                                               const SizedBox(height: 16),
                                             ],
                                             // Game tags
-                                            const Text('Game yêu thích',
-                                                style: TextStyle(color: Colors.white,
+                                            Text('Game yêu thích',
+                                                style: TextStyle(color: context.textColor,
                                                     fontWeight: FontWeight.bold, fontSize: 18)),
                                             const SizedBox(height: 8),
                                             Wrap(
@@ -504,8 +505,8 @@ class _MatchScreenState extends State<MatchScreen> {
                                                   borderRadius: BorderRadius.circular(20),
                                                   border: Border.all(
                                                       color: const Color(0xFFFF6E40).withValues(alpha: 0.5))),
-                                                child: Text(g, style: const TextStyle(
-                                                    color: Colors.white, fontWeight: FontWeight.w600)),
+                                                child: Text(g, style: TextStyle(
+                                                    color: context.textColor, fontWeight: FontWeight.w600)),
                                               )).toList(),
                                             ),
                                             const SizedBox(height: 24),
@@ -573,11 +574,11 @@ class _MatchScreenState extends State<MatchScreen> {
         children: [
           Icon(icon, size: 18, color: const Color(0xFFFF6E40)),
           const SizedBox(width: 10),
-          Text('$label: ', style: const TextStyle(color: Colors.white54, fontSize: 14)),
+          Text('$label: ', style: TextStyle(color: context.textTertiaryColor, fontSize: 14)),
           Expanded(
             child: Text(value,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500))),
+                style: TextStyle(
+                    color: context.textColor, fontSize: 14, fontWeight: FontWeight.w500))),
         ],
       ),
     );

@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:ui';
 import '../../../core/providers/moment_provider.dart';
 import 'moment_card.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Tab "Của tôi" — hiển thị moments do user hiện tại đăng.
 /// Hỗ trợ xóa moment (long press) với xác nhận dialog.
@@ -18,16 +19,16 @@ class MyMomentsTab extends StatelessWidget {
       builder: (ctx) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: AlertDialog(
-          backgroundColor: Colors.grey[900],
+          backgroundColor: context.dialogBgColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Xóa khoảnh khắc?',
-              style: TextStyle(color: Colors.white)),
-          content: const Text('Bạn có chắc muốn xóa khoảnh khắc này?',
-              style: TextStyle(color: Colors.white70)),
+          title: Text('Xóa khoảnh khắc?',
+              style: TextStyle(color: context.textColor)),
+          content: Text('Bạn có chắc muốn xóa khoảnh khắc này?',
+              style: TextStyle(color: context.textSecondaryColor)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+              child: Text('Hủy', style: TextStyle(color: context.textSecondaryColor)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
@@ -146,11 +147,11 @@ class MyMomentsTab extends StatelessWidget {
                     ),
                   ),
                   child: Icon(Icons.photo_library_rounded, size: 80,
-                      color: Colors.white.withValues(alpha: 0.3)),
+                      color: context.textColor.withValues(alpha: 0.3)),
                 ),
                 const SizedBox(height: 24),
-                const Text('Bạn chưa đăng khoảnh khắc nào',
-                    style: TextStyle(color: Colors.white70, fontSize: 17, fontWeight: FontWeight.w500)),
+                Text('Bạn chưa đăng khoảnh khắc nào',
+                    style: TextStyle(color: context.textSecondaryColor, fontSize: 17, fontWeight: FontWeight.w500)),
               ],
             ),
           );
@@ -173,7 +174,7 @@ class MyMomentsTab extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                  border: Border.all(color: context.cardBorderColor, width: 1),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.2),

@@ -10,13 +10,53 @@ import '../../user/screens/call/video_call_screen.dart';
 import '../routes/app_router.dart';
 
 class AppNotificationHandler {
+  static ReceivedAction? _pendingAction;
+  static bool _isProcessingPending = false;
+
   // Hàm xử lý khi người dùng tương tác với thông báo (nhấn nút hành động)
   @pragma("vm:entry-point")
   static Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
     final payload = receivedAction.payload ?? {};
     final actionKey = receivedAction.buttonKeyPressed;
     
-    developer.log('Notification action: $actionKey, payload: $payload', name: 'Notification');
+    developer.log(
+      '>>> onActionReceivedMethod called | type: ${payload['type']} | actionKey: "$actionKey" | payload: $payload',
+      name: 'Notification',
+    );
+
+    // Luôn queue để xử lý lại nếu action chạy ở background isolate (iOS)
+    _pendingAction = receivedAction;
+
+    // Đợi navigator sẵn sàng (cần thiết khi app vừa mở từ notification)
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (navigatorKey.currentState == null) {
+      developer.log('Navigator not ready, queued action', name: 'Notification');
+      return;
+    }
+
+    await _handleAction(receivedAction);
+    _pendingAction = null;
+  }
+
+  static Future<void> processPendingAction() async {
+    if (_isProcessingPending || _pendingAction == null) return;
+    if (navigatorKey.currentState == null) return;
+
+    _isProcessingPending = true;
+    final action = _pendingAction;
+    _pendingAction = null;
+
+    if (action != null) {
+      await _handleAction(action);
+    }
+
+    _isProcessingPending = false;
+  }
+
+  static Future<void> _handleAction(ReceivedAction receivedAction) async {
+    final payload = receivedAction.payload ?? {};
+    final actionKey = receivedAction.buttonKeyPressed;
 
     if (payload['type'] == 'call') {
       final matchId = payload['matchId'] ?? '';
@@ -35,7 +75,8 @@ class AppNotificationHandler {
       final matchId = payload['matchId'] ?? '';
       final peerUserId = payload['peerUserId'] ?? '';
       
-      developer.log('Navigate to chat: $matchId', name: 'Notification');
+      developer.log('Navigate to chat: matchId=$matchId peerUserId=$peerUserId', name: 'Notification');
+      developer.log('Navigator state: ${navigatorKey.currentState}', name: 'Notification');
       
       try {
         final userDoc = await FirebaseFirestore.instance
@@ -53,18 +94,24 @@ class AppNotificationHandler {
               ),
             ),
           );
+          developer.log('Pushed ChatScreen', name: 'Notification');
+        } else {
+          developer.log('User doc not found for peerUserId=$peerUserId', name: 'Notification');
         }
       } catch (e) {
-        developer.log('Error: $e', name: 'Notification');
+        developer.log('Error navigating to chat: $e', name: 'Notification');
       }
     } else if (payload['type'] == 'moment_reaction') {
       final momentId = payload['momentId'] ?? '';
-      // final reactorUserId = payload['reactorUserId'] ?? '';
-      developer.log('Navigate to moment: $momentId', name: 'Notification');
+      developer.log('Navigate to moment: momentId=$momentId', name: 'Notification');
+      developer.log('Navigator state: ${navigatorKey.currentState}', name: 'Notification');
       navigatorKey.currentState?.pushNamed(
         '/moments',
         arguments: {'momentId': momentId}
       );
+      developer.log('Pushed /moments', name: 'Notification');
+    } else {
+      developer.log('Unknown notification type: ${payload['type']}', name: 'Notification');
     }
   }
 

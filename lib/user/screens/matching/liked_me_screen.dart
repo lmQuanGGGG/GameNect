@@ -6,6 +6,7 @@ import 'dart:ui';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/providers/match_provider.dart';
+import '../../../core/theme/theme_helper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
@@ -110,7 +111,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: context.cardBgColor,
         border: Border.all(
           color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
           width: 1.5,
@@ -144,7 +145,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14, color: Colors.white70),
+            style: TextStyle(fontSize: 14, color: context.textSecondaryColor),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -238,7 +239,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       height: 68,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.1),
+        color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
         border: Border.all(
           color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
           width: 2,
@@ -320,7 +321,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       },
       child: RefreshIndicator(
         color: const Color(0xFFFF6E40),
-        backgroundColor: const Color(0xFF1A1A1E),
+        backgroundColor: context.scaffoldBackgroundColor,
         displacement: 20,
         onRefresh: () async {
           await _initializeData();
@@ -340,7 +341,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: context.cardBgColor,
                 border: Border.all(
                   color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
                   width: 1.5,
@@ -409,9 +410,9 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Nâng cấp Premium để xem tất cả',
-                    style: TextStyle(fontSize: 14, color: Colors.white70),
+                    style: TextStyle(fontSize: 14, color: context.textSecondaryColor),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -459,7 +460,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: context.cardBgColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
@@ -508,10 +509,10 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                             // Hiển thị dấu chấm nếu blur, còn không thì hiện tên thật
                             Text(
                               shouldBlur ? '●●●●●●' : user.username,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: context.textColor,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -519,9 +520,9 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                               shouldBlur
                                   ? '●● tuổi • ●●●●●●'
                                   : '${user.age} tuổi • ${user.location}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.white70,
+                                color: context.textSecondaryColor,
                               ),
                             ),
                           ],
@@ -673,11 +674,11 @@ class _LikedMeScreenState extends State<LikedMeScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_outline, size: 64, color: Colors.white24),
+            Icon(Icons.check_circle_outline, size: 64, color: context.textTertiaryColor),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Chưa có ai bị bỏ lỡ!',
-              style: TextStyle(fontSize: 16, color: Colors.white70),
+              style: TextStyle(fontSize: 16, color: context.textSecondaryColor),
             ),
           ],
         ),
@@ -694,7 +695,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       },
       child: RefreshIndicator(
         color: const Color(0xFFFF6E40),
-        backgroundColor: const Color(0xFF1A1A1E),
+        backgroundColor: context.scaffoldBackgroundColor,
         displacement: 20,
         onRefresh: () async {
           await _initializeData();
@@ -708,7 +709,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: context.cardBgColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
@@ -747,18 +748,18 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                           children: [
                             Text(
                               user.username,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: context.textColor,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               '${user.age} tuổi • ${user.location}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.white70,
+                                color: context.textSecondaryColor,
                               ),
                             ),
                           ],
@@ -810,7 +811,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
     // Hiển thị loading khi đang khởi tạo dữ liệu
     if (isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFF101012),
+        backgroundColor: context.scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -828,7 +829,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               Text(
                 'gamenect',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: context.textColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                   shadows: [
@@ -853,7 +854,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       length: 2,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: const Color(0xFF101012),
+        backgroundColor: context.scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -871,7 +872,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               Text(
                 'gamenect',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: context.textColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                   shadows: [
@@ -952,14 +953,14 @@ class _LikedMeScreenState extends State<LikedMeScreen>
           // TabBar với 2 tabs
           bottom: TabBar(
             labelColor: const Color(0xFFFF6E40),
-            unselectedLabelColor: Colors.white54,
+            unselectedLabelColor: context.textTertiaryColor,
             indicatorColor: const Color(0xFFFF6E40),
             indicatorWeight: 3,
             labelStyle: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 15,
             ),
-            dividerColor: Colors.white.withValues(alpha: 0.1),
+            dividerColor: context.cardBorderColor,
             tabs: const [
               Tab(icon: Icon(Icons.favorite), text: 'Thích bạn'),
               Tab(icon: Icon(Icons.undo_rounded), text: 'Bỏ lỡ'),
@@ -977,10 +978,10 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                  color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                      color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                       blurRadius: 100,
                       spreadRadius: 40,
                     ),
@@ -996,10 +997,10 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                 height: 350,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFBF360C).withValues(alpha: 0.12),
+                  color: const Color(0xFFBF360C).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFBF360C).withValues(alpha: 0.1),
+                      color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                       blurRadius: 120,
                       spreadRadius: 50,
                     ),
@@ -1015,10 +1016,10 @@ class _LikedMeScreenState extends State<LikedMeScreen>
             ),
             SafeArea(
               child: currentUserId == null
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Không xác định được tài khoản!',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: context.textColor),
                       ),
                     )
                   : TabBarView(

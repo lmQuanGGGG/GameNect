@@ -5,6 +5,7 @@ import 'dart:ui';
 import '../../../core/providers/moment_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../premium/subscription_screen.dart';
+import '../../../core/theme/theme_helper.dart';
 
 // Sub-widgets (tách ra theo từng file để dễ bảo trì)
 import 'moment_feed_tab.dart';
@@ -47,7 +48,7 @@ class _MomentScreenState extends State<MomentScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF101012),
+      backgroundColor: context.scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Content — 2 tabs
@@ -70,9 +71,9 @@ class _MomentScreenState extends State<MomentScreen>
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: context.appBarBgColor,
                     border: Border(
-                      bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
+                      bottom: BorderSide(color: context.cardBorderColor, width: 0.5),
                     ),
                   ),
                   child: SafeArea(
@@ -92,7 +93,7 @@ class _MomentScreenState extends State<MomentScreen>
                               const SizedBox(width: 8),
                               Text('gamenect',
                                   style: TextStyle(
-                                      color: Colors.white,
+                                      color: context.textColor,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 22,
                                       shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)])),
@@ -154,8 +155,8 @@ class _MomentScreenState extends State<MomentScreen>
                           controller: _tabController,
                           indicatorColor: const Color(0xFFFF6E40),
                           indicatorWeight: 3,
-                          labelColor: Colors.white,
-                          unselectedLabelColor: Colors.white60,
+                          labelColor: context.textColor,
+                          unselectedLabelColor: context.textSecondaryColor,
                           labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                           unselectedLabelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                           tabs: const [Tab(text: 'Khám phá'), Tab(text: 'Của tôi')],

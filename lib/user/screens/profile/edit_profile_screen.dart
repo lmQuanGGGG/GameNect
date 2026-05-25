@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/edit_profile_provider.dart';
 import '../../../core/providers/location_provider.dart';
+import '../../../core/theme/theme_helper.dart';
 
 import 'avatar_picker_section.dart';
 import 'basic_info_section.dart';
@@ -328,7 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Hình ảnh', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Hình ảnh', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.textColor)),
               const SizedBox(height: 18),
               AvatarPickerSection(
                 avatarImage: _avatarImage,
@@ -341,7 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onRemoveAdditionalPhoto: _removeAdditionalPhoto,
               ),
               const SizedBox(height: 24),
-              Text('Thông tin cơ bản', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Thông tin cơ bản', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.textColor)),
               const SizedBox(height: 18),
               BasicInfoSection(
                 usernameController: _usernameController,
@@ -356,7 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 interestOptions: prov.interestOptions,
               ),
               const SizedBox(height: 24),
-              Text('Thông tin Gaming', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Thông tin Gaming', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.textColor)),
               const SizedBox(height: 18),
               GamingSection(
                 rank: _rank,
@@ -415,9 +416,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     final containerDecoration = BoxDecoration(
-      color: kIsWeb ? const Color(0xFF1A1A1E) : Colors.white.withValues(alpha: 0.05),
+      color: kIsWeb ? (context.isDarkMode ? const Color(0xFF1A1A1E) : Colors.white) : context.cardBgColor,
       borderRadius: BorderRadius.circular(28),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+      border: Border.all(color: context.cardBorderColor, width: 1.5),
       boxShadow: [
         BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, 8)),
       ],
@@ -455,20 +456,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final provider = context.watch<EditProfileProvider>();
     
     if (_isLoading || provider.isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF101012),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
+      return Scaffold(
+        backgroundColor: context.scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
       );
     }
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF101012),
+      backgroundColor: context.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(_isUpdating ? 'Chỉnh sửa hồ sơ' : 'Tạo hồ sơ', style: const TextStyle(color: Colors.white)),
+        title: Text(_isUpdating ? 'Chỉnh sửa hồ sơ' : 'Tạo hồ sơ', style: TextStyle(color: context.textColor)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: context.textColor),
       ),
       body: Stack(
         children: [
@@ -479,8 +480,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 300, height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: kIsWeb ? 40 : 100, spreadRadius: kIsWeb ? 20 : 40)],
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: kIsWeb ? 40 : 100, spreadRadius: kIsWeb ? 20 : 40)],
               ),
             ),
           ),
@@ -490,8 +491,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 350, height: 350,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.15),
-                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: kIsWeb ? 40 : 120, spreadRadius: kIsWeb ? 20 : 50)],
+                color: const Color(0xFFBF360C).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
+                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: kIsWeb ? 40 : 120, spreadRadius: kIsWeb ? 20 : 50)],
               ),
             ),
           ),

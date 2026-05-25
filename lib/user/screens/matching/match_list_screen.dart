@@ -10,6 +10,7 @@ import '../premium/subscription_screen.dart';
 import '../../../core/providers/profile_provider.dart';
 import 'dart:developer' as developer;
 import '../../widgets/tab_bar_visibility.dart';
+import '../../../core/theme/theme_helper.dart';
 
 // Màn hình danh sách match và tin nhắn
 // Hiển thị dãy avatar ngang của các match và danh sách chat dọc
@@ -56,7 +57,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF101012),
+      backgroundColor: context.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -66,7 +67,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: context.appBarBgColor,
             ),
           ),
         ),
@@ -84,7 +85,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
             Text(
               'gamenect',
               style: TextStyle(
-                color: Colors.white,
+                color: context.textColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
                 shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)],
@@ -170,8 +171,8 @@ class _MatchListScreenState extends State<MatchListScreen> {
               width: 300, height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: 100, spreadRadius: 40)],
+                color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: 100, spreadRadius: 40)],
               ),
             ),
           ),
@@ -181,8 +182,8 @@ class _MatchListScreenState extends State<MatchListScreen> {
               width: 350, height: 350,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.15),
-                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: 120, spreadRadius: 50)],
+                color: const Color(0xFFBF360C).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
+                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: 120, spreadRadius: 50)],
               ),
             ),
           ),
@@ -218,7 +219,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
           developer.log('Stream data received: ${matchedData.length} matches', name: 'MatchListScreen');
 
           if (matchedData.isEmpty) {
-            return const Center(child: Text('Bạn chưa có match nào!'));
+            return Center(child: Text('Bạn chưa có match nào!', style: TextStyle(color: context.textSecondaryColor)));
           }
 
           // Lọc theo từ khóa tìm kiếm
@@ -267,7 +268,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   'TƯƠNG HỢP MỚI',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: context.textSecondaryColor,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
                   ),
@@ -318,14 +319,12 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                     ),
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
+                                        color: context.dialogBgColor.withValues(
+                                          alpha: 0.85,
                                         ),
                                         borderRadius: BorderRadius.circular(28),
                                         border: Border.all(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.15,
-                                          ),
+                                          color: context.cardBorderColor,
                                           width: 1.5,
                                         ),
                                       ),
@@ -335,19 +334,19 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
+                                          Text(
                                             'Hủy tương hợp?',
                                             style: TextStyle(
                                               fontSize: 20,
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.white,
+                                              color: context.textColor,
                                             ),
                                           ),
                                           const SizedBox(height: 20),
                                           Text(
                                             'Bạn có chắc muốn hủy tương hợp với ${user.username}?',
-                                            style: const TextStyle(
-                                              color: Colors.white70,
+                                            style: TextStyle(
+                                              color: context.textSecondaryColor,
                                               fontSize: 16,
                                             ),
                                           ),
@@ -369,8 +368,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                                 child: Text(
                                                   'Không',
                                                   style: TextStyle(
-                                                    color: Colors.white
-                                                        .withValues(alpha: 0.7),
+                                                    color: context.textSecondaryColor,
                                                     fontSize: 16,
                                                     fontWeight: FontWeight.w500,
                                                   ),
@@ -450,9 +448,9 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               ),
                               padding: const EdgeInsets.all(2.5),
                               child: Container(
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: Color(0xFF101012),
+                                  color: context.scaffoldBackgroundColor,
                                 ),
                                 padding: const EdgeInsets.all(2),
                                 child: ClipOval(
@@ -463,15 +461,15 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                         ? CachedNetworkImage(
                                             imageUrl: user.avatarUrl!,
                                             fit: BoxFit.cover,
-                                            placeholder: (context, url) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                                            placeholder: (context, url) => Container(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05)),
                                             errorWidget: (context, url, error) => Container(
-                                              color: Colors.white.withValues(alpha: 0.1),
-                                              child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                              color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                                              child: Icon(Icons.person, size: 28, color: context.textColor),
                                             ),
                                           )
                                         : Container(
-                                            color: Colors.white.withValues(alpha: 0.1),
-                                            child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                            color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                                            child: Icon(Icons.person, size: 28, color: context.textColor),
                                           ),
                                   ),
                                 ),
@@ -483,10 +481,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               width: 66,
                               child: Text(
                                 user.username,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: context.textColor,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
@@ -508,16 +506,16 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: context.cardBgColor,
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                        border: Border.all(color: context.cardBorderColor, width: 1),
                       ),
                       child: TextField(
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: context.textColor),
                         decoration: InputDecoration(
                           hintText: 'Tìm kiếm tên...',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                          prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.7)),
+                          hintStyle: TextStyle(color: context.textTertiaryColor),
+                          prefixIcon: Icon(Icons.search, color: context.textSecondaryColor),
                           filled: false,
                           contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                           border: InputBorder.none,
@@ -536,7 +534,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: context.textSecondaryColor,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -564,7 +562,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     leading: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                        border: Border.all(color: context.cardBorderColor, width: 1),
                       ),
                       child: ClipOval(
                         child: SizedBox(
@@ -574,34 +572,34 @@ class _MatchListScreenState extends State<MatchListScreen> {
                               ? CachedNetworkImage(
                                   imageUrl: user.avatarUrl!,
                                   fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                                  placeholder: (context, url) => Container(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05)),
                                   errorWidget: (context, url, error) => Container(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                    child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                    color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                                    child: Icon(Icons.person, size: 28, color: context.textColor),
                                   ),
                                 )
                               : Container(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  child: const Icon(Icons.person, size: 28, color: Colors.white),
+                                  color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                                  child: Icon(Icons.person, size: 28, color: context.textColor),
                                 ),
                         ),
                       ),
                     ),
                     title: Text(
                       user.username,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textColor),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${user.age} tuổi • ${user.location}',
-                          style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)),
+                          style: TextStyle(fontSize: 13, color: context.textSecondaryColor),
                         ),
                         if (lastMessage != null)
                           Text(
                             lastMessage,
-                            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.4)),
+                            style: TextStyle(fontSize: 13, color: context.textTertiaryColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

@@ -19,25 +19,77 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="GameNect - Nền tảng mạng xã hội kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng.">
+  <meta name="keywords" content="GameNect, game, mạng xã hội, kết nối game thủ, tìm bạn chơi game">
+  <meta name="author" content="GameNect">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="gamenect_new">
+  <meta name="apple-mobile-web-app-title" content="GameNect">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>gamenect_new</title>
+  <title>GameNect</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Agora Web SDK for WebRTC Calls -->
-  <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
 </head>
 
 <body>
+  <script>
+    // Lưu pending notification từ Service Worker để Flutter pull khi sẵn sàng
+    window.__pendingSwNotification = null;
+    window.__swNotificationDelivered = false;
+
+    // Flutter gọi hàm này khi đã xử lý notification xong
+    window.__markSwNotificationDelivered = function () {
+      window.__swNotificationDelivered = true;
+      window.__pendingSwNotification = null;
+    };
+
+    if ('serviceWorker' in navigator) {
+      // Lắng nghe message từ Service Worker (Firebase SDK tự đăng ký SW)
+      navigator.serviceWorker.addEventListener('message', function (event) {
+        if (event.data && event.data.type === 'notification') {
+          window.__pendingSwNotification = event.data;
+          window.__swNotificationDelivered = false;
+
+          // Bắn message NGAY LẬP TỨC cho Flutter, không chờ 300ms
+          window.postMessage(event.data, '*');
+
+          // Retry gửi vào window mỗi 300ms tối đa 30 lần (9 giây)
+          // Đề phòng trường hợp Flutter chưa thực sự sẵn sàng
+          let attempts = 0;
+          const interval = setInterval(function () {
+            if (window.__swNotificationDelivered || attempts >= 30) {
+              clearInterval(interval);
+              return;
+            }
+            attempts++;
+            window.postMessage(event.data, '*');
+          }, 300);
+        }
+      });
+
+      // Khi SW sẵn sàng (do Firebase SDK đăng ký), yêu cầu pending notification
+      // Dùng setTimeout để không block thread chính, tránh trắng màn mobile
+      setTimeout(function () {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'GET_PENDING_NOTIFICATION' });
+        }
+      }, 1000);
+
+      // Khi tab được focus lại từ background/suspended (tap notification khi app chạy ngầm),
+      // yêu cầu pending notification từ SW cache vì postMessage bị mất khi tab suspend
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'GET_PENDING_NOTIFICATION' });
+        }
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 

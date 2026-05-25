@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../core/providers/game_provider.dart';
 import '../../../core/models/game_model.dart';
 import 'game_detail_screen.dart';
+import '../../../core/theme/theme_helper.dart';
 
 class GameTrendingScreen extends StatefulWidget {
   const GameTrendingScreen({super.key});
@@ -22,8 +23,6 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
 
   // Màu chủ đạo
   final Color _primaryColor = const Color(0xFFFF6E40);
-  final Color _backgroundColor = const Color(0xFF101012);
-  final Color _cardColor = const Color(0xFF1A1A1E);
 
   @override
   void initState() {
@@ -56,8 +55,10 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final backgroundColor = context.scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -80,7 +81,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                                   width: 1.5,
                                 ),
                               ),
-                              child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 24),
+                              child: Icon(Icons.arrow_back_ios_new_rounded, color: context.isDarkMode ? Colors.white : const Color(0xFFFF6E40), size: 24),
                             )
                           : BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
@@ -101,21 +102,21 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                                     ),
                                   ],
                                 ),
-                                child: const Padding(
-                                  padding: EdgeInsets.only(right: 2.0), // Căn giữa icon back
-                                  child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 24),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 2.0), // Căn giữa icon back
+                                  child: Icon(Icons.arrow_back_ios_new_rounded, color: context.isDarkMode ? Colors.white : const Color(0xFFFF6E40), size: 24),
                                 ),
                               ),
                             ),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text(
+                  Text(
                     'Discover',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                      color: context.textColor,
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -131,9 +132,9 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
               margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               height: 54,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
+                color: context.isDarkMode ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
+                border: Border.all(color: context.cardBorderColor, width: 1.5),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),
@@ -148,7 +149,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                           border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 1),
                         ),
                         labelColor: const Color(0xFFFF6E40),
-                        unselectedLabelColor: Colors.grey[500],
+                        unselectedLabelColor: context.textTertiaryColor,
                         labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
                         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
                         dividerColor: Colors.transparent,
@@ -176,7 +177,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                             ],
                           ),
                           labelColor: const Color(0xFFFF6E40),
-                          unselectedLabelColor: Colors.grey[500],
+                          unselectedLabelColor: context.textTertiaryColor,
                           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
                           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
                           dividerColor: Colors.transparent,
@@ -219,10 +220,10 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+          border: Border.all(color: context.cardBorderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.black.withValues(alpha: context.isDarkMode ? 0.2 : 0.05),
               blurRadius: kIsWeb ? 8 : 15,
               offset: const Offset(0, 5),
             ),
@@ -232,17 +233,17 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
           borderRadius: BorderRadius.circular(24),
           child: kIsWeb
               ? Container(
-                  color: const Color(0xFF1C1C1F),
+                  color: context.cardBgColor,
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: context.textColor),
                     decoration: InputDecoration(
                       hintText: 'Search for games...',
-                      hintStyle: TextStyle(color: Colors.grey[600]),
+                      hintStyle: TextStyle(color: context.textTertiaryColor),
                       prefixIcon: Icon(Icons.search, color: _primaryColor),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              icon: Icon(Icons.clear, color: context.textSecondaryColor),
                               onPressed: () {
                                 _searchController.clear();
                                 context.read<GameProvider>().clearSearch();
@@ -251,6 +252,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                             )
                           : null,
                       border: InputBorder.none,
+                      filled: false,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     ),
                     onChanged: (query) {
@@ -266,17 +268,17 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
               : BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: context.cardBgColor,
                     child: TextField(
                       controller: _searchController,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: context.textColor),
                       decoration: InputDecoration(
                         hintText: 'Search for games...',
-                        hintStyle: TextStyle(color: Colors.grey[600]),
+                        hintStyle: TextStyle(color: context.textTertiaryColor),
                         prefixIcon: Icon(Icons.search, color: _primaryColor),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear, color: Colors.grey),
+                                icon: Icon(Icons.clear, color: context.textSecondaryColor),
                                 onPressed: () {
                                   _searchController.clear();
                                   context.read<GameProvider>().clearSearch();
@@ -285,6 +287,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                               )
                             : null,
                         border: InputBorder.none,
+                        filled: false,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       ),
                       onChanged: (query) {
@@ -304,6 +307,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
   }
 
   Widget _buildTrendingTab(GameProvider provider) {
+    final cardColor = context.cardBgColor;
     if (provider.isLoadingTrending && provider.trendingGames.isEmpty) {
       return Center(child: CircularProgressIndicator(color: _primaryColor));
     }
@@ -314,7 +318,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
 
     return RefreshIndicator(
       color: _primaryColor,
-      backgroundColor: _cardColor,
+      backgroundColor: cardColor,
       onRefresh: () => provider.loadTrendingGames(refresh: true),
       child: ListView.separated(
         controller: _scrollController,
@@ -337,12 +341,13 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
   }
 
   Widget _buildNewReleasesTab(GameProvider provider) {
+    final cardColor = context.cardBgColor;
     if (provider.isLoadingNew) {
       return Center(child: CircularProgressIndicator(color: _primaryColor));
     }
     return RefreshIndicator(
       color: _primaryColor,
-      backgroundColor: _cardColor,
+      backgroundColor: cardColor,
       onRefresh: provider.loadNewReleases,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -356,7 +361,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
   Widget _buildSearchResults(GameProvider provider) {
     if (provider.isSearching) return Center(child: CircularProgressIndicator(color: _primaryColor));
     if (provider.searchResults.isEmpty) {
-      return const Center(child: Text('No games found', style: TextStyle(color: Colors.grey)));
+      return Center(child: Text('No games found', style: TextStyle(color: context.textSecondaryColor)));
     }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
@@ -370,6 +375,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
   // MODERN GAME CARD (Immersive Style)
   // ======================================================
   Widget _buildModernGameCard(GameModel game, int index) {
+    final cardColor = context.cardBgColor;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -382,7 +388,7 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+          border: Border.all(color: context.cardBorderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
@@ -401,13 +407,13 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
                   ? CachedNetworkImage(
                       imageUrl: game.backgroundImage!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(color: _cardColor),
+                      placeholder: (context, url) => Container(color: cardColor),
                       errorWidget: (context, url, error) => Container(
-                        color: _cardColor,
+                        color: cardColor,
                         child: const Icon(Icons.videogame_asset, color: Colors.grey),
                       ),
                     )
-                  : Container(color: _cardColor),
+                  : Container(color: cardColor),
 
               // 2. Gradient Overlay (Bottom up)
               Container(
@@ -543,9 +549,9 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.cloud_off, size: 64, color: Colors.grey[700]),
+          Icon(Icons.cloud_off, size: 64, color: context.textTertiaryColor),
           const SizedBox(height: 16),
-          Text(message, style: const TextStyle(color: Colors.grey)),
+          Text(message, style: TextStyle(color: context.textSecondaryColor)),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: onRetry,

@@ -14,6 +14,8 @@ import 'screens/matching/liked_me_screen.dart';
 import 'screens/moments/moment_screen.dart';
 import 'screens/chat/chat_screen.dart'; 
 import 'screens/call/video_call_screen.dart'; 
+import '../core/providers/theme_provider.dart';
+import '../core/theme/app_theme.dart';
 import '../../core/providers/match_provider.dart';
 import '../../core/providers/chat_provider.dart';
 import '../../core/providers/moment_provider.dart'; 
@@ -42,21 +44,16 @@ class UserApp extends StatelessWidget {
         // Đảm bảo đã đăng ký MomentProvider
         ChangeNotifierProvider(create: (_) => MomentProvider()), // Đảm bảo đã đăng ký MomentProvider
       ],
-      child: MaterialApp(
-        title: 'GameNect User',
-        theme: ThemeData(
-          primarySwatch: Colors.deepOrange, // Đổi màu chủ đạo thành cam
-          scaffoldBackgroundColor: Colors.white, // Đổi màu nền thành trắng
-          bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-            backgroundColor: Colors.white,
-            selectedItemColor: Colors.deepOrange,
-            unselectedItemColor: Colors.grey,
-            type: BottomNavigationBarType.fixed,
-            elevation: 8,
-          ),
-        ),
-        initialRoute: initialRoute ?? '/main',
-        routes: {
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'GameNect User',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeProvider.themeMode,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            initialRoute: initialRoute ?? '/main',
+            routes: {
           '/main': (context) => const MainScreen(), // Thêm route cho MainScreen
           '/home': (context) => const HomeScreen(),
           '/profile': (context) => const ProfileScreen(),
@@ -88,8 +85,10 @@ class UserApp extends StatelessWidget {
             );
           },
         },
-      ),
-    );
+      );
+    },
+  ),
+);
   }
 }
 

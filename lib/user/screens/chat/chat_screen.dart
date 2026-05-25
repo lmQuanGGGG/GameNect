@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:record/record.dart'; 
+import 'package:record/record.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:just_audio/just_audio.dart'; 
+import 'package:just_audio/just_audio.dart';
 import '../../../core/providers/chat_provider.dart';
 import '../../../core/models/user_model.dart';
 import '../call/video_call_screen.dart';
-import '../../../core/widgets/profile_card.dart';
 import 'dart:ui';
 import 'dart:developer' as developer;
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,13 +20,14 @@ import '../premium/subscription_screen.dart';
 import 'message_bubble.dart';
 import '../shared/peer_profile_screen.dart';
 import 'chat_input_bar.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Màn hình chat giữa 2 user đã match
 /// Sử dụng các sub-components trong thư mục `chat/` cho UI.
 class ChatScreen extends StatefulWidget {
   final String matchId; // ID của match (dùng làm room chat)
   final UserModel peerUser; // Thông tin user đối phương
-  
+
   const ChatScreen({super.key, required this.matchId, required this.peerUser});
 
   @override
@@ -39,11 +40,11 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
 
   // Voice recording state
-  final AudioRecorder _audioRecorder = AudioRecorder(); 
-  bool _isRecording = false; 
-  String? _recordingPath; 
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  bool _isRecording = false;
+  String? _recordingPath;
 
-  bool isPremium = false; 
+  bool isPremium = false;
 
   @override
   void initState() {
@@ -57,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
             .set({
               'lastSeen_$userId': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
-        
+
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(userId)
@@ -93,8 +94,13 @@ class _ChatScreenState extends State<ChatScreen> {
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: AlertDialog(
             backgroundColor: const Color(0xFF1C1C1E),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Cần cấp quyền', style: TextStyle(color: Colors.white)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Cần cấp quyền',
+              style: TextStyle(color: Colors.white),
+            ),
             content: const Text(
               'Bạn đã từ chối quyền vĩnh viễn.\n\n'
               'Để sử dụng video call, hãy:\n'
@@ -110,7 +116,10 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Mở Cài đặt', style: TextStyle(color: Color(0xFFFF6E40))),
+                child: const Text(
+                  'Mở Cài đặt',
+                  style: TextStyle(color: Color(0xFFFF6E40)),
+                ),
               ),
             ],
           ),
@@ -125,10 +134,14 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Bạn cần cho phép quyền Camera và Microphone để gọi video'),
+          content: const Text(
+            'Bạn cần cho phép quyền Camera và Microphone để gọi video',
+          ),
           backgroundColor: const Color(0xFF1C1C1E),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       return false;
@@ -138,10 +151,22 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _startRecording() async {
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Web hiện chưa hỗ trợ ghi âm'),
+            backgroundColor: Colors.black87,
+          ),
+        );
+      }
+      return;
+    }
     try {
       if (await _audioRecorder.hasPermission()) {
         final directory = await getTemporaryDirectory();
-        final path = '${directory.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        final path =
+            '${directory.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
         await _audioRecorder.start(
           const RecordConfig(
@@ -153,7 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
         );
 
         HapticFeedback.lightImpact(); // Hiệu ứng rung nhẹ khi bắt đầu ghi âm
-        
+
         setState(() {
           _isRecording = true;
           _recordingPath = path;
@@ -162,13 +187,17 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi ghi âm: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Lỗi ghi âm: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
   Future<void> _stopAndSendRecording() async {
+    if (kIsWeb) return;
     try {
       final path = await _audioRecorder.stop();
       setState(() => _isRecording = false);
@@ -182,10 +211,8 @@ class _ChatScreenState extends State<ChatScreen> {
         final shouldSend = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (_) => VoicePreviewScreen(
-              audioFile: File(path),
-              duration: duration,
-            ),
+            builder: (_) =>
+                VoicePreviewScreen(audioFile: File(path), duration: duration),
           ),
         );
 
@@ -196,8 +223,12 @@ class _ChatScreenState extends State<ChatScreen> {
               content: Row(
                 children: [
                   SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   ),
                   SizedBox(width: 12),
                   Text('Đang gửi tin nhắn thoại...'),
@@ -212,13 +243,18 @@ class _ChatScreenState extends State<ChatScreen> {
           final storageRef = FirebaseStorage.instance
               .ref()
               .child('voice_messages')
-              .child('${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}.m4a');
+              .child(
+                '${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}.m4a',
+              );
 
           await storageRef.putFile(file);
           final downloadUrl = await storageRef.getDownloadURL();
 
           if (!mounted) return;
-          final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+          final chatProvider = Provider.of<ChatProvider>(
+            context,
+            listen: false,
+          );
           await chatProvider.sendVoiceMessage(
             widget.matchId,
             downloadUrl,
@@ -235,6 +271,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _cancelRecording() async {
+    if (kIsWeb) return;
     try {
       await _audioRecorder.stop();
       setState(() => _isRecording = false);
@@ -250,9 +287,16 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _sendMedia(String localPath, {bool isVideo = false, String? caption}) async {
+  void _sendMedia(
+    String localPath, {
+    bool isVideo = false,
+    String? caption,
+  }) async {
     if (!isPremium) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+      );
       return;
     }
 
@@ -264,7 +308,8 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 80, height: 80,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: Colors.black87,
                 borderRadius: BorderRadius.circular(16),
@@ -272,20 +317,27 @@ class _ChatScreenState extends State<ChatScreen> {
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFFFF6E40), strokeWidth: 3),
+                  CircularProgressIndicator(
+                    color: Color(0xFFFF6E40),
+                    strokeWidth: 3,
+                  ),
                   SizedBox(height: 8),
-                  Text('Đang gửi...', style: TextStyle(color: Colors.white, fontSize: 10)),
+                  Text(
+                    'Đang gửi...',
+                    style: TextStyle(color: Colors.white, fontSize: 10),
+                  ),
                 ],
               ),
             ),
           ),
         ),
       );
-      
+
       Overlay.of(context).insert(overlayEntry);
 
       final file = File(localPath);
-      final fileName = '${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}${isVideo ? '.mp4' : '.jpg'}';
+      final fileName =
+          '${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}${isVideo ? '.mp4' : '.jpg'}';
       final storageRef = FirebaseStorage.instance
           .ref()
           .child(isVideo ? 'chat_videos' : 'chat_images')
@@ -295,12 +347,15 @@ class _ChatScreenState extends State<ChatScreen> {
       final downloadUrl = await storageRef.getDownloadURL();
 
       if (mounted) {
-        await Provider.of<ChatProvider>(context, listen: false).sendMediaWithNotify(
+        await Provider.of<ChatProvider>(
+          context,
+          listen: false,
+        ).sendMediaWithNotify(
           widget.matchId,
           downloadUrl,
           isVideo: isVideo,
           caption: caption,
-          peerUser: widget.peerUser, 
+          peerUser: widget.peerUser,
         );
       }
 
@@ -317,17 +372,21 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Widget _buildGlassButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget _buildGlassButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          width: 36, height: 36,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: context.cardBgColor,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+            border: Border.all(color: context.cardBorderColor, width: 1),
           ),
           child: IconButton(
             icon: Icon(icon, color: const Color(0xFFFF6E40), size: 18),
@@ -356,10 +415,10 @@ class _ChatScreenState extends State<ChatScreen> {
     final peerAvatarUrl = widget.peerUser.avatarUrl ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.scaffoldBackgroundColor,
       extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: true,
-      
+
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(100),
         child: ClipRRect(
@@ -372,18 +431,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   end: Alignment.bottomCenter,
                   stops: const [0.0, 0.6, 1.0],
                   colors: [
-                    Colors.black.withValues(alpha: 0.6),
-                    Colors.black.withValues(alpha: 0.2),
-                    Colors.black.withValues(alpha: 0.0),
+                    context.scaffoldBackgroundColor.withValues(alpha: 0.6),
+                    context.scaffoldBackgroundColor.withValues(alpha: 0.2),
+                    context.scaffoldBackgroundColor.withValues(alpha: 0.0),
                   ],
                 ),
                 border: Border(
-                  bottom: BorderSide(color: Colors.white.withValues(alpha: 0.15), width: 0.8),
+                  bottom: BorderSide(
+                    color: context.cardBorderColor,
+                    width: 0.8,
+                  ),
                 ),
               ),
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       ClipRRect(
@@ -392,12 +457,19 @@ class _ChatScreenState extends State<ChatScreen> {
                           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: context.cardBgColor,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 0.8),
+                              border: Border.all(
+                                color: context.cardBorderColor,
+                                width: 0.8,
+                              ),
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.chevron_left, color: Color(0xFFFF6E40), size: 28),
+                              icon: const Icon(
+                                Icons.chevron_left,
+                                color: Color(0xFFFF6E40),
+                                size: 28,
+                              ),
                               onPressed: () => Navigator.pop(context),
                             ),
                           ),
@@ -425,20 +497,34 @@ class _ChatScreenState extends State<ChatScreen> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                                      blurRadius: 8, spreadRadius: 2,
+                                      color: const Color(
+                                        0xFFFF6E40,
+                                      ).withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
                                     ),
                                   ],
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                                  border: Border.all(
+                                    color: context.cardBorderColor,
+                                    width: 2,
+                                  ),
                                 ),
                                 child: CircleAvatar(
                                   radius: 20,
-                                  backgroundImage: widget.peerUser.avatarUrl?.isNotEmpty == true
+                                  backgroundImage:
+                                      widget.peerUser.avatarUrl?.isNotEmpty ==
+                                          true
                                       ? NetworkImage(widget.peerUser.avatarUrl!)
                                       : null,
-                                  backgroundColor: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                  backgroundColor: const Color(
+                                    0xFFFF6E40,
+                                  ).withValues(alpha: 0.3),
                                   child: widget.peerUser.avatarUrl == null
-                                      ? const Icon(Icons.person, size: 20, color: Colors.white)
+                                      ? const Icon(
+                                          Icons.person,
+                                          size: 20,
+                                          color: Colors.white,
+                                        )
                                       : null,
                                 ),
                               ),
@@ -450,13 +536,26 @@ class _ChatScreenState extends State<ChatScreen> {
                                   children: [
                                     Text(
                                       widget.peerUser.username,
-                                      style: const TextStyle(
-                                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 17,
-                                        shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                      style: TextStyle(
+                                        color: context.textColor,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 17,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 4,
+                                          ),
+                                        ],
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    const Text('Chạm ghé', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                    Text(
+                                      'Chạm ghé',
+                                      style: TextStyle(
+                                        color: context.textSecondaryColor,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -471,17 +570,22 @@ class _ChatScreenState extends State<ChatScreen> {
                           _buildGlassButton(
                             icon: Icons.phone_rounded,
                             onPressed: () async {
-                              final granted = await Permission.microphone.request();
+                              final granted = await Permission.microphone
+                                  .request();
                               if (granted.isGranted) {
-                                await FirebaseFirestore.instance.collection('calls').doc(widget.matchId).set({
-                                  'status': 'active',
-                                  'callerId': currentUserId,
-                                  'receiverId': widget.peerUser.id,
-                                  'type': 'voice',
-                                  'answered': false,
-                                  'startedAt': DateTime.now().toIso8601String(),
-                                }, SetOptions(merge: true));
-                                
+                                await FirebaseFirestore.instance
+                                    .collection('calls')
+                                    .doc(widget.matchId)
+                                    .set({
+                                      'status': 'active',
+                                      'callerId': currentUserId,
+                                      'receiverId': widget.peerUser.id,
+                                      'type': 'voice',
+                                      'answered': false,
+                                      'startedAt': DateTime.now()
+                                          .toIso8601String(),
+                                    }, SetOptions(merge: true));
+
                                 if (!context.mounted) return;
                                 await Navigator.push(
                                   context,
@@ -502,16 +606,21 @@ class _ChatScreenState extends State<ChatScreen> {
                           _buildGlassButton(
                             icon: Icons.videocam_rounded,
                             onPressed: () async {
-                              final granted = await _requestCameraAndMicPermissions();
+                              final granted =
+                                  await _requestCameraAndMicPermissions();
                               if (granted) {
-                                await FirebaseFirestore.instance.collection('calls').doc(widget.matchId).set({
-                                  'status': 'active',
-                                  'callerId': currentUserId,
-                                  'receiverId': widget.peerUser.id,
-                                  'type': 'video',
-                                  'answered': false,
-                                  'startedAt': DateTime.now().toIso8601String(),
-                                }, SetOptions(merge: true));
+                                await FirebaseFirestore.instance
+                                    .collection('calls')
+                                    .doc(widget.matchId)
+                                    .set({
+                                      'status': 'active',
+                                      'callerId': currentUserId,
+                                      'receiverId': widget.peerUser.id,
+                                      'type': 'video',
+                                      'answered': false,
+                                      'startedAt': DateTime.now()
+                                          .toIso8601String(),
+                                    }, SetOptions(merge: true));
 
                                 if (!context.mounted) return;
                                 await Navigator.push(
@@ -538,25 +647,31 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
-      
+
       body: Stack(
         children: [
           // ── Nền tối chủ đạo ──
           Positioned.fill(
-            child: Container(color: const Color(0xFF101012)),
+            child: Container(color: context.scaffoldBackgroundColor),
           ),
-          
+
           // ── Orb Phát Sáng Cam trên cùng bên trái ──
           Positioned(
-            top: 50, left: -50,
+            top: 50,
+            left: -50,
             child: Container(
-              width: 300, height: 300,
+              width: 300,
+              height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                color: const Color(
+                  0xFFFF6E40,
+                ).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                    color: const Color(
+                      0xFFFF6E40,
+                    ).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
                     blurRadius: 100,
                     spreadRadius: 40,
                   ),
@@ -564,18 +679,24 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          
+
           // ── Orb Phát Sáng Đỏ Cam dưới cùng bên phải ──
           Positioned(
-            bottom: 100, right: -80,
+            bottom: 100,
+            right: -80,
             child: Container(
-              width: 350, height: 350,
+              width: 350,
+              height: 350,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.2),
+                color: const Color(
+                  0xFFBF360C,
+                ).withValues(alpha: 0.2 * context.bgOrbOpacityMultiplier),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFBF360C).withValues(alpha: 0.15),
+                    color: const Color(
+                      0xFFBF360C,
+                    ).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
                     blurRadius: 120,
                     spreadRadius: 50,
                   ),
@@ -593,9 +714,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     end: Alignment.bottomCenter,
                     stops: const [0.0, 0.4, 1.0],
                     colors: [
-                      Colors.black.withValues(alpha: 0.2),
-                      Colors.black.withValues(alpha: 0.6),
-                      Colors.black.withValues(alpha: 0.8),
+                      context.scaffoldBackgroundColor.withValues(alpha: 0.2),
+                      context.scaffoldBackgroundColor.withValues(alpha: 0.6),
+                      context.scaffoldBackgroundColor.withValues(alpha: 0.8),
                     ],
                   ),
                 ),
@@ -607,82 +728,105 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Expanded(
                 child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: chatProvider.messagesStream(widget.matchId, widget.peerUser),
+                  stream: chatProvider.messagesStream(
+                    widget.matchId,
+                    widget.peerUser,
+                  ),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40)));
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFF6E40),
+                        ),
+                      );
                     }
-                    
+
                     final messages = snapshot.data ?? [];
 
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (_scrollController.hasClients) {
-                              _scrollController.animateTo(
-                                0.0,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOut,
-                              );
-                            }
-                          });
-                          
-                          return ListView.builder(
-                            controller: _scrollController,
-                            reverse: true,
-                            padding: const EdgeInsets.only(top: 110, bottom: 100, left: 8, right: 8),
-                            itemCount: messages.length,
-                            itemBuilder: (context, index) {
-                              final msg = messages[messages.length - 1 - index];
-                              final isMe = msg['senderId'] == currentUserId;
-                              final avatarUrl = isMe ? myAvatarUrl : peerAvatarUrl;
-                              
-                              final timestamp = msg['timestamp'];
-                              String timeString = '';
-                              if (timestamp != null) {
-                                if (timestamp is DateTime) {
-                                  timeString = _formatTime(timestamp);
-                                } else if (timestamp is String) {
-                                  timeString = _formatTime(DateTime.tryParse(timestamp) ?? DateTime.now());
-                                } else if (timestamp is Timestamp) {
-                                  timeString = _formatTime(timestamp.toDate());
-                                }
-                              }
+                      if (_scrollController.hasClients) {
+                        _scrollController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    });
 
-                              return Column(
-                                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                children: [
-                                  MessageBubbleWidget(
-                                    msg: msg,
-                                    isMe: isMe,
-                                    avatarUrl: avatarUrl,
-                                    timeString: timeString,
-                                    matchId: widget.matchId,
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: isMe ? 0 : 44,
-                                      right: isMe ? 20 : 0,
-                                      top: 2, bottom: 8,
-                                    ),
-                                    child: Text(
-                                      timeString,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade400,
-                                        fontWeight: FontWeight.w500,
-                                        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
+                    return ListView.builder(
+                      controller: _scrollController,
+                      reverse: true,
+                      padding: const EdgeInsets.only(
+                        top: 110,
+                        bottom: 100,
+                        left: 8,
+                        right: 8,
+                      ),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[messages.length - 1 - index];
+                        final isMe = msg['senderId'] == currentUserId;
+                        final avatarUrl = isMe ? myAvatarUrl : peerAvatarUrl;
+
+                        final timestamp = msg['timestamp'];
+                        String timeString = '';
+                        if (timestamp != null) {
+                          if (timestamp is DateTime) {
+                            timeString = _formatTime(timestamp);
+                          } else if (timestamp is String) {
+                            timeString = _formatTime(
+                              DateTime.tryParse(timestamp) ?? DateTime.now(),
+                            );
+                          } else if (timestamp is Timestamp) {
+                            timeString = _formatTime(timestamp.toDate());
+                          }
+                        }
+
+                        return Column(
+                          crossAxisAlignment: isMe
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            MessageBubbleWidget(
+                              msg: msg,
+                              isMe: isMe,
+                              avatarUrl: avatarUrl,
+                              timeString: timeString,
+                              matchId: widget.matchId,
+                            ),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                left: isMe ? 0 : 44,
+                                right: isMe ? 20 : 0,
+                                top: 2,
+                                bottom: 8,
+                              ),
+                              child: Text(
+                                timeString,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: context.textTertiaryColor,
+                                  fontWeight: FontWeight.w500,
+                                  shadows: const [
+                                    Shadow(color: Colors.black, blurRadius: 4),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
                   },
                 ),
               ),
 
               StreamBuilder<bool>(
-                stream: chatProvider.peerTypingStream(widget.matchId, widget.peerUser.id),
+                stream: chatProvider.peerTypingStream(
+                  widget.matchId,
+                  widget.peerUser.id,
+                ),
                 builder: (context, snapshot) {
                   final isPeerTyping = snapshot.data ?? false;
                   if (!isPeerTyping) return const SizedBox.shrink();
@@ -692,16 +836,23 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Row(
                       children: [
                         SizedBox(
-                          width: 16, height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey.shade400),
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: context.textSecondaryColor,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           '${widget.peerUser.username} đang nhập...',
                           style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 13, fontStyle: FontStyle.italic,
-                            shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                            color: context.textSecondaryColor,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            shadows: const [
+                              Shadow(color: Colors.black, blurRadius: 4),
+                            ],
                           ),
                         ),
                       ],
@@ -721,7 +872,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 onCancelRecording: _cancelRecording,
                 onSendMedia: _sendMedia,
                 onSendMessage: (text) => chatProvider.sendMessage(
-                  widget.matchId, text, peerUser: widget.peerUser
+                  widget.matchId,
+                  text,
+                  peerUser: widget.peerUser,
                 ),
               ),
             ],

@@ -8,6 +8,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:ui';
 import '../../../core/providers/location_provider.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../../core/theme/theme_helper.dart';
+
+// Flag để theo dõi liệu LocationProvider đã được đồng bộ từ Firestore chưa trong phiên hiện tại
+// Tránh việc mở màn hình lần 2 sẽ reset lại settings mà user vừa thay đổi nhưng chưa lưu
+bool _locationSettingsLoaded = false;
 
 /// Màn hình cài đặt khoảng cách matching như Tinder
 class LocationSettingsScreen extends StatefulWidget {
@@ -21,15 +26,27 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Load settings from user profile
+    // Chỉ load settings từ userData nếu chưa load trong phiên hiện tại.
+    // Điều này tránh reset lại các thay đổi chưa lưu của user khi màn hình rebuild,
+    // và tránh dữ liệu cũ ghi đè lên state hiện tại của LocationProvider.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final profileProvider = context.read<ProfileProvider>();
-      final locationProvider = context.read<LocationProvider>();
-      
-      if (profileProvider.userData != null) {
-        locationProvider.loadSettingsFromUser(profileProvider.userData!);
+      if (!_locationSettingsLoaded) {
+        final profileProvider = context.read<ProfileProvider>();
+        final locationProvider = context.read<LocationProvider>();
+        if (profileProvider.userData != null) {
+          locationProvider.loadSettingsFromUser(profileProvider.userData!);
+          _locationSettingsLoaded = true;
+        }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    // Reset flag khi màn hình bị hủy hoàn toàn (pop khỏi navigator stack)
+    // để lần mở sau sẽ load lại từ Firestore (phản ánh dữ liệu đã lưu)
+    _locationSettingsLoaded = false;
+    super.dispose();
   }
 
   /// Lưu settings vào Firestore
@@ -42,13 +59,22 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã lưu cài đặt'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
+        // Sau khi lưu thành công, refresh ProfileProvider để userData
+        // phản ánh giá trị mới nhất từ Firestore. Điều này đảm bảo lần
+        // mở màn hình tiếp theo sẽ load đúng dữ liệu đã lưu.
+        await context.read<ProfileProvider>().loadUserProfile();
+        // Reset flag để lần mở tiếp theo sẽ đọc lại từ userData mới
+        _locationSettingsLoaded = false;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã lưu cài đặt'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -73,7 +99,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
     return Consumer<LocationProvider>(
       builder: (context, locationProvider, child) {
         return Scaffold(
-          backgroundColor: const Color(0xFF101012),
+          backgroundColor: context.scaffoldBackgroundColor,
           extendBodyBehindAppBar: true,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(60),
@@ -82,10 +108,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: context.appBarBgColor,
                     border: Border(
                       bottom: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: context.cardBorderColor,
                         width: 0.5,
                       ),
                     ),
@@ -102,10 +128,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.08),
+                                  color: context.cardBgColor,
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.15),
+                                    color: context.cardBorderColor,
                                     width: 0.8,
                                   ),
                                 ),
@@ -122,11 +148,11 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'Cài đặt vị trí & bộ lọc',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: context.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
                             ),
@@ -138,7 +164,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                             'Lưu',
                             style: TextStyle(
                               color: locationProvider.isLoading
-                                  ? Colors.white38
+                                  ? context.textTertiaryColor
                                   : const Color(0xFFFF6E40),
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -166,10 +192,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                         height: 300,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                          color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                              color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                               blurRadius: 100,
                               spreadRadius: 40,
                             ),
@@ -185,10 +211,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                         height: 350,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFFBF360C).withValues(alpha: 0.12),
+                          color: const Color(0xFFBF360C).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFBF360C).withValues(alpha: 0.1),
+                              color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
                               blurRadius: 120,
                               spreadRadius: 50,
                             ),
@@ -208,10 +234,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: context.cardBgColor,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.1),
+                                    color: context.cardBorderColor,
                                   ),
                                 ),
                                 child: Row(
@@ -235,10 +261,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                         children: [
                                           Text(
                                             locationProvider.currentLocation ?? 'Đang tải...',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.white,
+                                              color: context.textColor,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -246,7 +272,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                             'Cập nhật tự động',
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: Colors.white.withValues(alpha: 0.6),
+                                              color: context.textSecondaryColor,
                                             ),
                                           ),
                                         ],
@@ -275,7 +301,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                   SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       activeTrackColor: const Color(0xFFFF6E40),
-                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                                      inactiveTrackColor: context.cardBorderColor,
                                       thumbColor: const Color(0xFFFF6E40),
                                       overlayColor: const Color(0xFFFF6E40).withValues(alpha: 0.2),
                                       trackHeight: 6,
@@ -295,8 +321,8 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text('1 km', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-                                        Text('2000 km', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                                        Text('1 km', style: TextStyle(color: context.textTertiaryColor, fontSize: 12)),
+                                        Text('2000 km', style: TextStyle(color: context.textTertiaryColor, fontSize: 12)),
                                       ],
                                     ),
                                   ),
@@ -327,7 +353,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                   SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       activeTrackColor: const Color(0xFFFF6E40),
-                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                                      inactiveTrackColor: context.cardBorderColor,
                                       thumbColor: const Color(0xFFFF6E40),
                                       overlayColor: const Color(0xFFFF6E40).withValues(alpha: 0.2),
                                       trackHeight: 6,
@@ -352,8 +378,8 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text('18 tuổi', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-                                        Text('99 tuổi', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                                        Text('18 tuổi', style: TextStyle(color: context.textTertiaryColor, fontSize: 12)),
+                                        Text('99 tuổi', style: TextStyle(color: context.textTertiaryColor, fontSize: 12)),
                                       ],
                                     ),
                                   ),
@@ -379,9 +405,9 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: context.cardBgColor,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                  border: Border.all(color: context.cardBorderColor),
                                 ),
                                 child: Row(
                                   children: [
@@ -400,16 +426,16 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: context.cardBgColor,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                  border: Border.all(color: context.cardBorderColor),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Expanded(
+                                    Expanded(
                                       child: Text(
                                         'Hiển thị khoảng cách trên profile',
-                                        style: TextStyle(fontSize: 16, color: Colors.white),
+                                        style: TextStyle(fontSize: 16, color: context.textColor),
                                       ),
                                     ),
                                     CupertinoSwitch(
@@ -429,9 +455,9 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: context.cardBgColor,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                  border: Border.all(color: context.cardBorderColor),
                                 ),
                                 child: Row(
                                   children: [
@@ -439,16 +465,16 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
+                                          Text(
                                             'Chỉ hiện người chơi chung game',
-                                            style: TextStyle(fontSize: 16, color: Colors.white),
+                                            style: TextStyle(fontSize: 16, color: context.textColor),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             'Tắt → ML AI tự sắp xếp theo độ phù hợp',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.white.withValues(alpha: 0.5),
+                                              color: context.textSecondaryColor,
                                             ),
                                           ),
                                         ],
@@ -486,7 +512,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                     child: Text(
                                       'Vị trí của bạn sẽ được cập nhật tự động để tìm người chơi gần bạn. Bạn có thể thay đổi khoảng cách matching bất cứ lúc nào.',
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.8),
+                                        color: context.textColor.withValues(alpha: 0.8),
                                         fontSize: 14,
                                         height: 1.5,
                                       ),
@@ -516,10 +542,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: context.textColor,
           ),
         ),
         if (subtitle != null) ...[
@@ -528,7 +554,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
             subtitle,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.6),
+              color: context.textSecondaryColor,
             ),
           ),
         ],
@@ -551,10 +577,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.05),
+          color: isSelected ? const Color(0xFFFF6E40) : context.cardBgColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.15),
+            color: isSelected ? const Color(0xFFFF6E40) : context.cardBorderColor,
           ),
           boxShadow: isSelected
               ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
@@ -564,7 +590,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected ? Colors.white : context.textSecondaryColor,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             fontSize: 13,
           ),
@@ -589,10 +615,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.05),
+          color: isSelected ? const Color(0xFFFF6E40) : context.cardBgColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF6E40) : Colors.white.withValues(alpha: 0.15),
+            color: isSelected ? const Color(0xFFFF6E40) : context.cardBorderColor,
           ),
           boxShadow: isSelected
               ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
@@ -602,7 +628,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: isSelected ? Colors.white : context.textSecondaryColor,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             fontSize: 13,
           ),
@@ -632,7 +658,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.white : Colors.white70,
+              color: isSelected ? Colors.white : context.textSecondaryColor,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               fontSize: 14,
             ),

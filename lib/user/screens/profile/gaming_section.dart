@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
+import '../../../core/theme/theme_helper.dart';
 
 class GamingSection extends StatelessWidget {
   final String? rank;
@@ -52,24 +53,58 @@ class GamingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fieldFillColor = context.isDarkMode
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.85);
+    final fieldStyle = TextStyle(
+      color: context.textColor,
+      fontSize: 16,
+    );
+    final labelStyle = TextStyle(color: context.textSecondaryColor);
+    final hintStyle = TextStyle(color: context.textTertiaryColor);
+    
+    final enabledBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: context.isDarkMode ? Colors.white24 : Colors.grey.shade400),
+    );
+    final focusedBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
+    );
+    final errorBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+    );
+    final focusedErrorBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Dropdown: Chọn rank game
         DropdownButtonFormField<String>(
           initialValue: rank,
-          hint: const Text('Chọn rank'),
+          hint: Text('Chọn rank', style: hintStyle),
+          style: fieldStyle,
+          dropdownColor: context.dialogBgColor,
+          iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelText: 'Hạng hiện tại (Rank)',
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           items: rankOptions
               .map((r) => DropdownMenuItem(
                     value: r,
-                    child: Text(r),
+                    child: Text(r, style: fieldStyle),
                   ))
               .toList(),
           onChanged: onRankChanged,
@@ -89,14 +124,17 @@ class GamingSection extends StatelessWidget {
         
         // TextField: Tìm kiếm game
         TextFormField(
+          style: fieldStyle,
           decoration: InputDecoration(
             hintText: "Tìm kiếm game...",
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            hintStyle: hintStyle,
+            prefixIcon: Icon(Icons.search, color: context.textSecondaryColor),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           onChanged: onSearchGames,
         ),
@@ -110,10 +148,15 @@ class GamingSection extends StatelessWidget {
               .map((e) => MultiSelectItem(e, e))
               .toList(),
           initialValue: favoriteGames,
-          title: const Text("Chọn game"),
+          title: Text("Chọn game", style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)),
           selectedColor: Colors.deepOrange,
+          backgroundColor: context.dialogBgColor,
+          itemsTextStyle: TextStyle(color: context.textColor),
+          selectedItemsTextStyle: TextStyle(color: context.textColor),
+          searchTextStyle: TextStyle(color: context.textColor),
+          searchHintStyle: TextStyle(color: context.textTertiaryColor),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
+            color: fieldFillColor,
             borderRadius: const BorderRadius.all(
               Radius.circular(8),
             ),
@@ -163,13 +206,17 @@ class GamingSection extends StatelessWidget {
         // TextField: Thời gian chơi game/ngày
         TextFormField(
           initialValue: playTime.toString(),
+          style: fieldStyle,
           decoration: InputDecoration(
             labelText: 'Thời gian chơi (phút/ngày)',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           keyboardType: TextInputType.number,
           onChanged: (value) {
@@ -191,13 +238,17 @@ class GamingSection extends StatelessWidget {
         // TextField: Tỷ lệ thắng (%)
         TextFormField(
           initialValue: winRate.toString(),
+          style: fieldStyle,
           decoration: InputDecoration(
             labelText: 'Tỷ lệ thắng (%)',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           keyboardType: TextInputType.number,
           onChanged: (value) {
@@ -223,19 +274,25 @@ class GamingSection extends StatelessWidget {
         // Dropdown: Mục đích tìm kiếm
         DropdownButtonFormField<String>(
           initialValue: lookingFor,
-          hint: const Text('Chọn mục đích'),
+          hint: Text('Chọn mục đích', style: hintStyle),
+          style: fieldStyle,
+          dropdownColor: context.dialogBgColor,
+          iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Mục đích tìm kiếm',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           items: lookingForOptions
               .map((option) => DropdownMenuItem(
                     value: option,
-                    child: Text(option),
+                    child: Text(option, style: fieldStyle),
                   ))
               .toList(),
           onChanged: onLookingForChanged,
@@ -245,19 +302,25 @@ class GamingSection extends StatelessWidget {
         // Dropdown: Phong cách chơi game
         DropdownButtonFormField<String>(
           initialValue: gameStyle,
-          hint: const Text('Chọn phong cách'),
+          hint: Text('Chọn phong cách', style: hintStyle),
+          style: fieldStyle,
+          dropdownColor: context.dialogBgColor,
+          iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Phong cách chơi game',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           items: gameStyleOptions
               .map((style) => DropdownMenuItem(
                     value: style,
-                    child: Text(style),
+                    child: Text(style, style: fieldStyle),
                   ))
               .toList(),
           onChanged: onGameStyleChanged,

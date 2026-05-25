@@ -14,6 +14,10 @@ import 'dart:ui';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
 import '../shared/peer_profile_screen.dart';
+import '../../../core/theme/theme_helper.dart';
+import '../../../core/providers/theme_provider.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import '../../../core/controllers/notification_controller.dart';
 
 // Màn hình hồ sơ cá nhân của user
 // Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
@@ -172,14 +176,14 @@ class _ProfilePageState extends State<ProfilePage> {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E22),
+        backgroundColor: context.dialogBgColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
-        content: const Text('Bạn có chắc muốn đăng xuất?', style: TextStyle(color: Colors.white70)),
+        title: Text('Đăng xuất', style: TextStyle(color: context.textDialogColor)),
+        content: Text('Bạn có chắc muốn đăng xuất?', style: TextStyle(color: context.textDialogSecondaryColor)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+            child: Text('Hủy', style: TextStyle(color: context.textTertiaryColor)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -209,7 +213,7 @@ class _ProfilePageState extends State<ProfilePage> {
         
         return Scaffold(
           extendBodyBehindAppBar: true,
-          backgroundColor: const Color(0xFF101012),
+          backgroundColor: context.scaffoldBackgroundColor,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -219,7 +223,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: context.appBarBgColor,
                 ),
               ),
             ),
@@ -238,7 +242,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   'gamenect',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.textColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 22,
                     shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)],
@@ -323,8 +327,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   width: 300, height: 300,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
-                    boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1), blurRadius: 100, spreadRadius: 40)],
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: 100, spreadRadius: 40)],
                   ),
                 ),
               ),
@@ -334,8 +338,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   width: 350, height: 350,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFBF360C).withValues(alpha: 0.15),
-                    boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1), blurRadius: 120, spreadRadius: 50)],
+                    color: const Color(0xFFBF360C).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
+                    boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: 120, spreadRadius: 50)],
                   ),
                 ),
               ),
@@ -428,15 +432,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                       ),
                                     );
                                   },
-                                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                  backgroundColor: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
-                                    side: BorderSide(color: Colors.white.withValues(alpha: 0.2), width: 1),
+                                    side: BorderSide(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.1), width: 1),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     CupertinoIcons.pencil,
-                                    color: Colors.white,
+                                    color: context.textColor,
                                   ),
                                 ),
                               ),
@@ -454,16 +458,16 @@ class _ProfilePageState extends State<ProfilePage> {
                               children: [
                                 Text(
                                   provider.userData!.username,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: context.textColor,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   '${provider.userData!.age}',
-                                  style: const TextStyle(fontSize: 22, color: Colors.white70),
+                                  style: TextStyle(fontSize: 22, color: context.textSecondaryColor),
                                 ),
                               ],
                             ),
@@ -478,9 +482,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.05),
+                                        color: context.cardBgColor,
                                         borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                                        border: Border.all(color: context.cardBorderColor, width: 1),
                                       ),
                                       padding: const EdgeInsets.all(16),
                                       child: Column(
@@ -494,12 +498,12 @@ class _ProfilePageState extends State<ProfilePage> {
                                                 size: 20,
                                               ),
                                               const SizedBox(width: 8),
-                                              const Text(
+                                              Text(
                                                 'Vị trí & Khoảng cách',
                                                 style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                                  color: context.textColor,
                                                 ),
                                               ),
                                             ],
@@ -510,17 +514,17 @@ class _ProfilePageState extends State<ProfilePage> {
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
+                                              Text(
                                                 'Vị trí hiện tại:',
-                                                style: TextStyle(color: Colors.white54, fontSize: 13),
+                                                style: TextStyle(color: context.textTertiaryColor, fontSize: 13),
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
                                                 locationProvider.currentLocation ?? 'Chưa cập nhật',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontWeight: FontWeight.w500,
                                                   fontSize: 14,
-                                                  color: Colors.white,
+                                                  color: context.textColor,
                                                 ),
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
@@ -533,9 +537,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                           Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text(
+                                              Text(
                                                 'Khoảng cách tìm kiếm:',
-                                                style: TextStyle(color: Colors.white54),
+                                                style: TextStyle(color: context.textTertiaryColor),
                                               ),
                                               Text(
                                                 '${locationProvider.maxDistance.toInt()} km',
@@ -552,9 +556,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                           Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text(
+                                              Text(
                                                 'Độ tuổi:',
-                                                style: TextStyle(color: Colors.white54),
+                                                style: TextStyle(color: context.textTertiaryColor),
                                               ),
                                               Text(
                                                 '${locationProvider.minAge} - ${locationProvider.maxAge} tuổi',
@@ -652,6 +656,171 @@ class _ProfilePageState extends State<ProfilePage> {
                             if (!isPremium) _buildPremiumPromoCard(),
 
                             const SizedBox(height: 16),
+
+                            // Card cài đặt giao diện
+                            Consumer<ThemeProvider>(
+                              builder: (context, themeProvider, child) {
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: context.cardBgColor,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: context.cardBorderColor, width: 1),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            themeProvider.isDarkMode
+                                                ? CupertinoIcons.moon_stars_fill
+                                                : CupertinoIcons.sun_max_fill,
+                                            color: const Color(0xFFFF6E40),
+                                            size: 22,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Giao diện tối',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: context.textColor,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  themeProvider.isDarkMode
+                                                      ? 'Đang bật chế độ tối'
+                                                      : 'Đang bật chế độ sáng',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: context.textTertiaryColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          CupertinoSwitch(
+                                            value: themeProvider.isDarkMode,
+                                            activeTrackColor: const Color(0xFFFF6E40),
+                                            onChanged: (value) {
+                                              themeProvider.toggleTheme();
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // Nút Bật thông báo Web
+                            if (kIsWeb)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: context.cardBgColor,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: context.cardBorderColor, width: 1),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            CupertinoIcons.bell_solid,
+                                            color: Color(0xFFFF6E40),
+                                            size: 22,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Thông báo Web',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: context.textColor,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Bật thông báo trên trình duyệt',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: context.textTertiaryColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              try {
+                                                final messaging = FirebaseMessaging.instance;
+                                                final settings = await messaging.requestPermission();
+                                                if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+                                                  final token = await NotificationController().getFirebaseToken();
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(token != null ? 'Đã bật thông báo thành công!' : 'Có lỗi khi lấy token'),
+                                                        backgroundColor: token != null ? Colors.green : Colors.red,
+                                                      ),
+                                                    );
+                                                  }
+                                                } else {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text('Chưa cấp quyền thông báo'),
+                                                        backgroundColor: Colors.red,
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              } catch (e) {
+                                                _logger.severe('Lỗi thông báo web: $e');
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Lỗi: $e'),
+                                                      backgroundColor: Colors.red,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFFFF6E40),
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                            child: const Text('Bật'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            const SizedBox(height: 16),
                             
                             // Section Game yêu thích
                             _buildSection(
@@ -664,7 +833,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                       (game) => Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.05),
+                                          color: context.cardBgColor,
                                           borderRadius: BorderRadius.circular(20),
                                           border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4), width: 1),
                                           boxShadow: [
@@ -682,7 +851,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                             const SizedBox(width: 6),
                                             Text(
                                               game, 
-                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                              style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600, fontSize: 13),
                                             ),
                                           ],
                                         ),
@@ -802,7 +971,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textColor),
         ),
         const SizedBox(height: 8),
         content,
@@ -817,7 +986,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16, color: Colors.white70)),
+          Text(label, style: TextStyle(fontSize: 16, color: context.textSecondaryColor)),
           Text(
             value,
             style: const TextStyle(

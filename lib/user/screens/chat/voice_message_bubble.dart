@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'dart:ui';
+import '../../../core/theme/theme_helper.dart';
 
 /// Widget hiển thị voice message bubble
 /// Quản lý waveform (hoặc placeholder) và nút play/pause, thời lượng
@@ -77,8 +78,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                   )
                 : LinearGradient(
                     colors: [
-                      Colors.white.withValues(alpha: 0.2),
-                      Colors.white.withValues(alpha: 0.15),
+                      context.isDarkMode ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05),
+                      context.isDarkMode ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
                     ],
                   ),
             borderRadius: BorderRadius.only(
@@ -87,7 +88,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
               bottomRight: Radius.circular(widget.isMe ? 4 : 20),
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+            border: Border.all(color: widget.isMe ? Colors.transparent : context.cardBorderColor, width: 1),
           ),
           child: GestureDetector(
             onTap: () async {
@@ -106,7 +107,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               children: [
                 Icon(
                   _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: Colors.white,
+                  color: widget.isMe ? Colors.white : context.textColor,
                   size: 24,
                 ),
                 const SizedBox(width: 8),
@@ -125,7 +126,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                           width: 100,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: widget.isMe ? Colors.white.withValues(alpha: 0.2) : context.textColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(2),
                           ),
                           child: TweenAnimationBuilder<double>(
@@ -140,11 +141,11 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                                 widthFactor: value,
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: widget.isMe ? Colors.white : context.textColor,
                                     borderRadius: BorderRadius.circular(2),
-                                    boxShadow: const [
+                                    boxShadow: [
                                       BoxShadow(
-                                        color: Colors.white,
+                                        color: widget.isMe ? Colors.white : context.textColor,
                                         blurRadius: 4,
                                         spreadRadius: 0,
                                       ),
@@ -160,7 +161,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                           posSecs > 0 || _isPlaying
                               ? '${posSecs ~/ 60}:${(posSecs % 60).toString().padLeft(2, '0')}'
                               : '${widget.duration ~/ 60}:${(widget.duration % 60).toString().padLeft(2, '0')}',
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: widget.isMe ? Colors.white : context.textColor, fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ],
                     );

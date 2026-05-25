@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
+import '../../../core/theme/theme_helper.dart';
 
 class BasicInfoSection extends StatelessWidget {
   final TextEditingController usernameController;
@@ -58,19 +59,51 @@ class BasicInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fieldFillColor = context.isDarkMode
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.85);
+    final fieldStyle = TextStyle(
+      color: context.textColor,
+      fontSize: 16,
+    );
+    final labelStyle = TextStyle(color: context.textSecondaryColor);
+    final hintStyle = TextStyle(color: context.textTertiaryColor);
+    final helperStyle = TextStyle(color: context.textTertiaryColor);
+    
+    final enabledBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: context.isDarkMode ? Colors.white24 : Colors.grey.shade400),
+    );
+    final focusedBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
+    );
+    final errorBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+    );
+    final focusedErrorBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // TextField: Tên người dùng
         TextFormField(
           controller: usernameController,
+          style: fieldStyle,
           decoration: InputDecoration(
             labelText: 'Tên người dùng',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           validator: (value) =>
               value!.isEmpty ? 'Vui lòng nhập tên người dùng' : null,
@@ -80,19 +113,25 @@ class BasicInfoSection extends StatelessWidget {
         // Dropdown: Giới tính
         DropdownButtonFormField<String>(
           initialValue: gender,
-          hint: const Text('Chọn giới tính'),
+          hint: Text('Chọn giới tính', style: hintStyle),
+          style: fieldStyle,
+          dropdownColor: context.dialogBgColor,
+          iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Giới tính',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           items: genderOptions
               .map((g) => DropdownMenuItem(
                     value: g,
-                    child: Text(g),
+                    child: Text(g, style: fieldStyle),
                   ))
               .toList(),
           onChanged: onGenderChanged,
@@ -102,19 +141,25 @@ class BasicInfoSection extends StatelessWidget {
         // TextField: Ngày sinh với format dd/MM/yyyy
         TextFormField(
           controller: birthDateController,
+          style: fieldStyle,
           decoration: InputDecoration(
             labelText: 'Ngày sinh (dd/MM/yyyy)',
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
             hintText: 'VD: 25/12/1990',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            hintStyle: hintStyle,
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
             suffixIcon: const Icon(
               Icons.calendar_today,
               color: Colors.deepOrange,
             ),
             helperText: 'Nhập theo định dạng: ngày/tháng/năm',
+            helperStyle: helperStyle,
           ),
           keyboardType: TextInputType.datetime,
           validator: (value) {
@@ -145,13 +190,17 @@ class BasicInfoSection extends StatelessWidget {
         // TextField: Chiều cao
         TextFormField(
           controller: heightController,
+          style: fieldStyle,
           decoration: InputDecoration(
             labelText: 'Chiều cao (cm)',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           keyboardType: TextInputType.number,
           validator: (value) {
@@ -168,13 +217,18 @@ class BasicInfoSection extends StatelessWidget {
         // TextField: Bio
         TextFormField(
           controller: bioController,
+          style: fieldStyle,
           decoration: InputDecoration(
             labelText: 'Giới thiệu bản thân',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelStyle: labelStyle,
+            floatingLabelStyle: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold),
+            counterStyle: helperStyle,
+            enabledBorder: enabledBorder,
+            focusedBorder: focusedBorder,
+            errorBorder: errorBorder,
+            focusedErrorBorder: focusedErrorBorder,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.85),
+            fillColor: fieldFillColor,
           ),
           maxLines: 3,
           maxLength: 200,
@@ -185,10 +239,15 @@ class BasicInfoSection extends StatelessWidget {
         MultiSelectDialogField<String>(
           items: interestOptions.map((e) => MultiSelectItem(e, e)).toList(),
           initialValue: interests,
-          title: const Text("Sở thích khác"),
+          title: Text("Sở thích khác", style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)),
           selectedColor: Colors.deepOrange,
+          backgroundColor: context.dialogBgColor,
+          itemsTextStyle: TextStyle(color: context.textColor),
+          selectedItemsTextStyle: TextStyle(color: context.textColor),
+          searchTextStyle: TextStyle(color: context.textColor),
+          searchHintStyle: TextStyle(color: context.textTertiaryColor),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
+            color: fieldFillColor,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: Colors.deepOrange,

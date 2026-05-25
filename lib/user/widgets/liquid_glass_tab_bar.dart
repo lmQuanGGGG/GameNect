@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import '../../core/theme/theme_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab Item data class
@@ -58,6 +59,7 @@ class LiquidGlassTabBar extends StatelessWidget {
   }
 
   Widget _buildPill(BuildContext context) {
+    final isDark = context.isDarkMode;
     return Container(
       height: 72,
       decoration: BoxDecoration(
@@ -65,17 +67,17 @@ class LiquidGlassTabBar extends StatelessWidget {
         // ── Bóng đổ cực nhẹ để giữ độ trong suốt cao nhất ──
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: isDark ? 0.06 : 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: isDark ? 0.03 : 0.05),
             blurRadius: 32,
             offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: 0.08),
+            color: const Color(0xFFFF6E40).withValues(alpha: isDark ? 0.08 : 0.12),
             blurRadius: 40,
             spreadRadius: 2,
             offset: const Offset(0, 8),
@@ -95,14 +97,20 @@ class LiquidGlassTabBar extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 stops: const [0.0, 0.45, 1.0],
                 // Gradient cực mỏng, gần như trong suốt hoàn toàn
-                colors: [
-                  Colors.white.withValues(alpha: 0.08),
-                  Colors.white.withValues(alpha: 0.02),
-                  Colors.white.withValues(alpha: 0.00),
-                ],
+                colors: isDark
+                    ? [
+                        Colors.white.withValues(alpha: 0.08),
+                        Colors.white.withValues(alpha: 0.02),
+                        Colors.white.withValues(alpha: 0.00),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.90),
+                        Colors.white.withValues(alpha: 0.70),
+                        Colors.white.withValues(alpha: 0.60),
+                      ],
               ),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
+                color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
                 width: 0.8,
               ),
             ),
@@ -170,7 +178,7 @@ class _TabItemWidget extends StatelessWidget {
               children: [
                 Transform.scale(
                   scale: isActive ? scaleAnim.value : 1.0,
-                  child: _buildIconContainer(),
+                  child: _buildIconContainer(context),
                 ),
                 const SizedBox(height: 4),
                 AnimatedDefaultTextStyle(
@@ -180,7 +188,7 @@ class _TabItemWidget extends StatelessWidget {
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                     color: isActive
                         ? _activeColor
-                        : _inactiveColor.withValues(alpha: 0.85),
+                        : (context.isDarkMode ? _inactiveColor : const Color(0xFF7A8A99)).withValues(alpha: 0.85),
                     letterSpacing: isActive ? 0.3 : 0.0,
                   ),
                   child: Text(
@@ -197,7 +205,7 @@ class _TabItemWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildIconContainer() {
+  Widget _buildIconContainer(BuildContext context) {
     if (isActive) {
       return Stack(
         alignment: Alignment.center,
@@ -213,7 +221,7 @@ class _TabItemWidget extends StatelessWidget {
         ],
       );
     } else {
-      return _buildInactiveIcon();
+      return _buildInactiveIcon(context);
     }
   }
 
@@ -299,7 +307,7 @@ class _TabItemWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildInactiveIcon() {
+  Widget _buildInactiveIcon(BuildContext context) {
     return Stack(
       alignment: Alignment.center,
       clipBehavior: Clip.none,
@@ -311,7 +319,7 @@ class _TabItemWidget extends StatelessWidget {
             child: Icon(
               item.icon,
               size: 22,
-              color: _inactiveColor.withValues(alpha: 0.80),
+              color: (context.isDarkMode ? _inactiveColor : const Color(0xFF7A8A99)).withValues(alpha: 0.80),
             ),
           ),
         ),

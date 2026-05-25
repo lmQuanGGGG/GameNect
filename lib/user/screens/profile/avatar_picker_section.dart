@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/theme/theme_helper.dart';
 
 // Dùng XFile thay File để hỗ trợ Web (dart:io File không chạy trên web)
 class AvatarPickerSection extends StatelessWidget {
@@ -49,12 +50,12 @@ class AvatarPickerSection extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: avatarUrl!,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => const CircularProgressIndicator(),
-                            errorWidget: (context, url, error) => const Icon(Icons.person, size: 50, color: Colors.grey),
+                            placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
+                            errorWidget: (context, url, error) => Icon(Icons.person, size: 50, color: context.textColor.withValues(alpha: 0.5)),
                           )
                         : Container(
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.person, size: 50, color: Colors.grey),
+                            color: context.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey[200],
+                            child: Icon(Icons.person, size: 50, color: context.textColor.withValues(alpha: 0.5)),
                           )),
               ),
             ),
@@ -100,10 +101,10 @@ class AvatarPickerSection extends StatelessWidget {
                     height: 100,
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: context.isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.grey[300],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.add, color: Colors.white),
+                    child: Icon(Icons.add, color: context.isDarkMode ? Colors.white54 : Colors.white),
                   ),
                 );
               }
@@ -115,8 +116,8 @@ class AvatarPickerSection extends StatelessWidget {
                   fit: BoxFit.cover,
                   width: 100,
                   height: 100,
-                  placeholder: (context, url) => Container(color: Colors.grey[300]),
-                  errorWidget: (context, url, error) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                  placeholder: (context, url) => Container(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey[300]),
+                  errorWidget: (context, url, error) => Container(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey[300], child: Icon(Icons.broken_image, color: context.textColor.withValues(alpha: 0.3))),
                 );
               } else {
                 imageWidget = Image.network(
@@ -124,7 +125,7 @@ class AvatarPickerSection extends StatelessWidget {
                   fit: BoxFit.cover,
                   width: 100,
                   height: 100,
-                  errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                  errorBuilder: (context, error, stackTrace) => Container(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey[300], child: Icon(Icons.broken_image, color: context.textColor.withValues(alpha: 0.3))),
                 );
               }
 

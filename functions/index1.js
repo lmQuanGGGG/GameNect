@@ -8,12 +8,20 @@ setGlobalOptions({ region: 'asia-southeast1', memory: '512MiB', timeoutSeconds: 
 // Helper: Gửi FCM hybrid notification
 // ─────────────────────────────────────────────
 async function sendFcmNotification({ token, title, body, channelId, androidPriority = 'high', data = {} }) {
+  // Đảm bảo tất cả data values là string (FCM yêu cầu)
+  const stringData = Object.fromEntries(
+    Object.entries({ ...data, title, body }).map(([k, v]) => [k, String(v ?? '')])
+  );
+
   return admin.messaging().send({
     token,
-    notification: { title, body },
+    // KHÔNG dùng top-level notification field — mỗi platform xử lý riêng:
+    // - Android: android.notification
+    // - iOS:     apns.payload.aps.alert
+    // - Web:     KHÔNG có notification → data-only → onBackgroundMessage() được gọi đúng
     android: {
       priority: 'high',
-      notification: { channelId, sound: 'default', priority: androidPriority },
+      notification: { title, body, channelId, sound: 'default', priority: androidPriority },
     },
     apns: {
       payload: {
@@ -21,7 +29,7 @@ async function sendFcmNotification({ token, title, body, channelId, androidPrior
           alert: { title, body },
           sound: 'default',
           badge: 1,
-          'content-available': 1,  // ← BẮT BUỘC để iOS wake app ở background/killed
+          'content-available': 1, // ← BẮT BUỘC để iOS wake app ở background/killed
         },
       },
       headers: {
@@ -29,19 +37,28 @@ async function sendFcmNotification({ token, title, body, channelId, androidPrior
         'apns-push-type': 'alert',
       },
     },
-    data,
+    webpush: {
+      headers: { Urgency: 'high' },
+      // Không có notification field → web nhận data-only
+      // → firebase-messaging-sw.js onBackgroundMessage() được gọi với đầy đủ payload
+      data: stringData,
+    },
+    data, // data gốc cho Android/iOS
   });
 }
 
 // Helper riêng cho Call notification: dùng 'voip' push type để bypass DND
 // và luôn hiển thị ngay cả khi app bị kill
 async function sendCallFcmNotification({ token, title, body, data = {} }) {
+  const stringData = Object.fromEntries(
+    Object.entries({ ...data, title, body }).map(([k, v]) => [k, String(v ?? '')])
+  );
+
   return admin.messaging().send({
     token,
-    notification: { title, body },
     android: {
       priority: 'high',
-      notification: { channelId: 'call_channel', sound: 'default', priority: 'max' },
+      notification: { title, body, channelId: 'call_channel', sound: 'default', priority: 'max' },
     },
     apns: {
       payload: {
@@ -56,6 +73,10 @@ async function sendCallFcmNotification({ token, title, body, data = {} }) {
         'apns-priority': '10',
         'apns-push-type': 'alert',
       },
+    },
+    webpush: {
+      headers: { Urgency: 'high' },
+      data: stringData,
     },
     data,
   });

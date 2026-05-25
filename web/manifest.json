@@ -1,11 +1,11 @@
 {
-    "name": "gamenect_new",
-    "short_name": "gamenect_new",
+    "name": "GameNect",
+    "short_name": "GameNect",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Nền tảng mạng xã hội kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

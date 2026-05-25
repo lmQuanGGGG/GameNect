@@ -6,6 +6,7 @@ import '../../../core/providers/chat_provider.dart';
 import '../games/game_detail_screen.dart';
 import 'video_player_bubble.dart';
 import 'voice_message_bubble.dart';
+import '../../../core/theme/theme_helper.dart';
 
 /// Bubble hiển thị tin nhắn (text, image, video, voice, call)
 /// Chứa logic rendering, avatar cho bên nhận, và xử lý reactions (double tap/long press)
@@ -255,16 +256,16 @@ class MessageBubbleWidget extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     gradient: isMe
-                        ? LinearGradient(
+                        ? const LinearGradient(
                             colors: [
-                              const Color(0xFFFF6E40).withValues(alpha: 0.8),
-                              const Color(0xFFFF8A65).withValues(alpha: 0.8),
+                              Color(0xFFFF6E40),
+                              Color(0xFFFF8A65),
                             ],
                           )
                         : LinearGradient(
                             colors: [
-                              Colors.white.withValues(alpha: 0.2),
-                              Colors.white.withValues(alpha: 0.15),
+                              context.isDarkMode ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05),
+                              context.isDarkMode ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
                             ],
                           ),
                     borderRadius: BorderRadius.only(
@@ -274,7 +275,7 @@ class MessageBubbleWidget extends StatelessWidget {
                       bottomRight: Radius.circular(isMe ? 4 : 20),
                     ),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: isMe ? Colors.transparent : context.cardBorderColor,
                       width: 1,
                     ),
                     boxShadow: isMe
@@ -291,8 +292,8 @@ class MessageBubbleWidget extends StatelessWidget {
                   ),
                   child: Text(
                     text,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: isMe ? Colors.white : context.textColor,
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
                     ),
@@ -356,13 +357,13 @@ class MessageBubbleWidget extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      builder: (context) => Container(
+      builder: (ctx) => Container(
         margin: const EdgeInsets.only(left: 16, right: 16, bottom: 40),
         decoration: BoxDecoration(
-          color: const Color(0xFF101012).withValues(alpha: 0.7),
+          color: context.dialogBgColor.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(40),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.2),
+            color: context.cardBorderColor,
             width: 1,
           ),
           boxShadow: [
@@ -443,7 +444,7 @@ class MessageBubbleWidget extends StatelessWidget {
             width: 200,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+              border: Border.all(color: context.cardBorderColor, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
@@ -464,10 +465,10 @@ class MessageBubbleWidget extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: gameImage,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(color: const Color(0xFF1A1A1E)),
-                            errorWidget: (context, url, error) => Container(color: const Color(0xFF1A1A1E)),
+                            placeholder: (context, url) => Container(color: context.cardBgColor),
+                            errorWidget: (context, url, error) => Container(color: context.cardBgColor),
                           )
-                        : Container(color: const Color(0xFF1A1A1E)),
+                        : Container(color: context.cardBgColor),
                   ),
                   
                   // Gradient Overlay
