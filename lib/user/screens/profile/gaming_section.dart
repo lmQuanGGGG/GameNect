@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:multi_select_flutter/multi_select_flutter.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import '../../../core/theme/theme_helper.dart';
 
 class GamingSection extends StatelessWidget {
@@ -9,10 +9,8 @@ class GamingSection extends StatelessWidget {
   
   final List<String> favoriteGames;
   final Function(List<String>) onFavoriteGamesChanged;
-  final bool isSearching;
-  final List<String> searchResultGames;
   final List<String> hotGames;
-  final Function(String) onSearchGames;
+  final Future<List<String>> Function(String) onSearchGamesAsync;
   
   final int playTime;
   final Function(int) onPlayTimeChanged;
@@ -35,10 +33,8 @@ class GamingSection extends StatelessWidget {
     required this.rankOptions,
     required this.favoriteGames,
     required this.onFavoriteGamesChanged,
-    required this.isSearching,
-    required this.searchResultGames,
     required this.hotGames,
-    required this.onSearchGames,
+    required this.onSearchGamesAsync,
     required this.playTime,
     required this.onPlayTimeChanged,
     required this.winRate,
@@ -122,78 +118,44 @@ class GamingSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         
-        // TextField: Tìm kiếm game
-        TextFormField(
-          style: fieldStyle,
-          decoration: InputDecoration(
-            hintText: "Tìm kiếm game...",
-            hintStyle: hintStyle,
-            prefixIcon: Icon(Icons.search, color: context.textSecondaryColor),
-            enabledBorder: enabledBorder,
-            focusedBorder: focusedBorder,
-            errorBorder: errorBorder,
-            focusedErrorBorder: focusedErrorBorder,
-            filled: true,
-            fillColor: fieldFillColor,
-          ),
-          onChanged: onSearchGames,
-        ),
-        const SizedBox(height: 8),
-        
-        // MultiSelectDialogField: Chọn nhiều game
-        MultiSelectDialogField<String>(
-          items: (isSearching && searchResultGames.isNotEmpty
-                  ? searchResultGames
-                  : hotGames)
-              .map((e) => MultiSelectItem(e, e))
-              .toList(),
-          initialValue: favoriteGames,
-          title: Text("Chọn game", style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)),
-          selectedColor: Colors.deepOrange,
-          backgroundColor: context.dialogBgColor,
-          itemsTextStyle: TextStyle(color: context.textColor),
-          selectedItemsTextStyle: TextStyle(color: context.textColor),
-          searchTextStyle: TextStyle(color: context.textColor),
-          searchHintStyle: TextStyle(color: context.textTertiaryColor),
-          decoration: BoxDecoration(
-            color: fieldFillColor,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(8),
-            ),
-            border: Border.all(
-              color: Colors.deepOrange,
-              width: 2,
+        DropdownSearch<String>.multiSelection(
+          items: (filter, props) => onSearchGamesAsync(filter),
+          selectedItems: favoriteGames,
+          compareFn: (i, s) => i == s,
+          decoratorProps: DropDownDecoratorProps(
+            decoration: InputDecoration(
+              hintText: "Chọn game",
+              hintStyle: hintStyle,
+              enabledBorder: enabledBorder,
+              focusedBorder: focusedBorder,
+              errorBorder: errorBorder,
+              focusedErrorBorder: focusedErrorBorder,
+              filled: true,
+              fillColor: fieldFillColor,
+              prefixIcon: Icon(Icons.videogame_asset, color: Colors.deepOrange[400]),
             ),
           ),
-          buttonIcon: Icon(
-            Icons.videogame_asset,
-            color: Colors.deepOrange[400],
-          ),
-          buttonText: Text(
-            "Chọn tối đa 5 game",
-            style: TextStyle(
-              color: Colors.deepOrange[400],
-              fontSize: 16,
+          popupProps: PopupPropsMultiSelection.dialog(
+            showSearchBox: true,
+            searchFieldProps: TextFieldProps(
+              decoration: InputDecoration(
+                hintText: "Gõ tên game (ví dụ: gta...)",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            dialogProps: DialogProps(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
-          onSelectionChanged: (selectedList) {
-            if (selectedList.length > 5) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Chỉ được chọn tối đa 5 game!'),
-                ),
-              );
-              selectedList.removeLast();
-            }
-          },
-          onConfirm: (results) {
+          onChanged: (results) {
             if (results.length > 5) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Chỉ được chọn tối đa 5 game!'),
-                ),
+                const SnackBar(content: Text('Chỉ được chọn tối đa 5 game!')),
               );
-              onFavoriteGamesChanged(results.sublist(0, 5));
+              // We remove the last added item to keep it <= 5.
+              results.removeLast();
+              onFavoriteGamesChanged(List.from(results));
             } else {
               onFavoriteGamesChanged(results);
             }

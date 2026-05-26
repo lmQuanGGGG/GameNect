@@ -164,6 +164,10 @@ Future<void> sendMediaWithNotify(
         if (lastMsg['senderId'] != currentUserId &&
             msgId != null &&
             _lastNotifiedMessageId[matchId] != msgId) {
+            
+            // Đánh dấu đã đọc ngay lập tức vì user đang ở trong màn hình chat
+            markMatchAsRead(matchId);
+            
             String notifyText = '';
             if (lastMsg['type'] == 'voice') {
               notifyText = 'Đã gửi 1 tin nhắn thoại';
@@ -275,5 +279,11 @@ Future<void> sendMediaWithNotify(
       matchId: matchId,
       peerUserId: peerUser.id,
     );
+  }
+
+  // Đánh dấu tin nhắn đã đọc
+  Future<void> markMatchAsRead(String matchId) async {
+    await FirestoreService().markMatchAsRead(matchId);
+    notifyListeners();
   }
 }

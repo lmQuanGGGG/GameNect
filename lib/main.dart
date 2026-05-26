@@ -70,6 +70,12 @@ void main() async {
 
   if (kIsWeb) {
     try {
+      await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+    } catch (e) {
+      developer.log('Error setting auth persistence: $e', name: 'Auth-Web');
+    }
+
+    try {
       bool isSupported = await FirebaseMessaging.instance.isSupported();
       if (isSupported) {
         await FirebaseMessaging.instance.requestPermission();

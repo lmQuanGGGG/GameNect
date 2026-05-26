@@ -34,6 +34,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessage': text,
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': userId,
+      'lastMessageRead': false,
     });
   }
 
@@ -64,6 +65,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMediaUrl': mediaUrl,
       'lastIsVideo': isVideo,
       'lastMessageSenderId': userId,
+      'lastMessageRead': false,
     });
   }
 
@@ -96,6 +98,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMediaUrl': mediaUrl,
       'lastIsVideo': isVideo,
       'lastMessageSenderId': userId,
+      'lastMessageRead': false,
     });
   }
 
@@ -152,6 +155,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessage': text,
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': uid,
+      'lastMessageRead': false,
     });
   }
 
@@ -179,6 +183,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessage': 'Đã gửi 1 tin nhắn thoại',
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': userId,
+      'lastMessageRead': false,
     });
   }
 
@@ -220,6 +225,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessage': 'Đã thả cảm xúc $emoji',
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': userId,
+      'lastMessageRead': false,
     });
   }
 
@@ -261,6 +267,21 @@ extension ChatServiceExtension on FirestoreService {
         });
   }
 
+  // Đánh dấu tin nhắn đã đọc
+  Future<void> markMatchAsRead(String matchId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    
+    // Lấy thông tin match hiện tại để kiểm tra
+    final doc = await FirebaseFirestore.instance.collection('matches').doc(matchId).get();
+    final data = doc.data();
+    if (data != null && data['lastMessageSenderId'] != userId) {
+      await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
+        'lastMessageRead': true,
+      });
+    }
+  }
+
   // Cập nhật typing indicator
   Future<void> setTypingIndicator({
     required String matchId,
@@ -299,6 +320,7 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessage': 'Đã chia sẻ một trò chơi',
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': userId,
+      'lastMessageRead': false,
     });
   }
 }

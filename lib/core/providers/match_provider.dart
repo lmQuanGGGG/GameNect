@@ -119,39 +119,19 @@ class MatchProvider with ChangeNotifier {
         debugPrint('=========================================');
         
         for (var e in recs) {
+          final String userId = e['user_id'];
           debugPrint('---');
-          debugPrint('User ID from API: ${e['user_id']}');
-          debugPrint('Distance from API: ${e['distance_km']} km (will be recalculated)');
+          debugPrint('User ID from API: $userId');
           
-          final userMap = await FirestoreService().getUserMapById(e['user_id']);
-          if (userMap != null) {
-            final user = UserModel.fromMap(userMap, e['user_id']);
-            
-            // Tính lại khoảng cách cho user này
-            if (user.latitude != null && user.longitude != null &&
-                currentUser.latitude != null && currentUser.longitude != null) {
-              user.distanceKm = calculateDistance(
-                currentUser.latitude!, currentUser.longitude!,
-                user.latitude!, user.longitude!,
-              );
-              
-              debugPrint('User: ${user.username}');
-              debugPrint('Location: (${user.latitude}, ${user.longitude})');
-              debugPrint('REAL Distance: ${user.distanceKm?.toStringAsFixed(1)} km');
-              debugPrint('Max Distance: $maxDistance km');
-              
-              // Kiểm tra lại điều kiện khoảng cách
-              if (user.distanceKm! <= maxDistance) {
-                temp.add(user);
-                debugPrint('ADDED to recommendations');
-              } else {
-                debugPrint('REJECTED: Too far (${user.distanceKm?.toStringAsFixed(1)} km > $maxDistance km)');
-              }
-            } else {
-              debugPrint('User: ${user.username}');
-              debugPrint('No coordinates: lat=${user.latitude}, lon=${user.longitude}');
-              debugPrint('REJECTED: Missing location data');
-            }
+          // TỐI ƯU: Tìm trực tiếp trong danh sách filteredCandidates đã lọc
+          // Tránh lỗi N+1 Query: Không gọi Firestore lại vì candidate đã đầy đủ thông tin 
+          // và đã thoả mãn 100% điều kiện khoảng cách, tuổi, giới tính,...
+          try {
+            final user = filteredCandidates.firstWhere((u) => u.id == userId);
+            temp.add(user);
+            debugPrint('ADDED to recommendations: ${user.username} - Distance: ${user.distanceKm?.toStringAsFixed(1)} km');
+          } catch (_) {
+            debugPrint('REJECTED: User $userId không tìm thấy trong filteredCandidates');
           }
         }
         
@@ -317,6 +297,8 @@ class MatchProvider with ChangeNotifier {
           'user': user,
           'lastMessage': lastMessage,
           'lastMessageTime': lastMessageTime,
+          'lastMessageRead': data['lastMessageRead'] ?? true,
+          'lastMessageSenderId': data['lastMessageSenderId'] ?? '',
         });
       }
     }
@@ -426,6 +408,8 @@ class MatchProvider with ChangeNotifier {
         'matchedAt': (doc['matchedAt'] as Timestamp?)?.toDate(),
         'lastMessage': lastMessage,
         'lastMessageTime': lastMessageTime,
+        'lastMessageRead': doc.data().toString().contains('lastMessageRead') ? doc['lastMessageRead'] : true,
+        'lastMessageSenderId': doc.data().toString().contains('lastMessageSenderId') ? doc['lastMessageSenderId'] : '',
       };
     });
         return msgStream;

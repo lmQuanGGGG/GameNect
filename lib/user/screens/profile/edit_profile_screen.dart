@@ -40,8 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _playTime = 0;
   int _winRate = 0;
   List<String> _favoriteGames = [];
-  List<String> _searchResultGames = [];
-  bool _isSearching = false;
   
   bool _isLoading = true;
   bool _isUpdating = false;
@@ -93,31 +91,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _searchGames(String query) async {
+  Future<List<String>> _searchGamesAsync(String query) async {
     if (query.isEmpty) {
-      setState(() {
-        _isSearching = false;
-        _searchResultGames = [];
-      });
-      return;
+      return _hotGames;
     }
-    setState(() {
-      _isSearching = true;
-    });
     try {
       final response = await http.get(Uri.parse('https://api.rawg.io/api/games?key=$_apiKey&search=$query&page_size=10'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final games = data['results'] as List;
-        setState(() {
-          _searchResultGames = games.map((game) => game['name'] as String).toList();
-        });
+        return games.map((game) => game['name'] as String).toList();
       }
     } catch (e) {
-      setState(() {
-        _searchResultGames = [];
-      });
+      developer.log('Error search games', name: 'EditProfile', error: e);
     }
+    return [];
   }
 
   Future<void> _loadUserProfile() async {
@@ -365,10 +353,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 rankOptions: prov.rankOptions,
                 favoriteGames: _favoriteGames,
                 onFavoriteGamesChanged: (v) => setState(() => _favoriteGames = v),
-                isSearching: _isSearching,
-                searchResultGames: _searchResultGames,
                 hotGames: _hotGames,
-                onSearchGames: _searchGames,
+                onSearchGamesAsync: _searchGamesAsync,
                 playTime: _playTime,
                 onPlayTimeChanged: (v) => setState(() => _playTime = v),
                 winRate: _winRate,

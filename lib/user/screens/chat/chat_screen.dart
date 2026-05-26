@@ -58,6 +58,11 @@ class _ChatScreenState extends State<ChatScreen> {
             .set({
               'lastSeen_$userId': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
+            
+        // Đánh dấu tin nhắn đã đọc nếu có
+        if (mounted) {
+          Provider.of<ChatProvider>(context, listen: false).markMatchAsRead(widget.matchId);
+        }
 
         final userDoc = await FirebaseFirestore.instance
             .collection('users')

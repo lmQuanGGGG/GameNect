@@ -546,6 +546,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
                 final user = item['user'] as UserModel;
                 final lastMessage = item['lastMessage'] as String?;
                 final lastMessageTime = item['lastMessageTime'] as DateTime?;
+                final lastMessageRead = item['lastMessageRead'] as bool? ?? true;
+                final lastMessageSenderId = item['lastMessageSenderId'] as String? ?? '';
+                
+                final isUnread = !lastMessageRead && lastMessageSenderId != _currentUserId;
 
                 return InkWell(
                   onTap: () {
@@ -587,7 +591,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     ),
                     title: Text(
                       user.username,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.textColor),
+                      style: TextStyle(
+                        fontSize: 16, 
+                        fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600, 
+                        color: context.textColor
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -599,7 +607,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
                         if (lastMessage != null)
                           Text(
                             lastMessage,
-                            style: TextStyle(fontSize: 13, color: context.textTertiaryColor),
+                            style: TextStyle(
+                              fontSize: 13, 
+                              color: isUnread ? context.textColor : context.textTertiaryColor,
+                              fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -608,7 +620,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
                     trailing: lastMessageTime != null
                         ? Text(
                             _formatTime(lastMessageTime),
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFFF6E40), fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 12, 
+                              color: isUnread ? const Color(0xFFFF6E40) : context.textTertiaryColor, 
+                              fontWeight: isUnread ? FontWeight.bold : FontWeight.w500
+                            ),
                           )
                         : null,
                   ),
