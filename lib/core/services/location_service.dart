@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:logging/logging.dart';
@@ -218,6 +221,45 @@ class LocationService {
   ) async {
     try {
       _logger.info(' Đang geocoding ($latitude, $longitude)...');
+
+      if (kIsWeb) {
+        // Sử dụng Nominatim API (OpenStreetMap) miễn phí cho Web vì geocoding package bị lỗi khi không có Google Maps API Key
+        final url = Uri.parse(
+            'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$latitude&lon=$longitude&accept-language=vi');
+        final response = await http.get(url, headers: {
+          'User-Agent': 'GameNectApp/1.0',
+        }).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(utf8.decode(response.bodyBytes));
+          final addressMap = data['address'] as Map<String, dynamic>?;
+
+          if (addressMap != null) {
+            final addressParts = <String>[];
+            final subLocality = addressMap['suburb'] ?? addressMap['neighbourhood'] ?? addressMap['village'];
+            if (subLocality != null) addressParts.add(subLocality.toString());
+
+            final district = addressMap['county'] ?? addressMap['city_district'];
+            if (district != null) addressParts.add(district.toString());
+
+            final city = addressMap['city'] ?? addressMap['state'] ?? addressMap['province'];
+            if (city != null) addressParts.add(city.toString());
+
+            final fullAddress = addressParts.join(', ');
+            final finalCity = city?.toString() ?? 'Việt Nam';
+
+            _logger.info(' Địa chỉ web đầy đủ: $fullAddress');
+
+            return {
+              'address': fullAddress.isNotEmpty ? fullAddress : 'Vị trí hiện tại',
+              'city': finalCity,
+              'country': addressMap['country']?.toString() ?? 'Việt Nam',
+            };
+          }
+        }
+        _logger.warning(' Web geocoding không tìm thấy địa chỉ hợp lệ');
+        return {'address': 'Vị trí hiện tại', 'city': null, 'country': null};
+      }
 
       await setLocaleIdentifier('vi_VN');
 
