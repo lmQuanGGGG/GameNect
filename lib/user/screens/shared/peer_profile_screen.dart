@@ -3,13 +3,17 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/widgets/profile_card.dart';
 import '../../../core/theme/theme_helper.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/services/firestore_service.dart';
 
 /// Màn hình xem profile người khác — Liquid Glass Dark Premium
 /// Dùng chung cho: Chat, Lượt thích, Bỏ lỡ, Kết quả tìm kiếm...
 class PeerProfileScreen extends StatelessWidget {
   final UserModel peerUser;
+  final bool showActions;
 
-  const PeerProfileScreen({super.key, required this.peerUser});
+  const PeerProfileScreen({super.key, required this.peerUser, this.showActions = false});
 
   @override
   Widget build(BuildContext context) {
@@ -154,10 +158,61 @@ class PeerProfileScreen extends StatelessWidget {
           // ProfileCard cuộn đầy đủ, tránh AppBar
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: EdgeInsets.only(bottom: showActions ? 100 : 24),
               child: ProfileCard(user: peerUser),
             ),
           ),
+          // Nút Like
+          if (showActions)
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FloatingActionButton.extended(
+                  onPressed: () async {
+                    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                    if (currentUserId == null) return;
+
+                    final firestoreService = FirestoreService();
+                    await firestoreService.saveSwipeHistory(
+                      userId: currentUserId, 
+                      targetUserId: peerUser.id, 
+                      action: 'like'
+                    );
+
+                    final isMutual = await firestoreService.checkMutualLike(
+                      userId: currentUserId, 
+                      targetUserId: peerUser.id
+                    );
+
+                    if (isMutual) {
+                      await firestoreService.createNewMatch(
+                        userIds: [currentUserId, peerUser.id],
+                        game: 'Gamenect',
+                      );
+                    }
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      if (isMutual) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('🎉 Đã Match thành công!')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã gửi lượt thích 💖')),
+                        );
+                      }
+                    }
+                  },
+                  backgroundColor: const Color(0xFFFF6E40),
+                  icon: const Icon(Icons.favorite, color: Colors.white),
+                  label: const Text('Thích', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  elevation: 8,
+                ),
+              ),
+            ),
         ],
       ),
     );

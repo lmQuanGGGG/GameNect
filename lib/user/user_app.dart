@@ -21,6 +21,12 @@ import '../../core/providers/chat_provider.dart';
 import '../../core/providers/moment_provider.dart'; 
 import '../../core/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'screens/live_discover_screen.dart';
+import 'screens/mentor_profile_screen.dart';
+import 'screens/live_stream_screen.dart';
+import 'screens/go_live_screen.dart';
+import 'screens/mentor_apply_screen.dart';
+import 'screens/mentor_requests_screen.dart';
 
 /// Widget gốc cho phần User của ứng dụng.
 /// - Thiết lập các provider cần thiết (AuthService, MatchProvider, ChatProvider, MomentProvider)
@@ -28,8 +34,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserApp extends StatelessWidget {
   // initialRoute cho phép khởi tạo ứng dụng với route mong muốn khi tạo UserApp
   final String? initialRoute;
+  final int? initialIndex;
   
-  const UserApp({super.key, this.initialRoute});
+  const UserApp({super.key, this.initialRoute, this.initialIndex});
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +61,7 @@ class UserApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             initialRoute: initialRoute ?? '/main',
             routes: {
-          '/main': (context) => const MainScreen(), // Thêm route cho MainScreen
+          '/main': (context) => MainScreen(initialIndex: initialIndex ?? 0), // Thêm route cho MainScreen
           '/home': (context) => const HomeScreen(),
           '/profile': (context) => const ProfileScreen(),
           '/login': (context) => const LoginScreen(),
@@ -82,6 +89,23 @@ class UserApp extends StatelessWidget {
               peerAvatarUrl: args['peerAvatarUrl'] as String?,
               // isVoiceCall có thể null, nếu null thì mặc định false (cuộc gọi video)
               isVoiceCall: args['isVoiceCall'] as bool? ?? false,
+            );
+          },
+          '/mentor-apply': (ctx) => const MentorApplyScreen(),
+          '/live-discover': (ctx) => const LiveDiscoverScreen(),
+          '/go-live': (ctx) => const GoLiveScreen(),
+          '/mentor-requests': (ctx) => const MentorRequestsScreen(),
+          '/mentor-profile': (ctx) {
+            final args = ModalRoute.of(ctx)!.settings.arguments as Map?;
+            return MentorProfileScreen(
+              mentorId: args?['mentorId'] as String? ?? '',
+            );
+          },
+          '/live-stream': (ctx) {
+            final args = ModalRoute.of(ctx)!.settings.arguments as Map?;
+            return LiveStreamScreen(
+              streamId: args?['streamId'] as String? ?? '',
+              isMentor: args?['isMentor'] as bool? ?? false,
             );
           },
         },

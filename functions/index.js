@@ -32,6 +32,8 @@ exports.sendMessageNotification = pushNotifications.sendMessageNotification;
 exports.sendCallNotification = pushNotifications.sendCallNotification;
 exports.sendMomentReactionNotification = pushNotifications.sendMomentReactionNotification;
 exports.sendLikeNotification = pushNotifications.sendLikeNotification;
+exports.sendLiveNotification = pushNotifications.sendLiveNotification;
+
 
 /**
  * PayOS Webhook Handler

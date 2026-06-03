@@ -11,6 +11,9 @@ import '../../../core/providers/profile_provider.dart';
 import 'dart:developer' as developer;
 import '../../widgets/tab_bar_visibility.dart';
 import '../../../core/theme/theme_helper.dart';
+import 'dart:async';
+import '../../../core/services/firestore_service.dart';
+import '../shared/peer_profile_screen.dart';
 
 // Màn hình danh sách match và tin nhắn
 // Hiển thị dãy avatar ngang của các match và danh sách chat dọc
@@ -25,6 +28,40 @@ class _MatchListScreenState extends State<MatchListScreen> {
   String searchText = '';
   Stream<List<Map<String, dynamic>>>? _matchStream;
   String? _currentUserId;
+
+  Timer? _debounce;
+  List<UserModel> _globalSearchResults = [];
+  bool _isSearchingGlobal = false;
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      searchText = value;
+      _isSearchingGlobal = true;
+    });
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    _debounce = Timer(const Duration(milliseconds: 1000), () async {
+      if (searchText.trim().isNotEmpty) {
+        final results = await FirestoreService().searchUsersByUsername(searchText.trim());
+        if (mounted) {
+          setState(() {
+            _globalSearchResults = results;
+            // Xoá mình ra khỏi kết quả
+            _globalSearchResults.removeWhere((u) => u.id == _currentUserId);
+            _isSearchingGlobal = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _globalSearchResults = [];
+            _isSearchingGlobal = false;
+          });
+        }
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -196,7 +233,39 @@ class _MatchListScreenState extends State<MatchListScreen> {
 
           // Content
           SafeArea(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
+            child: Column(
+              children: [
+                // Thanh tìm kiếm luôn hiển thị
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: context.cardBgColor,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: context.cardBorderColor, width: 1),
+                        ),
+                        child: TextField(
+                          style: TextStyle(color: context.textColor),
+                          decoration: InputDecoration(
+                            hintText: 'Tìm kiếm tên...',
+                            hintStyle: TextStyle(color: context.textTertiaryColor),
+                            prefixIcon: Icon(Icons.search, color: context.textSecondaryColor),
+                            filled: false,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                            border: InputBorder.none,
+                          ),
+                          onChanged: _onSearchChanged,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _matchStream,
         builder: (context, snapshot) {
           // Xử lý các trạng thái loading, error, no data
@@ -218,9 +287,9 @@ class _MatchListScreenState extends State<MatchListScreen> {
           final matchedData = snapshot.data!;
           developer.log('Stream data received: ${matchedData.length} matches', name: 'MatchListScreen');
 
-          if (matchedData.isEmpty) {
-            return Center(child: Text('Bạn chưa có match nào!', style: TextStyle(color: context.textSecondaryColor)));
-          }
+          // if (matchedData.isEmpty) {
+          //  return Center(child: Text('Bạn chưa có match nào!', style: TextStyle(color: context.textSecondaryColor)));
+          // }
 
           // Lọc theo từ khóa tìm kiếm
           final filteredData = searchText.isEmpty
@@ -497,35 +566,101 @@ class _MatchListScreenState extends State<MatchListScreen> {
                   ),
                 ),
               ),
-              // Thanh tìm kiếm (Liquid Glass Pill)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: context.cardBgColor,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: context.cardBorderColor, width: 1),
-                      ),
-                      child: TextField(
-                        style: TextStyle(color: context.textColor),
-                        decoration: InputDecoration(
-                          hintText: 'Tìm kiếm tên...',
-                          hintStyle: TextStyle(color: context.textTertiaryColor),
-                          prefixIcon: Icon(Icons.search, color: context.textSecondaryColor),
-                          filled: false,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                          border: InputBorder.none,
+
+              if (searchText.isNotEmpty) ...[
+                // Header cho danh sách Tìm Kiếm Mọi Người
+                Padding(
+                  padding: const EdgeInsets.only(left: 20, top: 12, bottom: 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        'MỌI NGƯỜI (GLOBAL)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: context.textSecondaryColor,
+                          letterSpacing: 1.2,
                         ),
-                        onChanged: (value) => setState(() => searchText = value),
                       ),
-                    ),
+                      if (_isSearchingGlobal) 
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8.0),
+                          child: SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF6E40))),
+                        )
+                    ],
                   ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                if (!_isSearchingGlobal && _globalSearchResults.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Center(child: Text('Không tìm thấy ai', style: TextStyle(color: context.textSecondaryColor))),
+                  ),
+                ..._globalSearchResults.map((user) {
+                  // Kiểm tra xem đã match chưa
+                  final isMatched = matchedData.any((m) {
+                     final mUser = m['user'] as UserModel;
+                     return mUser.id == user.id;
+                  });
+
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PeerProfileScreen(
+                            peerUser: user,
+                            showActions: !isMatched, // Ẩn nút like nếu đã match
+                          ),
+                        ),
+                      );
+                    },
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      leading: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: context.cardBorderColor, width: 1),
+                        ),
+                        child: ClipOval(
+                          child: SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                ? CachedNetworkImage(
+                                    imageUrl: user.avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(color: context.isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05)),
+                                    errorWidget: (context, url, error) => Container(
+                                      color: context.isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                                      child: Icon(Icons.person, size: 28, color: context.textColor),
+                                    ),
+                                  )
+                                : Container(
+                                    color: context.isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                                    child: Icon(Icons.person, size: 28, color: context.textColor),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        user.username,
+                        style: TextStyle(
+                          fontSize: 16, 
+                          fontWeight: FontWeight.w600, 
+                          color: context.textColor
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${user.age} tuổi • ${user.location}',
+                        style: TextStyle(fontSize: 13, color: context.textSecondaryColor),
+                      ),
+                      trailing: Icon(Icons.chevron_right, color: context.textSecondaryColor),
+                    ),
+                  );
+                }),
+              ],
+
               // Header cho danh sách tin nhắn
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 12, bottom: 4),
@@ -635,8 +770,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
           ); // đóng NotificationListener
         },
       ),
-      ),
-      ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

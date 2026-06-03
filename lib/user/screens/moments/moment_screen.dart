@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:ui';
 import '../../../core/providers/moment_provider.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../../core/providers/mentor_provider.dart';
 import '../premium/subscription_screen.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../live_discover_screen.dart';
 
 // Sub-widgets (tách ra theo từng file để dễ bảo trì)
 import 'moment_feed_tab.dart';
@@ -14,8 +16,9 @@ import '../../widgets/tab_bar_visibility.dart';
 export 'moment_card.dart';
 export 'video_player_widget.dart';
 
-/// Màn hình Moments — entry point với TabBarView 2 tab:
+/// Màn hình Moments — entry point với TabBarView 3 tab:
 /// - "Khám phá": Feed tất cả moments của bạn bè
+/// - "Live": Khám phá livestream & mentor
 /// - "Của tôi": Moments do user hiện tại đăng
 ///
 /// Header glassmorphism với TabBar và badge Premium.
@@ -33,8 +36,15 @@ class _MomentScreenState extends State<MomentScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabSelection);
     _loadMoments();
+  }
+
+  void _handleTabSelection() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadMoments() async {
@@ -42,6 +52,9 @@ class _MomentScreenState extends State<MomentScreen>
     if (userId != null) {
       final provider = Provider.of<MomentProvider>(context, listen: false);
       await provider.listenMoments(userId);
+      if (mounted) {
+        Provider.of<MentorProvider>(context, listen: false).loadMyMentorProfile(userId);
+      }
     }
   }
 
@@ -51,7 +64,7 @@ class _MomentScreenState extends State<MomentScreen>
       backgroundColor: context.scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // Content — 2 tabs
+          // Content — 3 tabs
           NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               TabBarVisibility.of(context).update(notification);
@@ -59,7 +72,11 @@ class _MomentScreenState extends State<MomentScreen>
             },
             child: TabBarView(
               controller: _tabController,
-              children: const [MomentFeedTab(), MyMomentsTab()],
+              children: const [
+                MomentFeedTab(),
+                LiveDiscoverScreen(embedMode: true),
+                MyMomentsTab(),
+              ],
             ),
           ),
 
@@ -159,7 +176,26 @@ class _MomentScreenState extends State<MomentScreen>
                           unselectedLabelColor: context.textSecondaryColor,
                           labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                           unselectedLabelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                          tabs: const [Tab(text: 'Khám phá'), Tab(text: 'Của tôi')],
+                          tabs: [
+                            const Tab(text: 'Khám phá'),
+                            Tab(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8, height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFFF3B30),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('Live'),
+                                ],
+                              ),
+                            ),
+                            const Tab(text: 'Của tôi'),
+                          ],
                         ),
                       ],
                     ),
@@ -170,11 +206,31 @@ class _MomentScreenState extends State<MomentScreen>
           ),
         ],
       ),
+      floatingActionButton: Consumer<MentorProvider>(
+        builder: (context, mentorProvider, _) {
+          final isMentor = mentorProvider.isMentor;
+          final isLiveTab = _tabController.index == 1;
+
+          if (isMentor && isLiveTab) {
+            return FloatingActionButton.extended(
+              onPressed: () => Navigator.pushNamed(context, '/go-live'),
+              backgroundColor: const Color(0xFFFF3B30),
+              icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+              label: const Text(
+                'Go Live',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     super.dispose();
   }

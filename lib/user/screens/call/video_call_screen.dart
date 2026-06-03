@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:replay_kit_launcher/replay_kit_launcher.dart';
 import '../../../core/providers/chat_provider.dart';
 import '../../../core/services/firestore_service.dart';
 
@@ -41,10 +43,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   int? _remoteUid; // UID của người dùng remote (người được gọi)
   bool _isInitialized = false; // Trạng thái engine đã khởi tạo chưa
   bool _isJoined = false; // Trạng thái đã join channel chưa
+  bool _isSystemPiP = false; // Trạng thái Picture-in-Picture
   DateTime? _callStartTime; // Thời gian bắt đầu cuộc gọi
   bool _isMuted = false; // Trạng thái tắt/bật mic
   bool _isCameraOff = false; // Trạng thái tắt/bật camera
   bool _isFrontCamera = true; // Trạng thái camera trước/sau
+  bool _isScreenSharing = false; // Trạng thái chia sẻ màn hình
   Timer? _callTimeoutTimer; // Timer để timeout cuộc gọi sau 60s
 
   // Subscription để lắng nghe trạng thái cuộc gọi từ Firestore
@@ -78,10 +82,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     return '$m:$s';
   }
 
+  static const _pipChannel = MethodChannel('com.qco.gamenect/pip');
+
   @override
   void initState() {
     super.initState();
     _callStartTime = DateTime.now(); // Lưu thời gian bắt đầu cuộc gọi
+
+    _pipChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onPiPModeChanged') {
+        if (mounted) {
+          setState(() {
+            _isSystemPiP = call.arguments as bool? ?? false;
+          });
+        }
+      }
+    });
 
     // Lắng nghe realtime trạng thái cuộc gọi từ Firestore
     _callStatusSubscription = FirebaseFirestore.instance
@@ -229,6 +245,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         setState(() {
           _isInitialized = true;
         });
+        _pipChannel.invokeMethod('setIsLiveActive', {'isActive': true});
       }
     } catch (e) {
       debugPrint('Error initializing Agora: $e');
@@ -270,6 +287,45 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _engine?.switchCamera();
   }
 
+  // Bật/tắt chia sẻ màn hình
+  Future<void> _toggleScreenShare() async {
+    if (_engine == null) return;
+    
+    if (_isScreenSharing) {
+      await _engine!.stopScreenCapture();
+      await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
+        publishCameraTrack: true,
+        publishScreenTrack: false,
+        publishMicrophoneTrack: true,
+        publishScreenCaptureAudio: false,
+      ));
+      setState(() {
+        _isScreenSharing = false;
+      });
+    } else {
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        try {
+          await ReplayKitLauncher.launchReplayKitBroadcast('GamenectScreenShare');
+        } catch (e) {
+          debugPrint('Error launching ReplayKit: $e');
+        }
+      }
+      await _engine!.startScreenCapture(const ScreenCaptureParameters2(
+        captureVideo: true,
+        captureAudio: true,
+      ));
+      await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
+        publishCameraTrack: false,
+        publishScreenCaptureVideo: true,
+        publishMicrophoneTrack: true,
+        publishScreenCaptureAudio: true,
+      ));
+      setState(() {
+        _isScreenSharing = true;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _activeCallTimer?.cancel();
@@ -282,6 +338,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   // Cleanup Agora engine
   Future<void> _dispose() async {
     try {
+      _pipChannel.invokeMethod('setIsLiveActive', {'isActive': false});
       await _engine?.leaveChannel();
       await _engine?.release();
     } catch (e) {
@@ -344,6 +401,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     }
 
     // Cleanup Agora engine và thoát màn hình
+    _pipChannel.invokeMethod('setIsLiveActive', {'isActive': false});
     await _engine?.leaveChannel();
     await _engine?.release();
 
@@ -483,11 +541,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                 ),
               ],
 
-              // ================= GRADIENT OVERLAYS =================
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Column(
-                    children: [
+              // ================= GRADIENT OVERLAYS & UI =================
+              if (!_isSystemPiP) ...[
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Column(
+                      children: [
                       Container(
                         height: 180,
                         decoration: BoxDecoration(
@@ -738,6 +797,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             isActive: true,
                             onTap: _switchCamera,
                           ),
+                          _buildGlassButton(
+                            icon: _isScreenSharing ? Icons.stop_screen_share_rounded : Icons.screen_share_rounded,
+                            isActive: !_isScreenSharing,
+                            onTap: _toggleScreenShare,
+                          ),
                           // Nút End Call đặc biệt (Đỏ)
                           GestureDetector(
                             onTap: _leaveChannel,
@@ -770,7 +834,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                     ),
                   ),
                 ),
-              ),
+              )
+              ],
             ],
           ),
         );

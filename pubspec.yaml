@@ -87,6 +87,7 @@ dependencies:
   flutter_card_swiper: ^7.2.0
   image: ^4.8.0
   shared_preferences: ^2.5.5
+  replay_kit_launcher: ^1.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

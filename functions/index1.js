@@ -296,3 +296,77 @@ exports.sendLikeNotification = onDocumentCreated(
     }
   }
 );
+
+// ─────────────────────────────────────────────
+// 5. sendLiveNotification
+//    Trigger: livestreams/{streamId} — document mới được tạo
+//    Gửi thông báo cho tất cả followers của Mentor khi họ bắt đầu live
+// ─────────────────────────────────────────────
+exports.sendLiveNotification = onDocumentCreated(
+  'livestreams/{streamId}',
+  async (event) => {
+    try {
+      const snap = event.data;
+      if (!snap) return;
+
+      const stream = snap.data();
+      const streamId = event.params.streamId;
+
+      // Chỉ xử lý khi status là 'live'
+      if (stream.status !== 'live') return;
+
+      const mentorId = stream.mentorId;
+      const mentorUsername = stream.mentorUsername || 'Mentor';
+      const title = stream.title || 'Đang livestream';
+
+      const db = admin.firestore();
+
+      // Lấy danh sách followers của Mentor
+      const followersSnap = await db
+        .collection('mentor_followers')
+        .where('mentorId', '==', mentorId)
+        .get();
+
+      if (followersSnap.empty) {
+        console.log(`No followers for mentor ${mentorId}`);
+        return;
+      }
+
+      const followerIds = followersSnap.docs.map(d => d.data().followerId).filter(Boolean);
+      console.log(`Sending live notification to ${followerIds.length} followers`);
+
+      // Gửi FCM cho từng follower (batch max 500 theo giới hạn FCM)
+      const batchSize = 100;
+      for (let i = 0; i < followerIds.length; i += batchSize) {
+        const batch = followerIds.slice(i, i + batchSize);
+
+        // Lấy FCM tokens
+        const userDocs = await Promise.all(
+          batch.map(uid => db.collection('users').doc(uid).get())
+        );
+
+        const sendPromises = userDocs
+          .filter(doc => doc.exists && doc.data()?.fcmToken)
+          .map(doc => sendFcmNotification({
+            token: doc.data().fcmToken,
+            title: `🔴 ${mentorUsername} đang LIVE!`,
+            body: title,
+            channelId: 'mentor_live_channel',
+            data: {
+              type: 'mentor_live',
+              streamId,
+              mentorId,
+              mentorUsername,
+              streamTitle: title,
+            },
+          }).catch(e => console.warn(`Failed to send to ${doc.id}: ${e.message}`)));
+
+        await Promise.allSettled(sendPromises);
+      }
+
+      console.log(`Live notification sent for stream ${streamId}`);
+    } catch (e) {
+      console.error('sendLiveNotification error:', e);
+    }
+  }
+);

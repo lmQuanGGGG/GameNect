@@ -200,7 +200,105 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  _GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Thao tác nhanh',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: const Color(0xFF1E1E22),
+                                  title: const Text('Dọn dẹp livestream?', style: TextStyle(color: Colors.white)),
+                                  content: const Text(
+                                    'Tất cả các livestream đang có trạng thái "Đang Live" sẽ được chuyển về "Đã Kết Thúc". Bạn có chắc chắn muốn dọn dẹp?',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+                                      child: const Text('Xác nhận'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Đang dọn dẹp các stream treo...')),
+                                );
+
+                                try {
+                                  final snap = await FirebaseFirestore.instance
+                                      .collection('livestreams')
+                                      .where('status', isEqualTo: 'live')
+                                      .get();
+
+                                  final batch = FirebaseFirestore.instance.batch();
+                                  for (var doc in snap.docs) {
+                                    batch.update(doc.reference, {
+                                      'status': 'ended',
+                                      'endedAt': FieldValue.serverTimestamp(),
+                                    });
+                                  }
+                                  await batch.commit();
+
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Đã dọn dẹp thành công ${snap.docs.length} stream treo!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Lỗi dọn dẹp: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepOrange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: const Icon(Icons.cleaning_services_rounded),
+                            label: const Text(
+                              'Dọn dẹp Livestream treo',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   // Dropdown chọn năm và tháng để lọc doanh thu.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,

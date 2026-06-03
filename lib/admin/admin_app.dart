@@ -4,6 +4,7 @@ import '../core/services/auth_service.dart';
 import 'screens/dashboard/admin_dashboard_screen.dart';
 import 'screens/users/user_management_screen.dart';
 import 'screens/premium/subscription_config_screen.dart';
+import 'screens/mentor/mentor_management_screen.dart';
 
 // Widget AdminApp là giao diện tổng cho admin.
 // Quản lý các chức năng: xem thống kê doanh thu, quản lý gói Premium, quản lý người dùng.
@@ -26,6 +27,7 @@ class _AdminAppState extends State<AdminApp> {
     const AdminDashboardScreen(), // Màn hình thống kê doanh thu
     const SubscriptionConfigScreen(), // Màn hình quản lý gói Premium
     const UserManagementScreen(), // Màn hình quản lý người dùng
+    const MentorManagementScreen(), // Màn hình quản lý Mentor
   ];
 
   // Danh sách tiêu đề cho từng màn hình, dùng để hiển thị trên AppBar.
@@ -33,6 +35,7 @@ class _AdminAppState extends State<AdminApp> {
     'Thống kê doanh thu',
     'Quản lý gói Premium',
     'Quản lý người dùng',
+    'Quản lý Mentor',
   ];
 
   @override
@@ -116,6 +119,10 @@ class _AdminAppState extends State<AdminApp> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.people),
                 label: 'Người dùng',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.school_rounded),
+                label: 'Mentor',
               ),
             ],
           ),

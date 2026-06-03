@@ -82,6 +82,12 @@
 	<string>GameNect cần microphone để gọi video và trò chuyện thoại</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>GameNect cần truy cập thư viện ảnh để chọn ảnh đại diện</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>GameNect cần truy cập mạng nội bộ để tối ưu kết nối và truyền tải cuộc gọi, livestream chất lượng cao.</string>
+	<key>RTCScreenSharingExtension</key>
+	<string>com.example.gamenectNew.GamenectScreenShare</string>
+	<key>RTCAppGroupIdentifier</key>
+	<string>group.com.example.gamenectNew</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>Ứng dụng cần quyền thông báo để gửi thông báo cho bạn.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'user/screens/main/main_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -24,6 +25,8 @@ import 'core/providers/chat_provider.dart';
 import 'core/providers/moment_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/game_provider.dart';
+import 'core/providers/mentor_provider.dart';
+import 'core/providers/livestream_provider.dart';
 import 'core/services/web_notification.dart';
 import 'core/services/web_message.dart';
 
@@ -197,6 +200,22 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
   );
 
   try {
+    if (kIsWeb) {
+      int targetIndex = 0; // Default: Khám phá
+      if (type == 'chat') {
+        targetIndex = 3; // MatchListScreen (Tin nhắn)
+      } else if (type == 'moment_reaction') {
+        targetIndex = 1; // MomentScreen (Feed)
+      } else if (type == 'like') {
+        targetIndex = 2; // LikedMeScreen (Lượt thích)
+      }
+
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      mainScreenTabIndex.value = targetIndex;
+      developer.log('Web FCM tap: Navigated to tab index $targetIndex', name: 'FCM-Tap');
+      return;
+    }
+
     switch (type) {
       case 'chat':
         final matchId = data['matchId'] ?? '';
@@ -221,6 +240,22 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
           arguments: {'momentId': data['momentId'] ?? ''},
         );
         developer.log('Navigated to /moments', name: 'FCM-Tap');
+        break;
+      case 'like':
+        navigatorKey.currentState?.pushNamed(
+          '/liked-me',
+        );
+        developer.log('Navigated to /liked-me', name: 'FCM-Tap');
+        break;
+      case 'mentor_live':
+        final streamId = data['streamId'] ?? '';
+        if (streamId.isNotEmpty) {
+          navigatorKey.currentState?.pushNamed(
+            '/live-stream',
+            arguments: {'streamId': streamId, 'isMentor': false},
+          );
+          developer.log('Navigated to /live-stream streamId=$streamId', name: 'FCM-Tap');
+        }
         break;
       default:
         developer.log('Unknown tap type: $type', name: 'FCM-Tap');
@@ -424,6 +459,8 @@ class GameNectApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MomentProvider()),
         Provider(create: (_) => FirestoreService()),
         ChangeNotifierProvider(create: (_) => GameProvider()),
+        ChangeNotifierProvider(create: (_) => MentorProvider()),
+        ChangeNotifierProvider(create: (_) => LivestreamProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

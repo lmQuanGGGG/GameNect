@@ -14,8 +14,11 @@ import '../moments/moment_screen.dart';
 import '../../widgets/liquid_glass_tab_bar.dart';
 import '../../widgets/tab_bar_visibility.dart';
 
+final ValueNotifier<int> mainScreenTabIndex = ValueNotifier<int>(0);
+
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialIndex;
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -23,8 +26,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final _tabBarVisibility = TabBarVisibilityController();
-  int _currentIndex = 0;
-
+  late int _currentIndex;
   late final List<AnimationController> _itemControllers;
   late final List<Animation<double>> _itemScales;
   late final List<Animation<double>> _itemGlows;
@@ -48,6 +50,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
+    mainScreenTabIndex.value = _currentIndex;
+    mainScreenTabIndex.addListener(_onGlobalTabChanged);
     _itemControllers = List.generate(
       _tabs.length,
       (i) => AnimationController(
@@ -77,11 +82,18 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    mainScreenTabIndex.removeListener(_onGlobalTabChanged);
     for (final c in _itemControllers) {
       c.dispose();
     }
     _tabBarVisibility.dispose();
     super.dispose();
+  }
+
+  void _onGlobalTabChanged() {
+    if (mounted && _currentIndex != mainScreenTabIndex.value) {
+      _onTabTap(mainScreenTabIndex.value);
+    }
   }
 
   void _onTabTap(int index) {

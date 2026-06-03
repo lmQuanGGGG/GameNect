@@ -332,4 +332,25 @@ extension UserServiceExtension on FirestoreService {
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
+
+  // Tìm kiếm user theo username chính xác hoặc bắt đầu bằng cụm từ
+  Future<List<UserModel>> searchUsersByUsername(String query, {int limit = 20}) async {
+    try {
+      if (query.trim().isEmpty) return [];
+      
+      final snapshot = await _db
+          .collection('users')
+          .where('username', isGreaterThanOrEqualTo: query)
+          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
+          .limit(limit)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      developer.log('Lỗi khi tìm kiếm user: $e', name: 'FirestoreService');
+      return [];
+    }
+  }
 }

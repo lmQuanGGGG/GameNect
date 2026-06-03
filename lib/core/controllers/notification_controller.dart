@@ -73,6 +73,17 @@ class NotificationController {
           playSound: true,
           enableVibration: true,
         ),
+        NotificationChannel(
+          channelKey: 'mentor_live_channel',
+          channelName: 'Mentor Live',
+          channelDescription: 'Thông báo khi Mentor bắt đầu livestream',
+          defaultColor: Color(0xFFFF3B30),
+          ledColor: Color(0xFFFF6E40),
+          importance: NotificationImportance.High,
+          channelShowBadge: true,
+          playSound: true,
+          enableVibration: true,
+        ),
       ],
       debug: debug,
     );

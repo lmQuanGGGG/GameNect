@@ -6,6 +6,9 @@ import '../models/user_model.dart';
 import '../models/match_model.dart';
 import '../models/swipe_history_model.dart';
 import '../models/moment_model.dart';
+import '../models/mentor_model.dart';
+import '../models/livestream_model.dart';
+import '../models/mentor_match_request_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'dart:developer' as developer;
@@ -18,6 +21,7 @@ part 'firestore/swipe_service.dart';
 part 'firestore/match_service.dart';
 part 'firestore/chat_service.dart';
 part 'firestore/moment_service.dart';
+part 'firestore/mentor_service.dart';
 
 /// FirestoreService — Service trung tâm quản lý tất cả thao tác với Firestore và Firebase Storage.
 ///

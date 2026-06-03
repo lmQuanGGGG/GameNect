@@ -18,6 +18,8 @@ import '../../../core/theme/theme_helper.dart';
 import '../../../core/providers/theme_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../../core/controllers/notification_controller.dart';
+import '../../../core/providers/mentor_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 
 // Màn hình hồ sơ cá nhân của user
 // Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
@@ -105,6 +107,220 @@ class _ProfilePageState extends State<ProfilePage> {
       ],
     );
   }
+
+  // Widget Mentor Section — hiển thị trạng thái Mentor của user
+  Widget _buildMentorSection() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return const SizedBox.shrink();
+
+    return Consumer<MentorProvider>(
+      builder: (context, mentorProvider, _) {
+        // Load nếu chưa load
+        if (mentorProvider.myMentorProfile == null) {
+          mentorProvider.loadMyMentorProfile(userId);
+        }
+
+        final mentor = mentorProvider.myMentorProfile;
+        final status = mentor?.status ?? 'none';
+
+        if (status == 'approved') {
+          // Đã là Mentor → Dashboard card
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFFF6E40).withValues(alpha: 0.18),
+                      const Color(0xFFFF8A65).withValues(alpha: 0.06),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.school_rounded, color: Color(0xFFFF6E40), size: 22),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Mentor Dashboard',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text('⭐ Mentor', style: TextStyle(color: Color(0xFFFF6E40), fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _mentorStat('📺', '${mentor!.totalStreams}', 'Streams'),
+                        _mentorStat('👥', '${mentor.followerCount}', 'Followers'),
+                        _mentorStat('🎁', '${mentor.totalGiftsReceived}', 'Gifts'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.pushNamed(context, '/mentor-requests'),
+                            icon: const Icon(Icons.sports_esports, size: 16),
+                            label: const Text('Match Requests', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFFF6E40),
+                              side: const BorderSide(color: Color(0xFFFF6E40)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pushNamed(context, '/go-live'),
+                            icon: const Icon(Icons.live_tv_rounded, size: 16),
+                            label: const Text('Go Live', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF3B30),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (status == 'pending') {
+          // Đang chờ duyệt
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.4), width: 1.2),
+                ),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.hourglass_top_rounded, color: Colors.amber, size: 22),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Đơn đăng ký Mentor đang chờ duyệt', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 2),
+                          Text('Admin sẽ phản hồi sớm nhất có thể', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // none hoặc rejected → card mời đăng ký
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+              ),
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  const Icon(Icons.school_rounded, color: Color(0xFFFF6E40), size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Trở thành Mentor',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        Text(
+                          status == 'rejected'
+                              ? 'Đơn bị từ chối. Có thể gửi lại đơn mới.'
+                              : 'Hướng dẫn gaming, livestream & nhận gift',
+                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/mentor-apply'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6E40),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      elevation: 0,
+                    ),
+                    child: const Text('Đăng ký'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _mentorStat(String emoji, String value, String label) {
+    return Column(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+      ],
+    );
+  }
+
+
 
   @override
   void initState() {
@@ -654,6 +870,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             
                             // Hiển thị card quảng cáo Premium nếu chưa Premium
                             if (!isPremium) _buildPremiumPromoCard(),
+
+                            const SizedBox(height: 16),
+
+                            // ─── Mentor Section ───────────────────────────
+                            _buildMentorSection(),
 
                             const SizedBox(height: 16),
 

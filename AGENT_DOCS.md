@@ -1395,3 +1395,44 @@ RefreshIndicator(
 ---
 
 *Tài liệu này được tạo tự động bởi AI agent. Cập nhật: 2026-05-26.*
+
+### [2026-05-27] — Tích hợp Unified Search & Ẩn nút "Thích" thông minh
+- **Vấn đề:** Thay vì tạo một trang search riêng rườm rà, cần tận dụng ô tìm kiếm hiện có trong màn hình MatchList để tìm kiếm trên toàn hệ thống (Global) và tự động giấu nút "Thích" nếu đã match với người đó để tránh trùng lặp.
+- **Giải pháp:**
+  - Viết lại hàm `_onSearchChanged` tại `MatchListScreen` sử dụng cơ chế `Timer` debounce (1 giây) chống spam query Firebase.
+  - Sau khi gõ, ứng dụng sẽ gọi `FirestoreService().searchUsersByUsername` và loại trừ bản thân khỏi danh sách hiển thị.
+  - Global Search results hiển thị chung trong cuộn ListView cùng với matches cũ.
+  - Kiểm tra điều kiện `isMatched` (user hiện tại có trong mảng `matchedData` không). Nếu có, truyền cờ `showActions: false` qua cho `PeerProfileScreen`.
+- **File ảnh hưởng:**
+  - `lib/user/screens/matching/match_list_screen.dart`
+  - `lib/user/screens/shared/peer_profile_screen.dart`
+  - (Xóa file: `lib/user/screens/matching/user_search_screen.dart`)
+
+### [2026-05-27] — Tối ưu hóa Web Notification Routing
+- **Vấn đề:** Khi click vào push notification trên Web (như Like, Chat, Moment), app đọc query parameters và gọi `_handleFcmTap` để đẩy màn hình chi tiết mới vào stack (ví dụ gọi Firestore get user info để mở `ChatScreen`). Việc này gây tốn phí đọc (reads), chậm và không cần thiết trên nền tảng Web vì các tab chính đã có danh sách tương ứng.
+- **Giải pháp:**
+  - Cập nhật `MainScreen` (thêm `initialIndex`) và `UserApp` để có thể nhận tab index đầu vào khi khởi tạo.
+  - Khi Web nhận click push (kiểm tra bằng `kIsWeb` trong `_handleFcmTap`), app chỉ đơn giản thay thế Route hiện tại bằng `UserApp(initialRoute: '/main', initialIndex: targetIndex)` và trỏ đến Tab tương ứng (vd: Tab Lượt thích, Tab Feed, Tab Tin nhắn).
+  - Kết quả: Redirect siêu tốc độ (0s), giảm 100% chi phí đọc document không cần thiết khi click thông báo trên Web.
+- **File ảnh hưởng:**
+  - `lib/main.dart`
+  - `lib/user/user_app.dart`
+  - `lib/user/screens/main/main_screen.dart`
+
+### [2026-06-03] — Tích hợp & Sửa lỗi Màn hình Livestream & Mentor
+- **Vấn đề:**
+  - Chức năng Livestream & Mentor đã được tạo nhưng entry point (màn hình khám phá livestream `LiveDiscoverScreen`) chưa được tích hợp vào thanh Tab chính của ứng dụng (`MomentScreen`).
+  - Hộp thoại nộp đơn đăng ký Mentor thành công gây ra lỗi unmounted context (`State no longer has a context`) và đơ màn hình đen.
+  - Danh sách đơn đăng ký Mentor chờ duyệt ở màn hình Admin và danh sách phòng Live bị biến mất sau 1 giây do lỗi thiếu Firestore Composite Index khi kết hợp `.where()` và `.orderBy()`.
+  - Game chuyên môn trong trang đăng ký Mentor bị hardcode tĩnh thay vì lấy từ RAWG API như trang hồ sơ cá nhân.
+- **Giải pháp:**
+  - Nâng cấp `MomentScreen` lên 3 tab: `Khám phá` | `🔴 Live` | `Của tôi` và tích hợp `LiveDiscoverScreen(embedMode: true)`.
+  - Sửa logic pop dialog trong `MentorApplyScreen` bằng cách đóng dialog qua `dialogContext` và kiểm tra `if (mounted)` trước khi đóng màn hình để tránh lỗi Navigator bị đơ.
+  - Khắc phục lỗi Firestore index bằng cách loại bỏ điều kiện truy vấn `.orderBy()` và thực hiện sắp xếp cục bộ trong bộ nhớ bằng code Dart (áp dụng cho danh sách đơn duyệt của admin, luồng lấy danh sách streams đang live, và match requests).
+  - Tích hợp `DropdownSearch` vào màn hình đăng ký Mentor, kết nối với RAWG API đề xuất 10 game hot mặc định và cho phép tìm kiếm chọn game tùy ý.
+- **File ảnh hưởng:**
+  - `lib/user/screens/moments/moment_screen.dart`
+  - `lib/user/screens/live_discover_screen.dart`
+  - `lib/user/screens/mentor_apply_screen.dart`
+  - `lib/admin/screens/mentor/mentor_management_screen.dart`
+  - `lib/core/services/firestore/mentor_service.dart`

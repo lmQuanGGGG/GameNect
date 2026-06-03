@@ -108,7 +108,7 @@ class MatchProvider with ChangeNotifier {
       );
 
       debugPrint('API status: ${response.statusCode}');
-      debugPrint('API body: ${response.body}');
+      // debugPrint('API body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -317,7 +317,10 @@ class MatchProvider with ChangeNotifier {
   }
 }
 
-  // Stream danh sách user đã match, kèm thông tin tin nhắn cuối cùng
+  // Cache thông tin user để tránh query lại nhiều lần khi stream cập nhật
+  final Map<String, UserModel> _userCache = {};
+
+  // Stream danh sách user đã match, kèm thông tin tin nhắn cuối cùng lấy trực tiếp từ match doc
   Stream<List<Map<String, dynamic>>> matchedUsersStream(String currentUserId) {
     final matchQuery = FirebaseFirestore.instance
         .collection('matches')
@@ -325,107 +328,69 @@ class MatchProvider with ChangeNotifier {
         .where('status', isEqualTo: 'confirmed')
         .snapshots();
 
-    return matchQuery.switchMap((matchSnap) {
-      if (matchSnap.docs.isEmpty) return Stream.value([]);
+    return matchQuery.asyncMap((matchSnap) async {
+      if (matchSnap.docs.isEmpty) return [];
 
-      final streams = matchSnap.docs.map((doc) {
+      final futures = matchSnap.docs.map((doc) async {
+        final data = doc.data();
         final matchId = doc.id;
-        final userIds = List<String>.from(doc['userIds'] ?? []);
+        final userIds = List<String>.from(data['userIds'] ?? []);
         final peerId = userIds.firstWhere((id) => id != currentUserId, orElse: () => '');
-        final userFuture = FirestoreService().getUser(peerId);
-
-        // Stream lấy message cuối cùng
-        final msgStream = FirebaseFirestore.instance
-    .collection('chats')
-    .doc(matchId)
-    .collection('messages')
-    .orderBy('timestamp', descending: true)
-    .limit(1)
-    .snapshots()
-    .asyncMap((msgSnap) async {
-      String? lastMessage;
-      DateTime? lastMessageTime;
-      if (msgSnap.docs.isNotEmpty) {
-        final msg = msgSnap.docs.first.data();
-        lastMessageTime = (msg['timestamp'] as Timestamp?)?.toDate();
         
-        final msgType = msg['type'] ?? 'text';
-        final senderId = msg['senderId'];
-        final isMe = senderId == currentUserId; // ← Kiểm tra ai gửi
-        
-        switch (msgType) {
-          case 'call':
-            if (msg['callStatus'] == 'missed') {
-              lastMessage = isMe ? 'Bạn: Cuộc gọi nhỡ' : 'Cuộc gọi nhỡ';
-            } else if (msg['callStatus'] == 'declined') {
-              lastMessage = isMe ? 'Bạn: Cuộc gọi bị từ chối' : 'Cuộc gọi bị từ chối';
-            } else if (msg['callStatus'] == 'cancelled') {
-              lastMessage = isMe ? 'Bạn: Đã hủy' : 'Đã hủy';
-            } else {
-              final duration = msg['duration'] ?? 0;
-              lastMessage = isMe 
-                ? 'Bạn: Đã gọi ${_formatDuration(duration)}'
-                : 'Đã gọi ${_formatDuration(duration)}';
-            }
-            break;
-          
-          case 'voice':
-            lastMessage = isMe 
-              ? 'Bạn: Đã gửi tin nhắn thoại' 
-              : 'Đã gửi tin nhắn thoại';
-            break;
-          
-          case 'react':
-            final emoji = msg['emoji'] ?? '❤️';
-            lastMessage = isMe 
-              ? 'Bạn: Đã thả cảm xúc $emoji'
-              : 'Đã thả cảm xúc $emoji';
-            break;
-          
-          case 'media':
-            final isVideo = msg['isVideo'] ?? false;
-            if (isMe) {
-              lastMessage = isVideo ? 'Bạn: Đã gửi video' : 'Bạn: Đã gửi hình ảnh';
-            } else {
-              lastMessage = isVideo ? 'Đã gửi video' : 'Đã gửi hình ảnh';
-            }
-            break;
-          
-          case 'game':
-            lastMessage = isMe ? 'Bạn: Đã chia sẻ một trò chơi' : 'Đã chia sẻ một trò chơi';
-            break;
-          
-          default:
-            // Tin nhắn văn bản thông thường
-            final text = msg['text'] ?? '';
-            lastMessage = isMe ? 'Bạn: $text' : text;
+        UserModel? user;
+        if (_userCache.containsKey(peerId)) {
+          user = _userCache[peerId];
+        } else {
+          user = await FirestoreService().getUser(peerId);
+          if (user != null) {
+            _userCache[peerId] = user;
+          }
         }
-      }
-      final user = await userFuture;
-      return {
-        'user': user,
-        'matchId': matchId,
-        'matchedAt': (doc['matchedAt'] as Timestamp?)?.toDate(),
-        'lastMessage': lastMessage,
-        'lastMessageTime': lastMessageTime,
-        'lastMessageRead': doc.data().toString().contains('lastMessageRead') ? doc['lastMessageRead'] : true,
-        'lastMessageSenderId': doc.data().toString().contains('lastMessageSenderId') ? doc['lastMessageSenderId'] : '',
-      };
-    });
-        return msgStream;
-      }).toList();
 
-      return Rx.combineLatestList(streams);
+        String? lastMessage = data['lastMessage'] as String?;
+        final lastMessageTime = (data['lastMessageTime'] as Timestamp?)?.toDate();
+        final lastMessageSenderId = data['lastMessageSenderId'] as String? ?? '';
+        final lastSeenMe = (data['lastSeen_$currentUserId'] as Timestamp?)?.toDate();
+        
+        // Tính toán trạng thái đã đọc
+        bool lastMessageRead = true;
+        if (data.containsKey('lastMessageRead')) {
+           lastMessageRead = data['lastMessageRead'] == true;
+        }
+        if (lastSeenMe != null && lastMessageTime != null) {
+           lastMessageRead = !lastSeenMe.isBefore(lastMessageTime);
+        }
+
+        final isMe = lastMessageSenderId == currentUserId;
+
+        // Xử lý tiền tố "Bạn: " cho lastMessage
+        if (lastMessage != null && lastMessage.isNotEmpty) {
+          if (isMe && !lastMessage.startsWith('Bạn: ')) {
+            // Trường hợp gửi media, game, call thường set cứng text, thêm "Bạn: " vào trước
+            // Tin nhắn text do user tự gõ cũng cần "Bạn: " nếu isMe
+            // Ví dụ "Đã gửi video" -> "Bạn: Đã gửi video"
+            // Ví dụ "Alo" -> "Bạn: Alo"
+            lastMessage = 'Bạn: $lastMessage';
+          }
+        }
+
+        return {
+          'matchId': matchId,
+          'user': user,
+          'matchedAt': (data['matchedAt'] as Timestamp?)?.toDate(),
+          'lastMessage': lastMessage,
+          'lastMessageTime': lastMessageTime,
+          'lastMessageRead': lastMessageRead,
+          'lastMessageSenderId': lastMessageSenderId,
+        };
+      });
+
+      final list = await Future.wait(futures);
+      return list.where((item) => item['user'] != null).toList();
     });
   }
 
-  // Hàm format thời lượng cuộc gọi sang dạng phút/giây
-  String _formatDuration(int seconds) {
-    if (seconds < 60) return '$seconds giây';
-    final min = seconds ~/ 60;
-    final sec = seconds % 60;
-    return sec == 0 ? '$min phút' : '$min:${sec.toString().padLeft(2, '0')} phút';
-  }
+
 
   // Stream danh sách người đã like mình nhưng chưa match hoặc đã bị hủy match
   Stream<List<UserModel>> streamLikedMeUsers(String currentUserId, {int limit = 20}) {
