@@ -9,6 +9,7 @@ import '../../../core/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'edit_profile_screen.dart';
 import '../settings/location_settings_screen.dart';
+import '../../../admin/admin_app.dart';
 import 'package:logging/logging.dart';
 import 'dart:ui';
 import '../premium/subscription_screen.dart';
@@ -20,6 +21,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../../core/controllers/notification_controller.dart';
 import '../../../core/providers/mentor_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
+import '../../../core/models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../wallet/wallet_screen.dart';
 
 // Màn hình hồ sơ cá nhân của user
 // Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
@@ -62,9 +66,9 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Nâng cấp Premium',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.textColor),
           ),
           const SizedBox(height: 8),
           _featureRow('Xem ai đã thích bạn'),
@@ -103,8 +107,263 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         const Icon(Icons.check_circle, size: 18, color: Color(0xFFFF6E40)),
         const SizedBox(width: 8),
-        Expanded(child: Text(text, style: const TextStyle(color: Colors.white70))),
+        Expanded(child: Text(text, style: TextStyle(color: context.textSecondaryColor))),
       ],
+    );
+  }
+
+  // Widget ví coin — kiểu credit card premium, hoạt động tốt cả nền sáng lẫn tối
+  Widget _buildWalletCard(UserModel user) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const WalletScreen()),
+      ),
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A1060), Color(0xFF3D1A78), Color(0xFFFF6E40)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3D1A78).withValues(alpha: 0.45),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Vòng trang trí nền
+            Positioned(
+              right: -20, top: -20,
+              child: Container(
+                width: 110, height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 40, bottom: -30,
+              child: Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.04),
+                ),
+              ),
+            ),
+            // Nội dung
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  // Icon coin
+                  Container(
+                    width: 46, height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Colors.amber,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Số dư
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Ví GameNect',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${user.coinBalance} Coin',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Nút quản lý
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Text(
+                      'Quản lý',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget Admin Section — kiểu credit card, chỉ hiện với admin
+  Widget _buildAdminSection(UserModel user) {
+    if (!user.isAdmin) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (ctx) => AdminApp(
+              onBack: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A1A1A), Color(0xFF2E1508), Color(0xFF662200)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF662200).withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Vòng trang trí nền
+            Positioned(
+              right: -15, top: -25,
+              child: Container(
+                width: 100, height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 50, bottom: -25,
+              child: Container(
+                width: 70, height: 70,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.03),
+                ),
+              ),
+            ),
+            // Nội dung
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  // Icon
+                  Container(
+                    width: 46, height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: Colors.orangeAccent,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Text
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Quản trị hệ thống',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Admin Panel',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Nút vào
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Text(
+                      'Mở',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -149,36 +408,53 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.school_rounded, color: Color(0xFFFF6E40), size: 22),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Mentor Dashboard',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                    // Header - tap to view own mentor profile
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(context, '/mentor-profile', arguments: {'mentorId': mentor!.userId}),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.school_rounded, color: Color(0xFFFF6E40), size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Mentor Dashboard',
+                            style: TextStyle(
+                              color: context.textColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.person_crop_circle, color: Color(0xFFFF6E40), size: 13),
+                                const SizedBox(width: 4),
+                                Text('Xem profile', style: TextStyle(color: const Color(0xFFFF6E40), fontSize: 11, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
                           ),
-                          child: const Text('⭐ Mentor', style: TextStyle(color: Color(0xFFFF6E40), fontSize: 11, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+                    // Stats row - Followers is tappable
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _mentorStat('📺', '${mentor!.totalStreams}', 'Streams'),
-                        _mentorStat('👥', '${mentor.followerCount}', 'Followers'),
-                        _mentorStat('🎁', '${mentor.totalGiftsReceived}', 'Gifts'),
+                        _mentorStat(Icons.live_tv_rounded, '${mentor!.totalStreams}', 'Streams', onTap: null),
+                        GestureDetector(
+                          onTap: () => _showFollowerList(mentor.userId),
+                          behavior: HitTestBehavior.opaque,
+                          child: _mentorStat(Icons.people_alt_rounded, '${mentor.followerCount}', 'Followers', onTap: null),
+                        ),
+                        _mentorStat(Icons.card_giftcard_rounded, '${mentor.totalGiftsReceived}', 'Gifts', onTap: null),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -238,13 +514,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     const Icon(Icons.hourglass_top_rounded, color: Colors.amber, size: 22),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Đơn đăng ký Mentor đang chờ duyệt', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          SizedBox(height: 2),
-                          Text('Admin sẽ phản hồi sớm nhất có thể', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          Text('Đơn đăng ký Mentor đang chờ duyệt', style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 2),
+                          Text('Admin sẽ phản hồi sớm nhất có thể', style: TextStyle(color: context.textSecondaryColor, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -275,15 +551,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Trở thành Mentor',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         Text(
                           status == 'rejected'
                               ? 'Đơn bị từ chối. Có thể gửi lại đơn mới.'
                               : 'Hướng dẫn gaming, livestream & nhận gift',
-                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          style: TextStyle(color: context.textSecondaryColor, fontSize: 12),
                         ),
                       ],
                     ),
@@ -309,14 +585,33 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _mentorStat(String emoji, String value, String label) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 2),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
-      ],
+  Widget _mentorStat(IconData iconData, String value, String label, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Icon(iconData, size: 24, color: const Color(0xFFFF6E40)),
+          const SizedBox(height: 2),
+          Text(value, style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(
+            label,
+            style: TextStyle(
+              color: onTap != null ? const Color(0xFFFF6E40) : context.textTertiaryColor,
+              fontSize: 11,
+              decoration: onTap != null ? TextDecoration.underline : TextDecoration.none,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFollowerList(String mentorId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _FollowerListSheet(mentorId: mentorId),
     );
   }
 
@@ -873,6 +1168,19 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             const SizedBox(height: 16),
 
+                            // ─── Wallet Card ───────────────────────────────
+                            if (provider.userData != null)
+                              _buildWalletCard(provider.userData!),
+
+                            const SizedBox(height: 16),
+
+                            // ─── Admin Section ────────────────────────────
+                            if (provider.userData != null)
+                              _buildAdminSection(provider.userData!),
+
+                            if (provider.userData?.isAdmin ?? false)
+                              const SizedBox(height: 16),
+
                             // ─── Mentor Section ───────────────────────────
                             _buildMentorSection(),
 
@@ -1218,6 +1526,147 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Follower List Bottom Sheet ──────────────────────────────────────────────
+class _FollowerListSheet extends StatelessWidget {
+  final String mentorId;
+  const _FollowerListSheet({required this.mentorId});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (ctx, scrollCtrl) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Row(
+                  children: [
+                    const Icon(CupertinoIcons.person_2_fill, color: Color(0xFFFF6E40), size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Người theo dõi',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Follower list from Firestore
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('mentor_followers')
+                      .where('mentorId', isEqualTo: mentorId)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Color(0xFFFF6E40)),
+                      );
+                    }
+                    final docs = snap.data?.docs ?? [];
+                    final sorted = [...docs];
+                    sorted.sort((a, b) {
+                      final aT = (a.data() as Map<String, dynamic>)['followedAt'];
+                      final bT = (b.data() as Map<String, dynamic>)['followedAt'];
+                      if (aT == null && bT == null) return 0;
+                      if (aT == null) return 1;
+                      if (bT == null) return -1;
+                      return (bT as Timestamp).compareTo(aT as Timestamp);
+                    });
+                    if (sorted.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(CupertinoIcons.person_badge_plus, size: 48, color: Colors.grey.withValues(alpha: 0.4)),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Chưa có người theo dõi',
+                              style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 15),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      controller: scrollCtrl,
+                      itemCount: sorted.length,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemBuilder: (context, i) {
+                        final d = sorted[i].data() as Map<String, dynamic>;
+                        final followerId = d['followerId'] as String? ?? '';
+                        return FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(followerId)
+                              .get(),
+                          builder: (ctx, userSnap) {
+                            final userData = userSnap.data?.data() as Map<String, dynamic>?;
+                            final name = userData?['username'] as String? ?? userData?['displayName'] as String? ?? 'Người dùng';
+                            final avatar = userData?['avatarUrl'] as String? ?? '';
+                            return ListTile(
+                              leading: CircleAvatar(
+                                radius: 22,
+                                backgroundColor: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                                backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                                child: avatar.isEmpty
+                                    ? const Icon(CupertinoIcons.person_solid, color: Color(0xFFFF6E40), size: 22)
+                                    : null,
+                              ),
+                              title: Text(
+                                name,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              trailing: const Icon(CupertinoIcons.chevron_forward, size: 14, color: Colors.grey),
+                              onTap: (followerId.isNotEmpty && userSnap.hasData && userData != null) ? () {
+                                final userModel = UserModel.fromMap(userData, followerId);
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PeerProfileScreen(peerUser: userModel),
+                                  ),
+                                );
+                              } : null,
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -27,15 +27,16 @@ import 'core/providers/theme_provider.dart';
 import 'core/providers/game_provider.dart';
 import 'core/providers/mentor_provider.dart';
 import 'core/providers/livestream_provider.dart';
+import 'core/providers/wallet_provider.dart';
 import 'core/services/web_notification.dart';
 import 'core/services/web_message.dart';
 
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/models/user_model.dart';
-import 'user/screens/auth/login_screen.dart';
+import 'user/screens/matching/home_screen.dart';
 import 'user/screens/chat/chat_screen.dart';
-import 'admin/admin_app.dart';
+
 import 'user/user_app.dart';
 
 // Pending FCM message khi app được mở từ notification (top-level để tránh lỗi scope)
@@ -353,6 +354,31 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
         );
         break;
 
+      case 'mentor_live':
+        final mlStreamId = data['streamId'] ?? '';
+        if (mlStreamId.isNotEmpty) {
+          await AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: mlStreamId.hashCode.abs() % 100000,
+              channelKey: 'mentor_live_channel',
+              title: data['mentorUsername'] != null
+                  ? '🔴 ${data['mentorUsername']} đang LIVE!'
+                  : message.notification?.title ?? '🔴 Mentor đang LIVE!',
+              body: data['streamTitle'] ?? message.notification?.body ?? 'Nhấn để xem ngay',
+              payload: {
+                'type': 'mentor_live',
+                'streamId': mlStreamId,
+              },
+              notificationLayout: NotificationLayout.Default,
+              category: NotificationCategory.Reminder,
+              wakeUpScreen: true,
+              displayOnForeground: true,
+            ),
+            actionButtons: [],
+          );
+        }
+        break;
+
       default:
         // Thông báo không xác định loại → hiển thị generic
         if (message.notification != null) {
@@ -461,6 +487,7 @@ class GameNectApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GameProvider()),
         ChangeNotifierProvider(create: (_) => MentorProvider()),
         ChangeNotifierProvider(create: (_) => LivestreamProvider()),
+        ChangeNotifierProvider(create: (_) => WalletProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -635,6 +662,13 @@ class AuthWrapper extends StatelessWidget {
                 );
                 await momentProvider.listenMoments(currentUserId);
                 developer.log('Moment listener started', name: 'Auth');
+
+                // Bắt đầu lắng nghe khi mentor follow đang live
+                if (context.mounted) {
+                  Provider.of<MentorProvider>(context, listen: false)
+                      .startMentorLiveListener(currentUserId);
+                  developer.log('Mentor live listener started', name: 'Auth');
+                }
               }
               
               await _handleWebDeepLinkIfAny();
@@ -671,31 +705,27 @@ class AuthWrapper extends StatelessWidget {
               if (userSnapshot.hasError ||
                   !userSnapshot.hasData ||
                   !userSnapshot.data!.exists) {
-                return LoginScreen();
+                return const HomeScreen();
               }
 
               final userData =
                   userSnapshot.data!.data() as Map<String, dynamic>?;
 
               if (userData == null) {
-                return LoginScreen();
+                return const HomeScreen();
               }
 
               final isAdmin = userData['isAdmin'] ?? false;
 
-              if (isAdmin == true) {
-                developer.log('ADMIN DETECTED', name: 'Auth');
-                return const AdminApp();
-              }
-
-              developer.log('Regular user detected', name: 'Auth');
+              // Cả admin và user đều vào UserApp để xem profile cá nhân
+              developer.log('User logged in (isAdmin: $isAdmin)', name: 'Auth');
               return const UserApp();
             },
           );
         }
 
         developer.log('No user logged in', name: 'Auth');
-        return LoginScreen();
+        return const HomeScreen();
       },
     );
   }

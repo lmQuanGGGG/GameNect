@@ -110,6 +110,16 @@ class AppNotificationHandler {
         arguments: {'momentId': momentId}
       );
       developer.log('Pushed /moments', name: 'Notification');
+    } else if (payload['type'] == 'mentor_live') {
+      final streamId = payload['streamId'] ?? '';
+      developer.log('Navigate to mentor live: streamId=$streamId', name: 'Notification');
+      if (streamId.isNotEmpty) {
+        navigatorKey.currentState?.pushNamed(
+          '/live-stream',
+          arguments: {'streamId': streamId, 'isMentor': false},
+        );
+        developer.log('Pushed /live-stream streamId=$streamId', name: 'Notification');
+      }
     } else {
       developer.log('Unknown notification type: ${payload['type']}', name: 'Notification');
     }

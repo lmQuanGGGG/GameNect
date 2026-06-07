@@ -21,6 +21,15 @@ class ProfileProvider extends ChangeNotifier {
   // Getter trả về thông báo lỗi
   String? get error => _error;
 
+  void deductCoins(int amount) {
+    if (_userData != null) {
+      _userData = _userData!.copyWith(
+        coinBalance: (_userData!.coinBalance ?? 0) - amount,
+      );
+      notifyListeners();
+    }
+  }
+
   // Hàm lấy dữ liệu hồ sơ người dùng hiện tại từ Firestore
   Future<void> loadUserProfile() async {
     _isLoading = true;

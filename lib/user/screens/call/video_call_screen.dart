@@ -295,7 +295,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       await _engine!.stopScreenCapture();
       await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
         publishCameraTrack: true,
-        publishScreenTrack: false,
+        publishScreenCaptureVideo: false,
         publishMicrophoneTrack: true,
         publishScreenCaptureAudio: false,
       ));

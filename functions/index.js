@@ -142,24 +142,36 @@ exports.payosWebhook = onRequest(
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            // Tính ngày hết hạn Premium
-            // Yearly plan: +365 ngày, Monthly plan: +30 ngày
-            const endDate = orderData.planType === "yearly" ?
-              new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) :
-              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            // Kích hoạt Premium cho user hoặc cộng Coin tùy vào orderType
+            if (orderData.orderType === "coin") {
+              const coinsToAdd = orderData.coins || 0;
+              await admin.firestore()
+                  .collection("users")
+                  .doc(orderData.userId)
+                  .update({
+                    coinBalance: admin.firestore.FieldValue.increment(coinsToAdd)
+                  });
+              console.log("Coins added for user:", orderData.userId, "Amount:", coinsToAdd);
+            } else {
+              // Tính ngày hết hạn Premium
+              // Yearly plan: +365 ngày, Monthly plan: +30 ngày
+              const endDate = orderData.planType === "yearly" ?
+                new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) :
+                new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-            // Kích hoạt Premium cho user
-            await admin.firestore()
-                .collection("users")
-                .doc(orderData.userId)
-                .update({
-                  isPremium: true, // Đánh dấu user là Premium
-                  premiumPlan: orderData.planType, // Lưu loại gói đã mua
-                  premiumStartDate: admin.firestore.FieldValue.serverTimestamp(),
-                  premiumEndDate: admin.firestore.Timestamp.fromDate(endDate),
-                });
+              // Kích hoạt Premium cho user
+              await admin.firestore()
+                  .collection("users")
+                  .doc(orderData.userId)
+                  .update({
+                    isPremium: true, // Đánh dấu user là Premium
+                    premiumPlan: orderData.planType, // Lưu loại gói đã mua
+                    premiumStartDate: admin.firestore.FieldValue.serverTimestamp(),
+                    premiumEndDate: admin.firestore.Timestamp.fromDate(endDate),
+                  });
 
-            console.log("Premium activated for user:", orderData.userId);
+              console.log("Premium activated for user:", orderData.userId);
+            }
           } else {
             console.error("Order not found:", orderCode);
           }

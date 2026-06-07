@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/widgets/profile_card.dart';
 import '../../../core/theme/theme_helper.dart';
-import 'package:provider/provider.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/firestore_service.dart';
 
@@ -170,6 +170,7 @@ class PeerProfileScreen extends StatelessWidget {
               right: 0,
               child: Center(
                 child: FloatingActionButton.extended(
+                  heroTag: null,
                   onPressed: () async {
                     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
                     if (currentUserId == null) return;

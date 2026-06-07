@@ -1,4 +1,8 @@
 // lib/core/providers/mentor_provider.dart
+import 'dart:async';
+import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import '../models/mentor_model.dart';
@@ -15,6 +19,11 @@ class MentorProvider extends ChangeNotifier {
   MentorModel? _myMentorProfile;
   String? _error;
   String? _selectedGameFilter;
+
+  // Listener cho mentor live notifications
+  StreamSubscription? _mentorLiveSub;
+  final Set<String> _notifiedStreamIds = {}; // tránh notify 2 lần
+  String? _currentUserId;
 
   // ─── Getters ──────────────────────────────────────────────────────────────
   bool get isLoading => _isLoading;
@@ -178,5 +187,109 @@ class MentorProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  // ─── MENTOR LIVE NOTIFICATIONS ────────────────────────────────────────────
+
+  /// Bắt đầu lắng nghe các livestream mới từ mentor mà user đang follow.
+  /// Gọi sau khi user đăng nhập, truyền vào userId của chính user đó.
+  void startMentorLiveListener(String userId) {
+    if (_currentUserId == userId) return; // đã chạy cho user này rồi
+    stopMentorLiveListener();
+    _currentUserId = userId;
+    _notifiedStreamIds.clear();
+
+    final startedAfter = Timestamp.now();
+
+    _mentorLiveSub = FirebaseFirestore.instance
+        .collection('livestreams')
+        .where('status', isEqualTo: 'live')
+        .snapshots()
+        .listen((snap) async {
+      for (final change in snap.docChanges) {
+        // Chỉ xử lý document MỚI được thêm (mentor vừa bắt đầu live)
+        if (change.type != DocumentChangeType.added) continue;
+
+        final streamId = change.doc.id;
+        if (_notifiedStreamIds.contains(streamId)) continue;
+
+        final data = change.doc.data();
+        if (data == null) continue;
+
+        // Kiểm tra stream này mới tạo sau khi user login (tránh notify cho stream cũ)
+        final startedAt = data['startedAt'] as Timestamp?;
+        if (startedAt != null && startedAt.compareTo(startedAfter) <= 0) continue;
+
+        final mentorId = data['mentorId'] as String? ?? '';
+        final mentorUsername = data['mentorUsername'] as String? ?? 'Mentor';
+        final title = data['title'] as String? ?? '';
+        if (mentorId.isEmpty || mentorId == userId) continue; // không tự notify chính mình
+
+        // Kiểm tra user có follow mentor này không
+        final isFollowing = await _service.isFollowingMentor(mentorId, userId);
+        if (!isFollowing) continue;
+
+        _notifiedStreamIds.add(streamId);
+        developer.log(
+          'Mentor live notification: mentorId=$mentorId streamId=$streamId',
+          name: 'MentorProvider',
+        );
+
+        await _showMentorLiveNotification(
+          mentorUsername: mentorUsername,
+          streamTitle: title,
+          streamId: streamId,
+        );
+      }
+    }, onError: (e) {
+      developer.log('startMentorLiveListener error: $e', name: 'MentorProvider');
+    });
+
+    developer.log('Mentor live listener started for userId=$userId', name: 'MentorProvider');
+  }
+
+  /// Dừng listener khi user logout.
+  void stopMentorLiveListener() {
+    _mentorLiveSub?.cancel();
+    _mentorLiveSub = null;
+    _currentUserId = null;
+    _notifiedStreamIds.clear();
+    developer.log('Mentor live listener stopped', name: 'MentorProvider');
+  }
+
+  /// Hiển thị local notification khi mentor bắt đầu live.
+  static Future<void> _showMentorLiveNotification({
+    required String mentorUsername,
+    required String streamTitle,
+    required String streamId,
+  }) async {
+    if (kIsWeb) return;
+    try {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: streamId.hashCode.abs() % 100000,
+          channelKey: 'mentor_live_channel',
+          title: '🔴 $mentorUsername đang LIVE!',
+          body: streamTitle.isNotEmpty ? streamTitle : 'Nhấn để xem ngay',
+          payload: {
+            'type': 'mentor_live',
+            'streamId': streamId,
+          },
+          notificationLayout: NotificationLayout.Default,
+          category: NotificationCategory.Reminder,
+          wakeUpScreen: true,
+          displayOnForeground: true,
+          displayOnBackground: true,
+        ),
+      );
+    } catch (e) {
+      developer.log('_showMentorLiveNotification error: $e', name: 'MentorProvider');
+    }
+  }
+
+  @override
+  void dispose() {
+    stopMentorLiveListener();
+    super.dispose();
   }
 }

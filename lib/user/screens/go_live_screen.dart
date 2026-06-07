@@ -3,21 +3,23 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/providers/livestream_provider.dart';
 import '../../core/providers/profile_provider.dart';
+import '../../core/theme/theme_helper.dart';
+import 'package:flutter/cupertino.dart';
 
-const _kBg = Color(0xFF101012);
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveBadge = Color(0xFFFF3B30);
-const _kGlassBg = Color(0x14FFFFFF);
-const _kGlassBorder = Color(0x1FFFFFFF);
 
 final _kGames = [
   'LMHT', 'Valorant', 'PUBG', 'CS:GO', 'Dota 2',
   'Free Fire', 'Mobile Legends', 'Genshin Impact', 'Minecraft', 'Fortnite',
 ];
 
-/// Màn hình chuẩn bị trước khi bắt đầu Livestream — Task 6.4
+/// Màn hình chuẩn bị trước khi bắt đầu Livestream — Hỗ trợ Theme
 class GoLiveScreen extends StatefulWidget {
   const GoLiveScreen({super.key});
 
@@ -31,15 +33,19 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
   bool _isStarting = false;
 
   Widget _buildGlassContainer({required Widget child, double radius = 20}) {
+    final isDark = context.isDarkMode;
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: _kGlassBg,
+            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: _kGlassBorder, width: 1.5),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+              width: 1.5,
+            ),
           ),
           child: child,
         ),
@@ -97,23 +103,26 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: context.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        surfaceTintColor: Colors.transparent,
+        title: Text(
           'Bắt đầu Live',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: Icon(CupertinoIcons.xmark, color: context.textColor),
           onPressed: () => Navigator.pop(context),
         ),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.white.withValues(alpha: 0.04)),
+            child: Container(color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.7)),
           ),
         ),
       ),
@@ -126,7 +135,7 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
               width: 220, height: 220,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _kLiveBadge.withValues(alpha: 0.1),
+                color: _kLiveBadge.withValues(alpha: isDark ? 0.1 : 0.05),
               ),
             ),
           ),
@@ -136,7 +145,7 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
               width: 260, height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _kAccent.withValues(alpha: 0.08),
+                color: _kAccent.withValues(alpha: isDark ? 0.08 : 0.04),
               ),
             ),
           ),
@@ -147,91 +156,124 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Camera preview placeholder
-                  _buildGlassContainer(
-                    radius: 20,
-                    child: SizedBox(
-                      height: 220,
-                      width: double.infinity,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _kAccent.withValues(alpha: 0.2),
-                              border: Border.all(color: _kAccent, width: 2),
-                            ),
-                            child: const Icon(Icons.videocam, color: _kAccent, size: 32),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Camera Preview',
-                            style: TextStyle(color: Colors.white70, fontSize: 14),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Camera sẽ bật khi bắt đầu stream',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 24),
 
                   // Title
-                  const Text(
+                  Text(
                     'Tiêu đề stream *',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+                    style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600, fontSize: 15),
                   ),
                   const SizedBox(height: 8),
                   _buildGlassContainer(
                     radius: 14,
                     child: TextField(
                       controller: _titleCtrl,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: context.textColor),
                       maxLength: 80,
                       decoration: InputDecoration(
                         hintText: 'VD: Hướng dẫn leo rank Valorant cho người mới...',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
+                        hintStyle: TextStyle(color: context.textTertiaryColor, fontSize: 13),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.all(14),
-                        counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                        prefixIcon: const Icon(Icons.title, color: _kAccent, size: 20),
+                        counterStyle: TextStyle(color: context.textTertiaryColor),
+                        prefixIcon: const Icon(CupertinoIcons.pen, color: _kAccent, size: 20),
                       ),
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // Game dropdown
-                  const Text(
-                    'Game',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+                  // Game Search (RAWG API)
+                  Text(
+                    'Tên Game',
+                    style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600, fontSize: 15),
                   ),
                   const SizedBox(height: 8),
-                  _buildGlassContainer(
-                    radius: 14,
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedGame,
-                        isExpanded: true,
-                        dropdownColor: const Color(0xFF1E1E22),
-                        icon: const Icon(Icons.expand_more, color: Colors.white54),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                        style: const TextStyle(color: Colors.white),
-                        items: _kGames.map((g) => DropdownMenuItem(
-                          value: g,
-                          child: Text(g),
-                        )).toList(),
-                        onChanged: (v) {
-                          if (v != null) setState(() => _selectedGame = v);
-                        },
-                      ),
-                    ),
+                  Autocomplete<String>(
+                    initialValue: TextEditingValue(text: _selectedGame),
+                    optionsBuilder: (TextEditingValue textEditingValue) async {
+                      if (textEditingValue.text.isEmpty) {
+                        return _kGames;
+                      }
+                      final query = textEditingValue.text.trim();
+                      final apiKey = dotenv.env['RAWG_API_KEY'];
+                      
+                      if (apiKey == null || apiKey.isEmpty) {
+                        return _kGames.where((g) => g.toLowerCase().contains(query.toLowerCase()));
+                      }
+
+                      try {
+                        final url = Uri.parse('https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=5');
+                        final res = await http.get(url);
+                        if (res.statusCode == 200) {
+                          final data = jsonDecode(res.body);
+                          final results = data['results'] as List;
+                          final fetchedGames = results.map((e) => e['name'] as String).toList();
+                          // Combine fetched with local defaults if they match
+                          final localMatches = _kGames.where((g) => g.toLowerCase().contains(query.toLowerCase())).toList();
+                          return {...localMatches, ...fetchedGames}.toList();
+                        }
+                      } catch (e) {
+                        debugPrint('RAWG error: $e');
+                      }
+                      
+                      return _kGames.where((g) => g.toLowerCase().contains(query.toLowerCase()));
+                    },
+                    onSelected: (String selection) {
+                      setState(() {
+                        _selectedGame = selection;
+                      });
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                      return _buildGlassContainer(
+                        radius: 14,
+                        child: TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          onEditingComplete: onEditingComplete,
+                          style: TextStyle(color: context.textColor),
+                          onChanged: (val) {
+                            _selectedGame = val; // Also allow custom typed game names
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Tìm hoặc nhập tên game...',
+                            hintStyle: TextStyle(color: context.textTertiaryColor, fontSize: 13),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(14),
+                            prefixIcon: const Icon(CupertinoIcons.gamecontroller, color: _kAccent, size: 20),
+                          ),
+                        ),
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Container(
+                            width: MediaQuery.of(context).size.width - 40,
+                            margin: const EdgeInsets.only(top: 8),
+                            decoration: BoxDecoration(
+                              color: context.cardBgColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: context.cardBorderColor),
+                            ),
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              itemCount: options.length,
+                              itemBuilder: (context, index) {
+                                final option = options.elementAt(index);
+                                return ListTile(
+                                  title: Text(option, style: TextStyle(color: context.textColor)),
+                                  onTap: () => onSelected(option),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 32),
@@ -244,11 +286,11 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(Icons.tips_and_updates, color: _kAccent, size: 18),
-                              SizedBox(width: 6),
-                              Text('Mẹo stream hay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                              const Icon(CupertinoIcons.lightbulb_fill, color: _kAccent, size: 18),
+                              const SizedBox(width: 6),
+                              Text('Mẹo stream hay', style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600)),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -263,27 +305,44 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                   const SizedBox(height: 32),
 
                   // Start button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: _isStarting ? null : _startLive,
-                      icon: _isStarting
-                          ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                            )
-                          : const Icon(Icons.live_tv_rounded, size: 22),
-                      label: Text(
-                        _isStarting ? 'Đang chuẩn bị...' : '🔴  Bắt đầu Live',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  GestureDetector(
+                    onTap: _isStarting ? null : _startLive,
+                    child: Container(
+                      width: double.infinity,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF3B30), Color(0xFFFF6E40)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF3B30).withValues(alpha: 0.4),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _kLiveBadge,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                        shadowColor: _kLiveBadge.withValues(alpha: 0.4),
+                      child: Center(
+                        child: _isStarting
+                            ? const SizedBox(
+                                width: 24, height: 24,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                              )
+                            : const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(CupertinoIcons.play_circle_fill, size: 24, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Bắt đầu Live',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),
@@ -304,8 +363,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('•  ', style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
-          Expanded(child: Text(text, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13))),
+          Text('•  ', style: TextStyle(color: context.textTertiaryColor)),
+          Expanded(child: Text(text, style: TextStyle(color: context.textSecondaryColor, fontSize: 13))),
         ],
       ),
     );

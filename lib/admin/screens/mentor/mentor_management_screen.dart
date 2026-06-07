@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/mentor_model.dart';
 import '../../../core/services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../user/screens/mentor_profile_screen.dart';
 
 const _kAdminBg = Color(0xFF0D0D10);
 const _kAccent = Color(0xFFFF6E40);
@@ -22,6 +23,8 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
   final FirestoreService _service = FirestoreService();
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -32,6 +35,7 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -59,14 +63,28 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Quản lý Mentor',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.white.withValues(alpha: 0.04)),
+        title: _buildGlass(
+          radius: 12,
+          child: TextField(
+            controller: _searchCtrl,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Tìm kiếm theo tên mentor...',
+              hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+              prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.white54, size: 18),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onChanged: (val) => setState(() => _searchQuery = val.trim()),
           ),
         ),
         bottom: TabBar(
@@ -167,6 +185,7 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
               mentor: mentor,
               service: _service,
               glassBuilder: _buildGlass,
+              searchQuery: _searchQuery,
             );
           },
         );
@@ -180,11 +199,13 @@ class _ApplicationCard extends StatefulWidget {
   final MentorModel mentor;
   final FirestoreService service;
   final Widget Function({required Widget child, double radius}) glassBuilder;
+  final String searchQuery;
 
   const _ApplicationCard({
     required this.mentor,
     required this.service,
     required this.glassBuilder,
+    this.searchQuery = '',
   });
 
   @override
@@ -307,48 +328,200 @@ class _ApplicationCardState extends State<_ApplicationCard> {
     );
   }
 
+  void _showDetailDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF181A20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => MentorProfileScreen(mentorId: widget.mentor.userId),
+                      ),
+                    );
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 50, height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _kAccent.withValues(alpha: 0.4), width: 2),
+                          image: _avatarUrl.isNotEmpty
+                              ? DecorationImage(image: NetworkImage(_avatarUrl), fit: BoxFit.cover)
+                              : null,
+                        ),
+                        child: _avatarUrl.isEmpty
+                            ? const Icon(Icons.person, color: Colors.white38, size: 26)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                            Text(
+                              'Ứng tuyển ${_timeAgo(widget.mentor.appliedAt)}',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text('Tựa game đăng ký', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: widget.mentor.games.map((g) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _kAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(g, style: const TextStyle(color: _kAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+                  )).toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text('Giới thiệu bản thân (Bio)', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
+                  child: Text(widget.mentor.bio, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                ),
+                const SizedBox(height: 16),
+                const Text('Thành tích / Kinh nghiệm', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
+                  child: Text(widget.mentor.achievements, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                ),
+                if (widget.mentor.rejectReason?.isNotEmpty == true) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Lý do từ chối trước đó:', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(widget.mentor.rejectReason!, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Đóng', style: TextStyle(color: Colors.white)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.searchQuery.isNotEmpty && _username.isNotEmpty) {
+      if (!_username.toLowerCase().contains(widget.searchQuery.toLowerCase())) {
+        return const SizedBox.shrink();
+      }
+    } else if (widget.searchQuery.isNotEmpty && _username.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final status = widget.mentor.status;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: widget.glassBuilder(
-        radius: 16,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+      child: InkWell(
+        onTap: _showDetailDialog,
+        borderRadius: BorderRadius.circular(16),
+        child: widget.glassBuilder(
+          radius: 16,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
               Row(
                 children: [
-                  Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _kAccent.withValues(alpha: 0.4), width: 2),
-                      image: _avatarUrl.isNotEmpty
-                          ? DecorationImage(image: NetworkImage(_avatarUrl), fit: BoxFit.cover)
-                          : null,
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => MentorProfileScreen(mentorId: widget.mentor.userId),
+                          ),
+                        );
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _kAccent.withValues(alpha: 0.4), width: 2),
+                              image: _avatarUrl.isNotEmpty
+                                  ? DecorationImage(image: NetworkImage(_avatarUrl), fit: BoxFit.cover)
+                                  : null,
+                            ),
+                            child: _avatarUrl.isEmpty
+                                ? const Icon(Icons.person, color: Colors.white38, size: 22)
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                Text(
+                                  _timeAgo(widget.mentor.appliedAt),
+                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: _avatarUrl.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white38, size: 22)
-                        : null,
                   ),
                   const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text(
-                          _timeAgo(widget.mentor.appliedAt),
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
                   _buildStatusBadge(status),
                 ],
               ),
@@ -431,6 +604,7 @@ class _ApplicationCardState extends State<_ApplicationCard> {
           ),
         ),
       ),
+      )
     );
   }
 

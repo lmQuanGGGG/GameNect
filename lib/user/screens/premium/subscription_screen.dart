@@ -39,6 +39,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0, // Đảm bảo AppBar luôn trong suốt kể cả khi cuộn (Material 3)
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white, size: 28),
           onPressed: () => Navigator.pop(context),
@@ -317,41 +318,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Nút khôi phục gói đã mua (kiểm tra từ Firestore)
-                  TextButton(
-                    onPressed: provider.isLoading
-                        ? null
-                        : () async {
-                            try {
-                              await provider.restorePurchase();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Đã khôi phục gói đăng ký'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Lỗi: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    child: Text(
-                      'Khôi phục gói đã mua',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 15,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
+                  
                   const SizedBox(height: 8),
 
                   // Điều khoản dịch vụ

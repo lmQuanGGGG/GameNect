@@ -5,6 +5,8 @@ import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../models/game_model.dart';
 import '../services/notification_service.dart';
+import '../routes/app_router.dart';
+import '../../user/screens/call/video_call_screen.dart';
 
 // ChatProvider quản lý trạng thái và logic liên quan đến chat, sử dụng ChangeNotifier để cập nhật UI khi dữ liệu thay đổi.
 class ChatProvider with ChangeNotifier {
@@ -188,6 +190,8 @@ Future<void> sendMediaWithNotify(
     });
   }
 
+  final Map<String, BuildContext> _incomingCallDialogCtxs = {};
+
   // Hàm lắng nghe cuộc gọi đến qua Firestore, nếu có cuộc gọi mới từ đối phương thì hiển thị thông báo cuộc gọi
   void listenForIncomingCalls(String matchId, UserModel peerUser) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -206,12 +210,232 @@ Future<void> sendMediaWithNotify(
           data['status'] == 'active' &&
           (data['answered'] != true)) {
         
-        // Hiển thị thông báo cuộc gọi
+        // Bỏ qua các cuộc gọi cũ (quá 60 giây) để tránh spam thông báo khi mở lại app
+        final startedAtStr = data['startedAt'] as String?;
+        if (startedAtStr != null) {
+          final startedAt = DateTime.tryParse(startedAtStr);
+          if (startedAt != null) {
+            if (DateTime.now().difference(startedAt).inSeconds > 60) {
+               // Tự động dọn dẹp data cũ luôn để khỏi bị lặp lại
+               FirebaseFirestore.instance
+                  .collection('calls')
+                  .doc(matchId)
+                  .set({'status': 'missed'}, SetOptions(merge: true));
+               return;
+            }
+          }
+        }
+
+        // Hiển thị thông báo cuộc gọi (OS Level)
         showCallNotification(
           peerUsername: peerUser.username,
           matchId: matchId,
           peerUserId: peerUser.id,
         );
+
+        // Hiển thị dialog trong app nếu app đang ở foreground
+        if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+          final context = navigatorKey.currentContext;
+          if (context != null && !_incomingCallDialogCtxs.containsKey(matchId)) {
+            // Đánh dấu tạm để tránh show nhiều lần (trước khi builder chạy)
+            _incomingCallDialogCtxs[matchId] = context; 
+
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) {
+                _incomingCallDialogCtxs[matchId] = ctx;
+                return Dialog(
+                  backgroundColor: Colors.transparent,
+                  insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMini = constraints.maxWidth < 250 || MediaQuery.of(context).size.height < 400;
+                      
+                      if (isMini) {
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2C2A29), // Màu nền dark brown như ảnh
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '📞 Gọi: ${peerUser.username}',
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (_incomingCallDialogCtxs.containsKey(matchId)) {
+                                         _incomingCallDialogCtxs.remove(matchId);
+                                         Navigator.pop(ctx);
+                                      }
+                                      navigatorKey.currentState?.push(
+                                        MaterialPageRoute(
+                                          builder: (_) => VideoCallScreen(
+                                            channelName: matchId,
+                                            peerUserId: peerUser.id,
+                                            peerUsername: peerUser.username,
+                                            peerAvatarUrl: peerUser.avatarUrl,
+                                            isVoiceCall: data['type'] == 'voice',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: const BoxDecoration(color: Color(0xFF4CAF50), shape: BoxShape.circle),
+                                      child: const Icon(Icons.call, color: Colors.white, size: 14),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (_incomingCallDialogCtxs.containsKey(matchId)) {
+                                         _incomingCallDialogCtxs.remove(matchId);
+                                         Navigator.pop(ctx);
+                                      }
+                                      FirebaseFirestore.instance
+                                          .collection('calls')
+                                          .doc(matchId)
+                                          .set({'status': 'declined'}, SetOptions(merge: true));
+                                      endCall(matchId, 0, declined: true);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: const BoxDecoration(color: Color(0xFFF44336), shape: BoxShape.circle),
+                                      child: const Icon(Icons.call_end, color: Colors.white, size: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      // Full Layout
+                      return Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C2A29), // Màu nền dark brown
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Colors.white12,
+                              backgroundImage: peerUser.avatarUrl != null ? NetworkImage(peerUser.avatarUrl!) : null,
+                              child: peerUser.avatarUrl == null ? const Icon(Icons.person, size: 40, color: Colors.white) : null,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Cuộc gọi đến từ',
+                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              peerUser.username,
+                              style: const TextStyle(
+                                color: Color(0xFFFF6E40),
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4CAF50),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      if (_incomingCallDialogCtxs.containsKey(matchId)) {
+                                         _incomingCallDialogCtxs.remove(matchId);
+                                         Navigator.pop(ctx);
+                                      }
+                                      navigatorKey.currentState?.push(
+                                        MaterialPageRoute(
+                                          builder: (_) => VideoCallScreen(
+                                            channelName: matchId,
+                                            peerUserId: peerUser.id,
+                                            peerUsername: peerUser.username,
+                                            peerAvatarUrl: peerUser.avatarUrl,
+                                            isVoiceCall: data['type'] == 'voice',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.call, size: 20),
+                                    label: const Text('Nghe', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFF44336),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      if (_incomingCallDialogCtxs.containsKey(matchId)) {
+                                         _incomingCallDialogCtxs.remove(matchId);
+                                         Navigator.pop(ctx);
+                                      }
+                                      FirebaseFirestore.instance
+                                          .collection('calls')
+                                          .doc(matchId)
+                                          .set({'status': 'declined'}, SetOptions(merge: true));
+                                      endCall(matchId, 0, declined: true);
+                                    },
+                                    icon: const Icon(Icons.call_end, size: 20),
+                                    label: const Text('Từ chối', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ).then((_) {
+              _incomingCallDialogCtxs.remove(matchId);
+            });
+          }
+        }
+      } else if (data != null && data['status'] != 'active') {
+        // Nếu cuộc gọi kết thúc/hủy, tự động đóng dialog nếu đang mở
+        if (_incomingCallDialogCtxs.containsKey(matchId)) {
+          final ctx = _incomingCallDialogCtxs[matchId];
+          if (ctx != null && ctx.mounted) {
+            Navigator.pop(ctx);
+          }
+          _incomingCallDialogCtxs.remove(matchId);
+        }
       }
     });
   }

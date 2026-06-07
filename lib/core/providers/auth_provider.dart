@@ -45,7 +45,7 @@ class AuthProvider extends ChangeNotifier {
       
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = _getReadableErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -74,7 +74,7 @@ class AuthProvider extends ChangeNotifier {
       
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = _getReadableErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -103,7 +103,7 @@ class AuthProvider extends ChangeNotifier {
       
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = _getReadableErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -132,7 +132,7 @@ class AuthProvider extends ChangeNotifier {
       
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = _getReadableErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -170,7 +170,7 @@ class AuthProvider extends ChangeNotifier {
       
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = _getReadableErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -189,7 +189,7 @@ class AuthProvider extends ChangeNotifier {
       _isVerifying = true;
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _getReadableErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -216,5 +216,34 @@ class AuthProvider extends ChangeNotifier {
     await _authService.signOut();
     _locationProvider?.reset(); // Reset location data nếu có
     notifyListeners();
+  }
+
+  /// Helper format lỗi thân thiện với người dùng
+  String _getReadableErrorMessage(Object e) {
+    final errorString = e.toString();
+    if (errorString.contains('user-not-found')) {
+      return 'Không tìm thấy tài khoản. Vui lòng kiểm tra lại.';
+    } else if (errorString.contains('wrong-password')) {
+      return 'Sai mật khẩu. Vui lòng thử lại.';
+    } else if (errorString.contains('email-already-in-use')) {
+      return 'Email này đã được đăng ký cho một tài khoản khác.';
+    } else if (errorString.contains('invalid-email')) {
+      return 'Địa chỉ email không hợp lệ.';
+    } else if (errorString.contains('weak-password')) {
+      return 'Mật khẩu quá yếu. Vui lòng chọn mật khẩu từ 6 ký tự trở lên.';
+    } else if (errorString.contains('invalid-credential')) {
+      return 'Thông tin đăng nhập không chính xác hoặc đã hết hạn.';
+    } else if (errorString.contains('network-request-failed')) {
+      return 'Lỗi mạng. Vui lòng kiểm tra lại kết nối Internet.';
+    } else if (errorString.contains('too-many-requests')) {
+      return 'Thử quá nhiều lần. Vui lòng chờ một lát rồi thử lại.';
+    } else if (errorString.contains('invalid-verification-code')) {
+      return 'Mã OTP không chính xác hoặc đã hết hạn.';
+    } else if (errorString.contains('invalid-phone-number')) {
+      return 'Số điện thoại không hợp lệ.';
+    } else if (errorString.contains('session-expired')) {
+      return 'Phiên xác thực đã hết hạn. Vui lòng gửi lại mã OTP.';
+    }
+    return 'Đã có lỗi xảy ra. Vui lòng thử lại sau.';
   }
 }

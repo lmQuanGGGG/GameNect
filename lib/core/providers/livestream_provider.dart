@@ -23,6 +23,7 @@ class LivestreamProvider extends ChangeNotifier {
   int _viewerCount = 0;
   String? _error;
   int _myCoins = 0;
+  bool _isLandscapeVideo = false;
 
   // Agora
   RtcEngine? _engine;
@@ -38,6 +39,9 @@ class LivestreamProvider extends ChangeNotifier {
   OverlayEntry? _overlayEntry;
   String? _joinedChannelId;
   StreamSubscription? _streamDocSub;
+
+  // Viewer-side: broadcaster đang share màn hình hay không (phát hiện qua Agora sourceType)
+  bool _remoteIsScreenSharing = false;
 
   static const _pipChannel = MethodChannel('com.qco.gamenect/pip');
 
@@ -76,11 +80,13 @@ class LivestreamProvider extends ChangeNotifier {
   bool get localVideoOn => _localVideoOn;
   int? get remoteUid => _remoteUid;
   int get myCoins => _myCoins;
+  bool get isLandscapeVideo => _isLandscapeVideo;
 
   bool get isMinimized => _isMinimized;
   bool get isScreenSharing => _isScreenSharing;
   bool get isSystemPiP => _isSystemPiP;
   String? get joinedChannelId => _joinedChannelId;
+  bool get remoteIsScreenSharing => _remoteIsScreenSharing;
 
   // ─── AGORA SETUP ──────────────────────────────────────────────────────────
 
@@ -163,6 +169,14 @@ class LivestreamProvider extends ChangeNotifier {
             onError: (code, msg) {
               developer.log('Agora error: $code $msg', name: 'LivestreamProvider');
             },
+            onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
+              bool isLandscape = width > height;
+              if (rotation == 90 || rotation == 270) isLandscape = !isLandscape;
+              if (_isLandscapeVideo != isLandscape) {
+                _isLandscapeVideo = isLandscape;
+                notifyListeners();
+              }
+            },
           ),
         );
         await _engine!.joinChannel(
@@ -219,6 +233,7 @@ class LivestreamProvider extends ChangeNotifier {
       _viewerCount = 0;
       _isScreenSharing = false;
       _isMinimized = false;
+      _remoteIsScreenSharing = false;
       notifyListeners();
 
       // Clean up hardware resources asynchronously
@@ -263,6 +278,16 @@ class LivestreamProvider extends ChangeNotifier {
             onError: (code, msg) {
               developer.log('Agora error: $code $msg', name: 'LivestreamProvider');
             },
+            onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
+              bool isLandscape = width > height;
+              if (rotation == 90 || rotation == 270) isLandscape = !isLandscape;
+              if (_isLandscapeVideo != isLandscape) {
+                _isLandscapeVideo = isLandscape;
+                notifyListeners();
+              }
+              // Không dùng sourceType để detect screen share — không tin cậy trên viewer side.
+              // Trạng thái này được đồng bộ qua Firestore bởi broadcaster.
+            },
           ),
         );
         await _engine!.joinChannel(
@@ -287,7 +312,7 @@ class LivestreamProvider extends ChangeNotifier {
         developer.log('Failed to increment viewerCount: $e', name: 'LivestreamProvider');
       });
 
-      // Lắng nghe trạng thái stream để tự động đóng khi stream ended
+      // Lắng nghe trạng thái stream để tự động đóng khi stream ended và để biết broadcaster có đang share màn hình không.
       _streamDocSub?.cancel();
       _streamDocSub = FirebaseFirestore.instance
           .collection('livestreams')
@@ -301,6 +326,13 @@ class LivestreamProvider extends ChangeNotifier {
           if (_isMinimized) {
             closeMinimizedStream(streamId);
           }
+        }
+        // Đồng bộ trạng thái share màn hình từ Firestore (broadcaster ghi, viewer đọc).
+        final remoteScreenSharing = data['isScreenSharing'] as bool? ?? false;
+        if (_remoteIsScreenSharing != remoteScreenSharing) {
+          _remoteIsScreenSharing = remoteScreenSharing;
+          notifyListeners();
+          developer.log('remoteIsScreenSharing from Firestore: $remoteScreenSharing', name: 'LivestreamProvider');
         }
       });
 
@@ -394,9 +426,6 @@ class LivestreamProvider extends ChangeNotifier {
     required int coinValue,
   }) async {
     try {
-      // Kiểm tra đủ coin không
-      if (_myCoins < coinValue) return false;
-
       await _service.sendGift(
         fromUserId: fromUserId,
         toMentorId: toMentorId,
@@ -407,9 +436,10 @@ class LivestreamProvider extends ChangeNotifier {
         fromAvatarUrl: fromAvatarUrl,
       );
 
-      // Cập nhật local coin count
       _myCoins -= coinValue;
+      if (_myCoins < 0) _myCoins = 0;
       notifyListeners();
+
       return true;
     } catch (e) {
       developer.log('sendGift error: $e', name: 'LivestreamProvider');
@@ -551,6 +581,16 @@ class LivestreamProvider extends ChangeNotifier {
 
       _isScreenSharing = true;
       notifyListeners();
+
+      // Ghi trạng thái lên Firestore để viewer biết không cần lật cam.
+      if (_joinedChannelId != null) {
+        FirebaseFirestore.instance
+            .collection('livestreams')
+            .doc(_joinedChannelId)
+            .update({'isScreenSharing': true})
+            .catchError((e) => developer.log('Failed to write isScreenSharing: $e', name: 'LivestreamProvider'));
+      }
+
       developer.log('Screen sharing started', name: 'LivestreamProvider');
     } catch (e) {
       developer.log('startScreenShare error: $e', name: 'LivestreamProvider');
@@ -563,7 +603,7 @@ class LivestreamProvider extends ChangeNotifier {
       await _engine!.stopScreenCapture();
       await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
         publishCameraTrack: true,
-        publishScreenTrack: false,
+        publishScreenCaptureVideo: false,
         publishMicrophoneTrack: true,
         publishScreenCaptureAudio: false,
       ));
@@ -571,6 +611,16 @@ class LivestreamProvider extends ChangeNotifier {
       await _engine!.startPreview();
       _isScreenSharing = false;
       notifyListeners();
+
+      // Ghi trạng thái lên Firestore để viewer biết để lật cam trở lại.
+      if (_joinedChannelId != null) {
+        FirebaseFirestore.instance
+            .collection('livestreams')
+            .doc(_joinedChannelId)
+            .update({'isScreenSharing': false})
+            .catchError((e) => developer.log('Failed to write isScreenSharing: $e', name: 'LivestreamProvider'));
+      }
+
       developer.log('Screen sharing stopped', name: 'LivestreamProvider');
     } catch (e) {
       developer.log('stopScreenShare error: $e', name: 'LivestreamProvider');

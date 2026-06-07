@@ -73,6 +73,7 @@ class SubscriptionProvider with ChangeNotifier {
       // Tạo đơn hàng trên Firestore với trạng thái pending
       await FirebaseFirestore.instance.collection('orders').doc(orderCode.toString()).set({
         'userId': userId,
+        'orderType': 'premium',
         'planType': planType,
         'amount': amount,
         'orderCode': orderCode,
@@ -85,6 +86,41 @@ class SubscriptionProvider with ChangeNotifier {
         orderCode: orderCode,
         amount: amount,
         description: 'Premium $planType - GameNect',
+      );
+
+      return payment;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Hàm thực hiện mua gói Coin, tạo đơn hàng trên Firestore và gọi API PayOS
+  Future<Map<String, dynamic>?> purchaseCoin(int coins, int price) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) throw Exception('User not logged in');
+
+      final orderCode = DateTime.now().millisecondsSinceEpoch;
+
+      // Tạo đơn hàng trên Firestore với trạng thái pending
+      await FirebaseFirestore.instance.collection('orders').doc(orderCode.toString()).set({
+        'userId': userId,
+        'orderType': 'coin',
+        'coins': coins,
+        'amount': price,
+        'orderCode': orderCode,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Gọi hàm tạo thanh toán PayOS
+      final payment = await _createPayOSPayment(
+        orderCode: orderCode,
+        amount: price,
+        description: 'Mua $coins Coin - GameNect',
       );
 
       return payment;
@@ -134,6 +170,9 @@ class SubscriptionProvider with ChangeNotifier {
     _log.i('PayOS response: ${res.statusCode} - ${res.body}');
     if (res.statusCode != 200) throw Exception('PayOS error: ${res.body}');
     final json = jsonDecode(res.body) as Map<String, dynamic>;
+    if (json['code'] != '00') {
+      throw Exception('${json['desc']}');
+    }
     return {
       'checkoutUrl': json['data']['checkoutUrl'],
       'orderCode': orderCode,

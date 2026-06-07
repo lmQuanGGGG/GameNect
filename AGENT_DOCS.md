@@ -660,9 +660,26 @@ Helper nhỏ, ít chức năng. Wrapper cho một số notification actions cơ 
 **PayOS Flow:**
 1. Tạo order trong Firestore `orders/{orderCode}` (status: pending)
 2. Gọi `POST https://api-merchant.payos.vn/v2/payment-requests` với HMAC SHA256 signature
-3. Nhận `checkoutUrl` → mở `flutter_web_browser`
-4. PayOS webhook (Cloud Function `payosWebhook`) gọi về → update order + activate premium
+3. Nhận `checkoutUrl` → mở `url_launcher`
+4. PayOS webhook (Cloud Function `payosWebhook`) gọi về → update order + activate premium hoặc cộng coin
 5. App poll qua `checkPaymentStatus()` hoặc lắng nghe Firestore
+
+---
+
+#### `wallet_provider.dart` — WalletProvider
+
+**Quản lý:** Chức năng Ví (Coin), Nạp tiền và Rút tiền.
+
+**Methods:**
+| Method | Mô tả |
+|---|---|
+| `createWithdrawRequest(userId, coins, amount, bankInfo)` | Tạo lệnh rút tiền, tạm trừ coinBalance trong Firestore, tạo request ở `withdraw_requests` |
+
+---
+
+#### `livestream_provider.dart` — LivestreamProvider
+
+**Quản lý:** Trạng thái phát Livestream của người dùng, tích hợp với bảng `livestreams`.
 
 ---
 
@@ -729,10 +746,13 @@ Cũng có hàm helper `showIncomingCallDialog(context, matchId, peerUserId)`.
 | `voice_preview_screen.dart` | Preview and play voice message trước khi gửi |
 | `video_call_screen.dart` | Video/voice call qua Agora RTC |
 | `subscription_screen.dart` | Mua gói Premium, tích hợp PayOS |
+| `wallet/wallet_screen.dart` | Nạp Coin và Rút tiền cho Mentor |
 | `location_settings_screen.dart` | Cài đặt vị trí, filter matching |
 | `game_trending_screen.dart` | Danh sách game trending từ RAWG |
 | `game_detail_screen.dart` | Chi tiết game từ RAWG |
 | `admin_test_users_screen.dart` | Màn hình test tạo user giả (dành cho dev admin) |
+| `live_stream_screen.dart` | Phòng phát Livestream (Mentor) |
+| `live_swipe_feed_screen.dart` | Trải nghiệm vuốt dọc xem Livestream phong cách TikTok |
 
 ---
 
@@ -761,6 +781,8 @@ Cũng có hàm helper `showIncomingCallDialog(context, matchId, peerUserId)`.
 | `dashboard_screen.dart` | Dashboard tổng quan (số user, số match, doanh thu) |
 | `user_management_screen.dart` | Quản lý user (xem, block, grant premium) |
 | `subscription_config_screen.dart` | Cấu hình gói Premium (tạo/sửa `premium_plans` collection) |
+| `withdrawals/withdrawals_screen.dart` | Duyệt yêu cầu rút tiền của Mentor |
+| `mentor/mentor_management_screen.dart` | Duyệt đơn đăng ký Mentor |
 
 ---
 
@@ -825,6 +847,7 @@ users/{userId}: {
   profileViews, totalMatches, totalLikes, totalSuperLikes,
   socialLinks, phoneNumber, phoneVerified, emailVerified,
   gamingStats, gamingPlatforms,
+  coinBalance,           // Số dư coin trong ví
   ...
 }
 ```
@@ -1436,3 +1459,46 @@ RefreshIndicator(
   - `lib/user/screens/mentor_apply_screen.dart`
   - `lib/admin/screens/mentor/mentor_management_screen.dart`
   - `lib/core/services/firestore/mentor_service.dart`
+
+### [2026-06-03] — Nâng cấp Livestream TikTok-Style, Nạp/Rút Coin & Gửi Quà
+- **Tính năng:**
+  - Hoàn thiện luồng xem **Livestream vuốt dọc** (LiveSwipeFeedScreen) giống hệt TikTok, người dùng xem có thể thả tim, chat, gửi quà tặng.
+  - Tích hợp tính năng thanh toán **Nạp Coin** thông qua PayOS (orderType: coin) sử dụng chung webhook với Premium.
+  - Tích hợp hệ thống **Rút Tiền** (thủ công) dành cho Mentor: Mentor yêu cầu rút tiền trong WalletScreen, admin duyệt trong tab WithdrawalsScreen. Tiền Coin sẽ bị trừ tạm thời khi gửi yêu cầu và hoàn lại tự động nếu admin từ chối.
+  - Xử lý Crop camera dọc cho Livestream để sửa lỗi tỉ lệ khung hình khi chia sẻ màn hình.
+  - Thêm chức năng hiển thị **Push Notification** khi có Mentor (mà user follow) đang livestream.
+- **File ảnh hưởng:**
+  - `lib/core/models/user_model.dart` (thêm `coinBalance`)
+  - `lib/core/providers/wallet_provider.dart`
+  - `lib/user/screens/wallet/wallet_screen.dart`
+  - `lib/admin/screens/withdrawals/withdrawals_screen.dart`
+  - `lib/user/screens/live_swipe_feed_screen.dart`
+  - `lib/user/screens/profile/profile_screen.dart`
+  - `functions/index.js` (Webhooks & Notifications)
+
+### [2026-06-07] — Tích hợp & Xử lý lỗi iOS Screen Sharing (Broadcast Extension)
+- **Vấn đề:** 
+  - Tính năng chia sẻ màn hình iOS (Livestream) yêu cầu cấu hình Broadcast Upload Extension với AgoraReplayKitExt.
+  - Lỗi xung đột phiên bản giữa Xcode 16/CocoaPods và `AgoraRtcEngine_iOS` (4.5.2) khi build.
+- **Giải pháp:**
+  - Khởi tạo target `GamenectScreenShare` trong dự án Xcode.
+  - Hạ `objectVersion` của `project.pbxproj` xuống 54 (từ 70) để khắc phục lỗi không nhận diện được targets của CocoaPods.
+  - Cấu hình lại `ios/Podfile` để link chính xác dependency `AgoraRtcEngine_iOS` vào extension target.
+  - Khởi tạo file hướng dẫn chi tiết `IOS_SCREEN_SHARE_SETUP.md` giúp setup môi trường cho App Groups và Extension.
+  - *Lưu ý:* `SampleHandler.swift` vẫn đang cần được update API (thay thế `initDelegate`) cho tương thích với version mới của SDK Agora.
+- **File ảnh hưởng:**
+  - `ios/Podfile`
+  - `ios/Runner.xcodeproj/project.pbxproj`
+  - `ios/GamenectScreenShare/SampleHandler.swift`
+  - `IOS_SCREEN_SHARE_SETUP.md` (mới)
+
+### [2026-06-08] — Cập nhật màu sắc Admin Panel, Điều hướng & Icon
+- **Thay đổi:**
+  - Đổi màu sắc giao diện Admin (AdminApp & Profile Card) từ màu tím nguyên bản sang tông **cam đậm/đồng ấm (Deep Orange)** để đồng nhất với brand.
+  - Đổi màu thanh **Top Bar (AppBar)** thành màu tối sang trọng (`#121217`), thêm viền dưới mỏng, và loại bỏ nút đăng xuất (Logout) ở AppBar.
+  - Tab Mentor trong Bottom Navigation được đổi icon từ `Icons.school_rounded` sang `Icons.sports_esports_rounded` cho phù hợp hơn với game mentor.
+  - Cho phép admin xem nhanh profile chi tiết của Mentor (chuyển sang màn hình `MentorProfileScreen`) khi click vào **Ảnh đại diện** hoặc **Tên** của họ trên cả danh sách đơn đăng ký lẫn Dialog xem chi tiết.
+- **File ảnh hưởng:**
+  - `lib/admin/admin_app.dart`
+  - `lib/user/screens/profile/profile_screen.dart`
+  - `lib/admin/screens/mentor/mentor_management_screen.dart`

@@ -27,6 +27,7 @@ import 'screens/live_stream_screen.dart';
 import 'screens/go_live_screen.dart';
 import 'screens/mentor_apply_screen.dart';
 import 'screens/mentor_requests_screen.dart';
+import 'screens/wallet/wallet_screen.dart';
 
 /// Widget gốc cho phần User của ứng dụng.
 /// - Thiết lập các provider cần thiết (AuthService, MatchProvider, ChatProvider, MomentProvider)
@@ -108,6 +109,7 @@ class UserApp extends StatelessWidget {
               isMentor: args?['isMentor'] as bool? ?? false,
             );
           },
+          '/wallet': (ctx) => const WalletScreen(),
         },
       );
     },

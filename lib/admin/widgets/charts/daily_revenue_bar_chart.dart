@@ -6,7 +6,8 @@ import 'package:fl_chart/fl_chart.dart';
 
 class DailyRevenueBarChart extends StatelessWidget {
   final List<dynamic> daily;
-  const DailyRevenueBarChart({super.key, required this.daily});
+  final Color color;
+  const DailyRevenueBarChart({super.key, required this.daily, this.color = Colors.deepOrangeAccent});
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +65,7 @@ class DailyRevenueBarChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                   toY: double.parse((revenue / 1000).toStringAsFixed(3)),
-                  color: Colors.deepOrangeAccent,
+                  color: color,
                   width: 18,
                   borderRadius: BorderRadius.circular(8),
                   backDrawRodData: BackgroundBarChartRodData(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
@@ -43,6 +44,8 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _canPop = false;
+  bool _isUIHidden = false; // State to track if UI is hidden (TikTok style clear display)
+  bool _isFullscreen = false;
   String? _mentorUsername;
   String? _mentorAvatarUrl;
   int _viewerCount = 0;
@@ -133,6 +136,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   void dispose() {
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _streamInfoSub?.cancel();
     _giftTimer?.cancel();
     if (!widget.isMentor) {
@@ -258,6 +262,16 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             .get())
             .data()?['mentorId'] ?? '';
 
+        final provider = context.read<LivestreamProvider>();
+        final coinBalance = provider.myCoins;
+
+        if (coinBalance < (gift['coins'] as int)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không đủ coin! Hãy nạp thêm.'), backgroundColor: Colors.red),
+          );
+          return;
+        }
+
         final ok = await context.read<LivestreamProvider>().sendGift(
           streamId: widget.streamId,
           fromUserId: currentUser.uid,
@@ -274,6 +288,8 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             const SnackBar(content: Text('Không đủ coin!'), backgroundColor: Colors.red),
           );
         } else {
+          // Sync with ProfileProvider as well, so both are updated
+          profileProvider.deductCoins(gift['coins'] as int);
           _triggerGiftAnimation(gift['emoji'], username);
         }
       },
@@ -294,6 +310,25 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         ),
       ),
     );
+  }
+
+  void _toggleFullscreen() {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+      if (_isFullscreen) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeRight,
+          DeviceOrientation.landscapeLeft,
+        ]);
+        // Also hide UI when entering fullscreen to be like TikTok
+        _isUIHidden = true;
+      } else {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+        _isUIHidden = false;
+      }
+    });
   }
 
   Future<void> _endStream() async {
@@ -338,9 +373,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LivestreamProvider>();
-    // Auto-detect PiP if screen width is extremely small (system transitions or overlay size)
-    final isSystemPiP = provider.isSystemPiP || MediaQuery.of(context).size.width < 300;
-
     return PopScope(
       canPop: _canPop,
       onPopInvokedWithResult: (didPop, result) {
@@ -361,15 +393,42 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
       child: Scaffold(
         backgroundColor: Colors.black,
         resizeToAvoidBottomInset: false, // Prevents squishing the video background
-        body: isSystemPiP
-            ? _buildPureVideoView()
-            : Stack(
-                children: [
-                  // ── Video background ──────────────────────────────────────────────
-                  GestureDetector(
+        body: GestureDetector(
+          onHorizontalDragEnd: (details) {
+            // Swipe right to hide UI, Swipe left to show UI
+            if (details.primaryVelocity != null) {
+              if (details.primaryVelocity! > 300) {
+                setState(() { _isUIHidden = true; });
+              } else if (details.primaryVelocity! < -300) {
+                setState(() { _isUIHidden = false; });
+              }
+            }
+          },
+          child: Stack(
+            children: [
+              // ── Video background ──────────────────────────────────────────────
+              Positioned.fill(
+                child: InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: 4.0,
+                  child: GestureDetector(
                     onTap: widget.isMentor ? null : _addLike,
                     child: _buildVideoView(),
                   ),
+                ),
+              ),
+
+              // ── UI Overlays (Animated Slide/Opacity) ─────────────────────────
+              Positioned.fill(
+                child: AnimatedSlide(
+                  offset: _isUIHidden ? const Offset(1.0, 0) : Offset.zero,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: AnimatedOpacity(
+                    opacity: _isUIHidden ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Stack(
+                      children: [
 
           // ── Top overlay ───────────────────────────────────────────────────
           if (MediaQuery.of(context).size.width > 300)
@@ -559,124 +618,155 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             ),
           ),
 
+          // ── Fullscreen toggle button ──────────────────────────────────────
+          Positioned(
+            right: 12,
+            bottom: (MediaQuery.of(context).size.width <= 300 ? 80 : (MediaQuery.of(context).viewInsets.bottom > 0 ? 120 : 200)) + 70,
+            child: GestureDetector(
+              onTap: _toggleFullscreen,
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                child: Icon(
+                  _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+
           // ── Bottom overlay ─────────────────────────────────────────────────
-          if (MediaQuery.of(context).size.width > 300)
-            Positioned(
-              left: 0, right: 0, 
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-              child: SafeArea(
-              top: false,
-              child: Consumer<LivestreamProvider>(
-                builder: (context, provider, _) {
-                  // Scroll to bottom when new message
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_scrollCtrl.hasClients) {
-                      _scrollCtrl.animateTo(
-                        _scrollCtrl.position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
+          // Always show the bottom overlay so chat messages are visible even in mini mode
+          Positioned(
+            left: 0, right: 0, 
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            child: SafeArea(
+            top: false,
+            child: Consumer<LivestreamProvider>(
+              builder: (context, provider, _) {
+                // Scroll to bottom when new message
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollCtrl.hasClients) {
+                    _scrollCtrl.animateTo(
+                      _scrollCtrl.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                });
 
-                  final keyboardIsOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+                final keyboardIsOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+                final isMini = MediaQuery.of(context).size.width <= 300;
 
-                  return Column(
-                    children: [
-                      // Chat messages
-                      SizedBox(
-                        height: keyboardIsOpen ? 120 : 200,
-                        child: ListView.builder(
-                          controller: _scrollCtrl,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          itemCount: provider.messages.length,
-                          itemBuilder: (context, i) {
-                            final msg = provider.messages[i];
-                            final isGift = msg['type'] == 'gift';
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  if (msg['avatarUrl'] != null && (msg['avatarUrl'] as String).isNotEmpty)
-                                    Container(
-                                      width: 20, height: 20,
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        image: DecorationImage(
-                                          image: NetworkImage(msg['avatarUrl']),
-                                          fit: BoxFit.cover,
-                                        ),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Chat messages
+                    SizedBox(
+                      height: isMini ? 80 : (keyboardIsOpen ? 120 : 200),
+                      child: ListView.builder(
+                        controller: _scrollCtrl,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        itemCount: provider.messages.length,
+                        itemBuilder: (context, i) {
+                          final msg = provider.messages[i];
+                          final isGift = msg['type'] == 'gift';
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                if (msg['avatarUrl'] != null && (msg['avatarUrl'] as String).isNotEmpty)
+                                  Container(
+                                    width: isMini ? 16 : 20, height: isMini ? 16 : 20,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      image: DecorationImage(
+                                        image: NetworkImage(msg['avatarUrl']),
+                                        fit: BoxFit.cover,
                                       ),
                                     ),
-                                  Flexible(
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: isGift
-                                                ? _kAccent.withValues(alpha: 0.25)
-                                                : Colors.black.withValues(alpha: 0.55),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: isGift ? Border.all(color: _kAccent.withValues(alpha: 0.4)) : null,
-                                          ),
-                                          child: RichText(
-                                            text: TextSpan(
-                                              children: [
-                                                TextSpan(
-                                                  text: '${msg['username'] ?? 'User'} ',
-                                                  style: TextStyle(
-                                                    color: isGift ? _kAccent : Colors.white70,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                  ),
+                                  ),
+                                Flexible(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: isMini ? 3 : 5),
+                                        decoration: BoxDecoration(
+                                          color: isGift
+                                              ? _kAccent.withValues(alpha: 0.25)
+                                              : Colors.black.withValues(alpha: 0.55),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: isGift ? Border.all(color: _kAccent.withValues(alpha: 0.4)) : null,
+                                        ),
+                                        child: RichText(
+                                          text: TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: '${msg['username'] ?? 'User'} ',
+                                                style: TextStyle(
+                                                  color: isGift ? _kAccent : Colors.white70,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: isMini ? 10 : 12,
                                                 ),
-                                                if (isGift)
-                                                  TextSpan(
-                                                    text: 'tặng ${_giftEmoji(msg['giftType'])} ${msg['giftType']}!',
-                                                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                                                  )
-                                                else
-                                                  TextSpan(
-                                                    text: msg['text'] ?? '',
-                                                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                                                  ),
-                                              ],
-                                            ),
+                                              ),
+                                              if (isGift)
+                                                TextSpan(
+                                                  text: 'tặng ${_giftEmoji(msg['giftType'])} ${msg['giftType']}!',
+                                                  style: TextStyle(color: Colors.white, fontSize: isMini ? 10 : 12),
+                                                )
+                                              else
+                                                TextSpan(
+                                                  text: msg['text'] ?? '',
+                                                  style: TextStyle(color: Colors.white, fontSize: isMini ? 10 : 12),
+                                                ),
+                                            ],
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
+                    ),
 
-                      // Chat input (Viewer only) or Stats (Mentor)
+                    // Chat input (Viewer only) or Stats (Mentor) - Hide when in Mini Mode (PiP)
+                    if (!isMini)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                         child: widget.isMentor
                             ? _buildMentorStats()
                             : _buildViewerInput(),
                       ),
-                    ],
-                  );
-                },
-              ),
+                  ],
+                );
+              },
             ),
+            ),
+          )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildVideoView() {
     return Consumer<LivestreamProvider>(
@@ -693,74 +783,116 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         if (widget.isMentor) {
           if (provider.isScreenSharing) {
             // Sleek glassmorphic card for mentor when sharing screen (prevents infinity mirror)
-            return Container(
-              color: const Color(0xFF101012),
-              child: Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      margin: const EdgeInsets.symmetric(horizontal: 32),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
-                      ),
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isMini = constraints.maxWidth < 250 || constraints.maxHeight < 300;
+
+                if (isMini) {
+                  return Container(
+                    color: const Color(0xFF101012),
+                    child: Center(
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _kAccent.withValues(alpha: 0.15),
-                              border: Border.all(color: _kAccent, width: 2),
                             ),
                             child: const Icon(
                               Icons.screen_share_rounded,
                               color: _kAccent,
-                              size: 40,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Đang Chia Sẻ Màn Hình',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                              size: 28,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            'Khán giả đang xem trực tiếp màn hình thiết bị của bạn.',
+                          const Text(
+                            'Đang Chia Sẻ',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 13,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: provider.stopScreenShare,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            icon: const Icon(Icons.stop_screen_share_rounded, size: 18),
-                            label: const Text('Dừng chia sẻ'),
                           ),
                         ],
                       ),
                     ),
+                  );
+                }
+
+                return Container(
+                  color: const Color(0xFF101012),
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          margin: const EdgeInsets.symmetric(horizontal: 32),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _kAccent.withValues(alpha: 0.15),
+                                  border: Border.all(color: _kAccent, width: 2),
+                                ),
+                                child: const Icon(
+                                  Icons.screen_share_rounded,
+                                  color: _kAccent,
+                                  size: 40,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                'Đang Chia Sẻ Màn Hình',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Khán giả đang xem trực tiếp màn hình thiết bị của bạn.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                onPressed: provider.stopScreenShare,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.stop_screen_share_rounded, size: 18),
+                                label: const Text('Dừng chia sẻ'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           }
 
@@ -768,7 +900,10 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           return AgoraVideoView(
             controller: VideoViewController(
               rtcEngine: provider.engine!,
-              canvas: const VideoCanvas(uid: 0),
+              canvas: const VideoCanvas(
+                uid: 0,
+                mirrorMode: VideoMirrorModeType.videoMirrorModeEnabled,
+              ),
             ),
           );
         } else {
@@ -795,6 +930,10 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
               canvas: VideoCanvas(
                 uid: provider.remoteUid!,
                 renderMode: RenderModeType.renderModeFit,
+                // Chỉ lật (mirror) khi broadcaster đang dùng camera, không lật khi share màn hình.
+                mirrorMode: provider.remoteIsScreenSharing
+                    ? VideoMirrorModeType.videoMirrorModeDisabled
+                    : VideoMirrorModeType.videoMirrorModeEnabled,
               ),
               connection: RtcConnection(channelId: widget.streamId),
             ),
@@ -890,6 +1029,23 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                 _buildStatBadge('👁️', '$_viewerCount', 'Viewers'),
                 _buildStatBadge('💬', '${provider.messages.where((m) => m['type'] == 'text').length}', 'Chats'),
                 _buildStatBadge('🎁', '${provider.messages.where((m) => m['type'] == 'gift').length}', 'Gifts'),
+                // Switch Camera Control
+                GestureDetector(
+                  onTap: () {
+                    provider.engine?.switchCamera();
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cameraswitch_rounded, color: Colors.white70, size: 18),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Đổi Cam',
+                        style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
                 // Screen Sharing Control
                 GestureDetector(
                   onTap: () async {

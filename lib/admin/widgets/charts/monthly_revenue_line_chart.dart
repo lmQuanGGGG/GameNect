@@ -6,7 +6,8 @@ import 'package:fl_chart/fl_chart.dart';
 
 class MonthlyRevenueLineChart extends StatelessWidget {
   final List<dynamic> yearly;
-  const MonthlyRevenueLineChart({super.key, required this.yearly});
+  final Color color;
+  const MonthlyRevenueLineChart({super.key, required this.yearly, this.color = Colors.deepOrangeAccent});
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +70,7 @@ class MonthlyRevenueLineChart extends StatelessWidget {
                 return FlSpot(i.toDouble(), double.parse((revenue / 1000).toStringAsFixed(3)));
               }),
               isCurved: true,
-              color: Colors.deepOrangeAccent,
+              color: color,
               dotData: FlDotData(show: false),
               belowBarData: BarAreaData(show: false),
             ),

@@ -100,6 +100,7 @@ class UserModel {
   DateTime? premiumEndDate;        // Thời điểm hết hạn premium
   String? premiumPlan;             // Tên gói premium
   DateTime? premiumStartDate;      // Thời điểm bắt đầu premium
+  int coinBalance;                 // Số dư Coin hiện tại
 
   // Hàm khởi tạo đối tượng UserModel với các tham số truyền vào.
   UserModel({
@@ -176,6 +177,7 @@ class UserModel {
     this.premiumEndDate,
     this.premiumPlan,
     this.premiumStartDate,
+    this.coinBalance = 0,
   });
 
   // Getter kiểm tra user có vị trí GPS chính xác không.
@@ -298,6 +300,7 @@ class UserModel {
       'premiumEndDate': premiumEndDate?.toIso8601String(),
       'premiumPlan': premiumPlan,
       'premiumStartDate': premiumStartDate?.toIso8601String(),
+      'coinBalance': coinBalance,
     };
   }
 
@@ -419,6 +422,7 @@ class UserModel {
               ? (map['premiumStartDate'] as Timestamp).toDate()
               : DateTime.tryParse(map['premiumStartDate'].toString()))
           : null,
+      coinBalance: (map['coinBalance'] ?? 0).toInt(),
     );
   }
 
@@ -460,6 +464,7 @@ class UserModel {
     String? premiumPlan,
     DateTime? premiumStartDate,
     DateTime? premiumEndDate,
+    int? coinBalance,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -496,6 +501,7 @@ class UserModel {
       premiumPlan: premiumPlan ?? this.premiumPlan,
       premiumStartDate: premiumStartDate ?? this.premiumStartDate,
       premiumEndDate: premiumEndDate ?? this.premiumEndDate,
+      coinBalance: coinBalance ?? this.coinBalance,
     );
   }
 }

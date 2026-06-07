@@ -158,22 +158,48 @@ extension MentorService on FirestoreService {
       }
 
       final snapshot = await query.get();
-      final mentorIds = snapshot.docs.map((d) => d.id).toList();
+      final docs = [...snapshot.docs];
+      // Sắp xếp các mentor được duyệt gần nhất lên trước tiên
+      docs.sort((a, b) {
+        final aData = a.data() as Map<String, dynamic>;
+        final bData = b.data() as Map<String, dynamic>;
+        final aTs = aData['approvedAt'] as Timestamp? ?? aData['appliedAt'] as Timestamp?;
+        final bTs = bData['approvedAt'] as Timestamp? ?? bData['appliedAt'] as Timestamp?;
+        if (aTs == null && bTs == null) return 0;
+        if (aTs == null) return 1;
+        if (bTs == null) return -1;
+        return bTs.compareTo(aTs);
+      });
+
+      final mentorIds = docs.map((d) => d.id).toList();
 
       if (mentorIds.isEmpty) return [];
 
       // Lấy thêm thông tin user (username, avatarUrl) để hiển thị
       final results = <Map<String, dynamic>>[];
-      for (final doc in snapshot.docs) {
+      for (final doc in docs) {
         try {
           final userDoc = await _db.collection('users').doc(doc.id).get();
           final mentorData = doc.data() as Map<String, dynamic>;
           final userData = userDoc.data() ?? {};
+
+          // Check if currently live
+          final liveSnap = await _db
+              .collection('livestreams')
+              .where('mentorId', isEqualTo: doc.id)
+              .where('status', isEqualTo: 'live')
+              .limit(1)
+              .get();
+          final isLive = liveSnap.docs.isNotEmpty;
+          final liveStreamId = isLive ? liveSnap.docs.first.id : null;
+
           results.add({
             ...mentorData,
             'userId': doc.id,
             'username': userData['username'] ?? '',
             'avatarUrl': userData['avatarUrl'] ?? '',
+            'isLive': isLive,
+            'liveStreamId': liveStreamId,
           });
         } catch (_) {
           // Bỏ qua nếu không lấy được user data
@@ -412,14 +438,14 @@ extension MentorService on FirestoreService {
       // Trừ coin từ user
       batch.update(
         _db.collection('users').doc(fromUserId),
-        {'coins': FieldValue.increment(-coinValue)},
+        {'coinBalance': FieldValue.increment(-coinValue)},
       );
 
       // Cộng coin cho mentor
       batch.update(
         _db.collection('users').doc(toMentorId),
         {
-          'coins': FieldValue.increment(coinValue),
+          'coinBalance': FieldValue.increment(coinValue),
           'totalCoinsReceived': FieldValue.increment(coinValue),
         },
       );
@@ -470,7 +496,7 @@ extension MentorService on FirestoreService {
   Future<int> getUserCoins(String userId) async {
     try {
       final doc = await _db.collection('users').doc(userId).get();
-      return (doc.data()?['coins'] ?? 0).toInt();
+      return (doc.data()?['coinBalance'] ?? 0).toInt();
     } catch (e) {
       developer.log('getUserCoins error: $e', name: 'MentorService');
       return 0;
@@ -481,7 +507,7 @@ extension MentorService on FirestoreService {
   Future<void> grantCoins(String userId, int amount) async {
     try {
       await _db.collection('users').doc(userId).update({
-        'coins': FieldValue.increment(amount),
+        'coinBalance': FieldValue.increment(amount),
       });
       developer.log('grantCoins: userId=$userId amount=$amount', name: 'MentorService');
     } catch (e) {
@@ -606,6 +632,84 @@ extension MentorService on FirestoreService {
     }
   }
 
+  /// Cập nhật hồ sơ Mentor (bio, games, achievements)
+  Future<void> updateMentorProfile({
+    required String mentorId,
+    required String bio,
+    required String achievements,
+    required List<String> games,
+  }) async {
+    try {
+      await _db.collection(_kMentorProfiles).doc(mentorId).update({
+        'bio': bio,
+        'achievements': achievements,
+        'games': games,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      developer.log('updateMentorProfile success: $mentorId', name: 'MentorService');
+    } catch (e) {
+      developer.log('updateMentorProfile error: $e', name: 'MentorService');
+      rethrow;
+    }
+  }
+
+  /// Lấy danh sách media (stream realtime) của 1 mentor
+  Stream<QuerySnapshot> getMentorMedia(String mentorId) {
+    return _db
+        .collection('mentor_media')
+        .where('mentorId', isEqualTo: mentorId)
+        .snapshots();
+  }
+
+  /// Đếm số media đã đăng trong tháng hiện tại
+  Future<Map<String, int>> getMonthlyMediaCount(String mentorId) async {
+    final month = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    final snap = await _db
+        .collection('mentor_media')
+        .where('mentorId', isEqualTo: mentorId)
+        .where('month', isEqualTo: month)
+        .get();
+    int photos = 0, videos = 0;
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      if (data['type'] == 'video') videos++; else photos++;
+    }
+    return {'photos': photos, 'videos': videos};
+  }
+
+  /// Thêm media (sau khi đã upload lên Storage)
+  Future<void> addMentorMedia({
+    required String mentorId,
+    required String type, // 'image' | 'video'
+    required String url,
+    String? thumbnailUrl,
+    String caption = '',
+    int? durationSeconds,
+  }) async {
+    try {
+      final month = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+      await _db.collection('mentor_media').add({
+        'mentorId': mentorId,
+        'type': type,
+        'url': url,
+        'thumbnailUrl': thumbnailUrl,
+        'caption': caption,
+        'duration': durationSeconds,
+        'month': month,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      developer.log('addMentorMedia: $mentorId type=$type', name: 'MentorService');
+    } catch (e) {
+      developer.log('addMentorMedia error: $e', name: 'MentorService');
+      rethrow;
+    }
+  }
+
+  /// Xóa media
+  Future<void> deleteMentorMedia(String docId) async {
+    await _db.collection('mentor_media').doc(docId).delete();
+  }
+
   /// Đánh giá Mentor (sử dụng Firestore transaction để tính toán rating trung bình)
   Future<void> rateMentor({
     required String fromUserId,
@@ -659,6 +763,31 @@ extension MentorService on FirestoreService {
       developer.log('rateMentor success: from=$fromUserId to=$toMentorId rating=$rating', name: 'MentorService');
     } catch (e) {
       developer.log('rateMentor error: $e', name: 'MentorService');
+      rethrow;
+    }
+  }
+
+  /// Like/Unlike một media của mentor
+  Future<void> toggleLikeMentorMedia(String docId, String userId) async {
+    try {
+      final docRef = _db.collection('mentor_media').doc(docId);
+      final doc = await docRef.get();
+      if (!doc.exists) return;
+
+      final data = doc.data();
+      final List<dynamic> likes = data?['likes'] ?? [];
+
+      if (likes.contains(userId)) {
+        await docRef.update({
+          'likes': FieldValue.arrayRemove([userId])
+        });
+      } else {
+        await docRef.update({
+          'likes': FieldValue.arrayUnion([userId])
+        });
+      }
+    } catch (e) {
+      developer.log('toggleLikeMentorMedia error: $e', name: 'MentorService');
       rethrow;
     }
   }
