@@ -1496,9 +1496,14 @@ RefreshIndicator(
 - **Thay đổi:**
   - Đổi màu sắc giao diện Admin (AdminApp & Profile Card) từ màu tím nguyên bản sang tông **cam đậm/đồng ấm (Deep Orange)** để đồng nhất với brand.
   - Đổi màu thanh **Top Bar (AppBar)** thành màu tối sang trọng (`#121217`), thêm viền dưới mỏng, và loại bỏ nút đăng xuất (Logout) ở AppBar.
-  - Tab Mentor trong Bottom Navigation được đổi icon từ `Icons.school_rounded` sang `Icons.sports_esports_rounded` cho phù hợp hơn với game mentor.
+  - Tab Mentor trong Bottom Navigation được đổi icon từ `Icons.school_rounded` sang `Icons.sports_esports_rounded` cho phù hợp hơn với game mentor (sau đó người dùng đổi lại mũ cử nhân theo sở thích).
   - Cho phép admin xem nhanh profile chi tiết của Mentor (chuyển sang màn hình `MentorProfileScreen`) khi click vào **Ảnh đại diện** hoặc **Tên** của họ trên cả danh sách đơn đăng ký lẫn Dialog xem chi tiết.
+  - Sửa lỗi cuộc gọi đến tự phát thông báo cho chính mình (do closure của `listenForIncomingCalls` lưu stale `currentUserId` trước khi logout/login). Đã thay đổi để đọc dynamic `FirebaseAuth.instance.currentUser?.uid` ngay lúc nhận event.
+  - Sửa lỗi spam thông báo cuộc gọi cũ khi mở lại app bằng cách hỗ trợ parse `startedAt` dạng `Timestamp` & `String`, đồng thời bỏ qua các cuộc gọi không có timestamp hợp lệ.
+  - Tự động hủy/dọn dẹp toàn bộ StreamSubscription cuộc gọi khi người dùng đăng xuất trong `AuthWrapper` (`chatProvider.clearAllSubscriptions()`).
 - **File ảnh hưởng:**
   - `lib/admin/admin_app.dart`
   - `lib/user/screens/profile/profile_screen.dart`
   - `lib/admin/screens/mentor/mentor_management_screen.dart`
+  - `lib/core/providers/chat_provider.dart`
+  - `lib/main.dart`

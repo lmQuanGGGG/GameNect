@@ -23,7 +23,11 @@ extension MomentServiceExtension on FirestoreService {
       final total = agg.count ?? 0;
       return total < 20;
     } catch (e) {
-      developer.log('canPostMoment error: $e', name: 'FirestoreService', error: e);
+      developer.log(
+        'canPostMoment error: $e',
+        name: 'FirestoreService',
+        error: e,
+      );
       return false;
     }
   }
@@ -67,7 +71,11 @@ extension MomentServiceExtension on FirestoreService {
         name: 'FirestoreService',
       );
     } catch (e) {
-      developer.log('Error saving moment: $e', name: 'FirestoreService', error: e);
+      developer.log(
+        'Error saving moment: $e',
+        name: 'FirestoreService',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -95,11 +103,13 @@ extension MomentServiceExtension on FirestoreService {
     String userId,
     String emoji,
   ) async {
-    await FirebaseFirestore.instance.collection('moments').doc(momentId).update({
-      'reactions': FieldValue.arrayUnion([
-        {'userId': userId, 'emoji': emoji},
-      ]),
-    });
+    await FirebaseFirestore.instance.collection('moments').doc(momentId).update(
+      {
+        'reactions': FieldValue.arrayUnion([
+          {'userId': userId, 'emoji': emoji},
+        ]),
+      },
+    );
   }
 
   // Thêm reply vào moment
@@ -108,10 +118,12 @@ extension MomentServiceExtension on FirestoreService {
     String userId,
     String text,
   ) async {
-    await FirebaseFirestore.instance.collection('moments').doc(momentId).update({
-      'replies': FieldValue.arrayUnion([
-        {'userId': userId, 'text': text, 'repliedAt': Timestamp.now()},
-      ]),
-    });
+    await FirebaseFirestore.instance.collection('moments').doc(momentId).update(
+      {
+        'replies': FieldValue.arrayUnion([
+          {'userId': userId, 'text': text, 'repliedAt': Timestamp.now()},
+        ]),
+      },
+    );
   }
 }

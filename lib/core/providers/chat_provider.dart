@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +24,9 @@ class ChatProvider with ChangeNotifier {
 
   // Lưu lại id/timestamp của tin nhắn đã gửi thông báo để tránh gửi lặp lại
   Map<String, String> _lastNotifiedMessageId = {};
+
+  // Track các matchId đã nhận snapshot đầu tiên để tránh thông báo tin nhắn cũ
+  final Set<String> _firstSnapshotMatchIds = {};
 
   // Getter trả về danh sách tin nhắn
   List<Map<String, dynamic>> get messages => _messages;
@@ -162,6 +166,17 @@ Future<void> sendMediaWithNotify(
       if (messages.isNotEmpty) {
         final lastMsg = messages.last;
         final msgId = lastMsg['id'] ?? lastMsg['timestamp']?.toString();
+
+        // Snapshot đầu tiên cho matchId này: chỉ ghi nhận ID, KHÔNG gửi thông báo
+        // Tránh thông báo lại tin nhắn cũ sau khi đăng nhập/mở lại app
+        if (!_firstSnapshotMatchIds.contains(matchId)) {
+          _firstSnapshotMatchIds.add(matchId);
+          if (msgId != null) {
+            _lastNotifiedMessageId[matchId] = msgId;
+          }
+          return messages;
+        }
+
         // Nếu là tin nhắn mới từ người khác và chưa thông báo
         if (lastMsg['senderId'] != currentUserId &&
             msgId != null &&
@@ -190,18 +205,32 @@ Future<void> sendMediaWithNotify(
     });
   }
 
+  final Map<String, StreamSubscription<DocumentSnapshot>> _callSubscriptions = {};
   final Map<String, BuildContext> _incomingCallDialogCtxs = {};
+
+  // Dọn dẹp tất cả subscriptions để tránh rò rỉ khi đăng xuất/đăng nhập lại
+  void clearAllSubscriptions() {
+    for (var sub in _callSubscriptions.values) {
+      sub.cancel();
+    }
+    _callSubscriptions.clear();
+    _incomingCallDialogCtxs.clear();
+    _lastNotifiedMessageId.clear();
+    _firstSnapshotMatchIds.clear(); // Reset trạng thái snapshot đầu tiên
+  }
 
   // Hàm lắng nghe cuộc gọi đến qua Firestore, nếu có cuộc gọi mới từ đối phương thì hiển thị thông báo cuộc gọi
   void listenForIncomingCalls(String matchId, UserModel peerUser) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return;
+    _callSubscriptions[matchId]?.cancel();
 
-    FirebaseFirestore.instance
+    final sub = FirebaseFirestore.instance
         .collection('calls')
         .doc(matchId)
         .snapshots()
         .listen((doc) {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId == null) return;
+
       final data = doc.data();
       
       // Kiểm tra nếu có cuộc gọi mới từ người khác (không phải mình gọi) và chưa được trả lời
@@ -211,19 +240,26 @@ Future<void> sendMediaWithNotify(
           (data['answered'] != true)) {
         
         // Bỏ qua các cuộc gọi cũ (quá 60 giây) để tránh spam thông báo khi mở lại app
-        final startedAtStr = data['startedAt'] as String?;
-        if (startedAtStr != null) {
-          final startedAt = DateTime.tryParse(startedAtStr);
-          if (startedAt != null) {
-            if (DateTime.now().difference(startedAt).inSeconds > 60) {
-               // Tự động dọn dẹp data cũ luôn để khỏi bị lặp lại
-               FirebaseFirestore.instance
-                  .collection('calls')
-                  .doc(matchId)
-                  .set({'status': 'missed'}, SetOptions(merge: true));
-               return;
-            }
+        final startedAtData = data['startedAt'];
+        DateTime? startedAt;
+        if (startedAtData is Timestamp) {
+          startedAt = startedAtData.toDate();
+        } else if (startedAtData is String) {
+          startedAt = DateTime.tryParse(startedAtData);
+        }
+
+        if (startedAt != null) {
+          if (DateTime.now().difference(startedAt).inSeconds > 60) {
+             // Tự động dọn dẹp data cũ luôn để khỏi bị lặp lại
+             FirebaseFirestore.instance
+                .collection('calls')
+                .doc(matchId)
+                .set({'status': 'missed'}, SetOptions(merge: true));
+             return;
           }
+        } else {
+          // Bỏ qua nếu cuộc gọi cũ không có timestamp hợp lệ
+          return;
         }
 
         // Hiển thị thông báo cuộc gọi (OS Level)

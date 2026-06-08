@@ -722,6 +722,12 @@ class AuthWrapper extends StatelessWidget {
               return const UserApp();
             },
           );
+        } else {
+          // Người dùng đã đăng xuất, dọn dẹp các call subscriptions trong ChatProvider
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+            chatProvider.clearAllSubscriptions();
+          });
         }
 
         developer.log('No user logged in', name: 'Auth');
