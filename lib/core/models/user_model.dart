@@ -5,23 +5,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
   // Các trường thông tin cá nhân cơ bản
-  String id;                       
-  String username;                 
-  List<String> favoriteGames;      
-  String rank;                     
-  String location;                
-  int playTime;                   
-  int winRate;                     
-  int points;                     
-  final String? avatarUrl;         
-  final List<String> additionalPhotos; 
-  String gender;                   
-  int age;                         
-  int height;                      
-  String bio;                      
-  List<String> interests;          
-  String lookingFor;               
-  String gameStyle;                
+  String id;
+  String username;
+  List<String> favoriteGames;
+  String rank;
+  String location;
+  int playTime;
+  int winRate;
+  int points;
+  final String? avatarUrl;
+  final List<String> additionalPhotos;
+  String gender;
+  int age;
+  int height;
+  String bio;
+  List<String> interests;
+  String lookingFor;
+  String gameStyle;
 
   // Trường ngày sinh
   final DateTime dateOfBirth;
@@ -35,72 +35,72 @@ class UserModel {
   DateTime? lastLocationUpdate;
 
   // Cài đặt ghép đôi/matching
-  double maxDistance;              // Khoảng cách tối đa tìm kiếm
-  bool showDistance;               // Có hiển thị khoảng cách không
-  int minAge;                      // Tuổi tối thiểu tìm kiếm
-  int maxAge;                      // Tuổi tối đa tìm kiếm
-  String interestedInGender;       // Giới tính muốn ghép đôi
-  bool filterCommonGame;           // Chỉ hiển thị người có chung game không
+  double maxDistance; // Khoảng cách tối đa tìm kiếm
+  bool showDistance; // Có hiển thị khoảng cách không
+  int minAge; // Tuổi tối thiểu tìm kiếm
+  int maxAge; // Tuổi tối đa tìm kiếm
+  String interestedInGender; // Giới tính muốn ghép đôi
+  bool filterCommonGame; // Chỉ hiển thị người có chung game không
 
   // Các tính năng nâng cao
-  bool isVerified;                 // Đã xác thực tài khoản chưa
-  List<String> profilePrompts;     // Danh sách câu hỏi profile
-  List<String> dealbreakers;       // Danh sách điều kiện loại trừ
-  String? education;               // Trình độ học vấn
-  String? occupation;              // Nghề nghiệp
-  List<String> lifestyleBadges;    // Danh sách badge lối sống
-  int boostCount;                  // Số lượt boost còn lại
-  DateTime? lastBoostTime;         // Thời điểm boost gần nhất
-  int superLikesRemaining;         // Số lượt super like còn lại
-  DateTime? superLikesResetTime;   // Thời điểm reset super like
-  bool canRewind;                  // Có thể quay lại swipe trước không
-  bool showActiveStatus;           // Có hiển thị trạng thái hoạt động không
-  DateTime? lastActiveTime;        // Thời điểm hoạt động gần nhất
-  bool isOnline;                   // Đang online không
-  bool readReceiptsEnabled;        // Có bật xác nhận đã đọc tin nhắn không
-  String locationType;             // Loại vị trí (gps, manual...)
+  bool isVerified; // Đã xác thực tài khoản chưa
+  List<String> profilePrompts; // Danh sách câu hỏi profile
+  List<String> dealbreakers; // Danh sách điều kiện loại trừ
+  String? education; // Trình độ học vấn
+  String? occupation; // Nghề nghiệp
+  List<String> lifestyleBadges; // Danh sách badge lối sống
+  int boostCount; // Số lượt boost còn lại
+  DateTime? lastBoostTime; // Thời điểm boost gần nhất
+  int superLikesRemaining; // Số lượt super like còn lại
+  DateTime? superLikesResetTime; // Thời điểm reset super like
+  bool canRewind; // Có thể quay lại swipe trước không
+  bool showActiveStatus; // Có hiển thị trạng thái hoạt động không
+  DateTime? lastActiveTime; // Thời điểm hoạt động gần nhất
+  bool isOnline; // Đang online không
+  bool readReceiptsEnabled; // Có bật xác nhận đã đọc tin nhắn không
+  String locationType; // Loại vị trí (gps, manual...)
 
   // Thông tin subscription
-  String subscriptionTier;         // Loại gói đăng ký (free, premium...)
-  DateTime? subscriptionEndDate;   // Thời điểm hết hạn gói
-  bool isPremium;                  // Đang là premium không
+  String subscriptionTier; // Loại gói đăng ký (free, premium...)
+  DateTime? subscriptionEndDate; // Thời điểm hết hạn gói
+  bool isPremium; // Đang là premium không
 
   // Mạng xã hội & xác thực
   Map<String, dynamic>? socialLinks; // Liên kết mạng xã hội
 
-  String? phoneNumber;             // Số điện thoại
-  bool phoneVerified;              // Đã xác thực số điện thoại chưa
-  bool emailVerified;              // Đã xác thực email chưa
+  String? phoneNumber; // Số điện thoại
+  bool phoneVerified; // Đã xác thực số điện thoại chưa
+  bool emailVerified; // Đã xác thực email chưa
 
   // Quyền riêng tư
-  bool incognitoMode;              // Chế độ ẩn danh
-  List<String> blockedUserIds;     // Danh sách user bị chặn
-  List<String> reportedUserIds;    // Danh sách user bị report
+  bool incognitoMode; // Chế độ ẩn danh
+  List<String> blockedUserIds; // Danh sách user bị chặn
+  List<String> reportedUserIds; // Danh sách user bị report
 
   // Thống kê (dùng cho ML model v3.0)
-  int profileViews;                // Số lượt xem profile
-  int totalMatches;                // Tổng số lần ghép đôi
-  int totalLikes;                  // Tổng số lượt like
-  int totalSuperLikes;             // Tổng số lượt super like
+  int profileViews; // Số lượt xem profile
+  int totalMatches; // Tổng số lần ghép đôi
+  int totalLikes; // Tổng số lượt like
+  int totalSuperLikes; // Tổng số lượt super like
   // ⭐ Social proof (ML model dùng)
-  int likeCount;                   // likeCount từ Firebase profile
-  int matchCount;                  // matchCount từ Firebase profile
-  int friendCount;                 // friendCount từ Firebase profile
-  int superLikeCount;              // superLikeCount từ Firebase profile
-  bool showOnlineStatus;           // Hiển thị trạng thái online không
-  String? lastSeen;                // ISO datetime — thời điểm hoạt động cuối
+  int likeCount; // likeCount từ Firebase profile
+  int matchCount; // matchCount từ Firebase profile
+  int friendCount; // friendCount từ Firebase profile
+  int superLikeCount; // superLikeCount từ Firebase profile
+  bool showOnlineStatus; // Hiển thị trạng thái online không
+  String? lastSeen; // ISO datetime — thời điểm hoạt động cuối
 
   // Thông tin gaming
   Map<String, dynamic>? gamingStats; // Thống kê gaming chi tiết
-  List<String> gamingPlatforms;      // Danh sách nền tảng chơi game
+  List<String> gamingPlatforms; // Danh sách nền tảng chơi game
 
   // Trường mới
-  double? distanceKm;              // Khoảng cách đến user này (km)
-  bool isAdmin;                    // Có phải admin không
-  DateTime? premiumEndDate;        // Thời điểm hết hạn premium
-  String? premiumPlan;             // Tên gói premium
-  DateTime? premiumStartDate;      // Thời điểm bắt đầu premium
-  int coinBalance;                 // Số dư Coin hiện tại
+  double? distanceKm; // Khoảng cách đến user này (km)
+  bool isAdmin; // Có phải admin không
+  DateTime? premiumEndDate; // Thời điểm hết hạn premium
+  String? premiumPlan; // Tên gói premium
+  DateTime? premiumStartDate; // Thời điểm bắt đầu premium
+  int coinBalance; // Số dư Coin hiện tại
 
   // Hàm khởi tạo đối tượng UserModel với các tham số truyền vào.
   UserModel({
@@ -223,9 +223,9 @@ class UserModel {
       'rank': rank,
       'location': location,
       'playTime': playTime,
-      'play_time': playTime,        // ⭐ API alias
+      'play_time': playTime, // ⭐ API alias
       'winRate': winRate,
-      'win_rate': winRate,          // ⭐ API alias
+      'win_rate': winRate, // ⭐ API alias
       'points': points,
       'avatarUrl': avatarUrl,
       'additionalPhotos': additionalPhotos,
@@ -235,9 +235,9 @@ class UserModel {
       'bio': bio,
       'interests': interests,
       'lookingFor': lookingFor,
-      'looking_for': lookingFor,    // ⭐ API alias
+      'looking_for': lookingFor, // ⭐ API alias
       'gameStyle': gameStyle,
-      'game_style': gameStyle,      // ⭐ API alias
+      'game_style': gameStyle, // ⭐ API alias
       'dateOfBirth': dateOfBirth.toIso8601String(),
       'latitude': latitude,
       'longitude': longitude,
@@ -286,7 +286,7 @@ class UserModel {
       'matchCount': matchCount,
       'friendCount': friendCount,
       'superLikeCount': superLikeCount,
-      'super_like_count': superLikeCount,  // alias API field name
+      'super_like_count': superLikeCount, // alias API field name
       'like_count': likeCount,
       'match_count': matchCount,
       'friend_count': friendCount,
@@ -311,7 +311,7 @@ class UserModel {
     final String locationString;
     final double? lat;
     final double? lon;
-    
+
     if (locationData is Map) {
       locationString = locationData['city'] ?? '';
       lat = locationData['latitude']?.toDouble();
@@ -325,9 +325,9 @@ class UserModel {
     return UserModel(
       id: id,
       username: map['username'] ?? '',
-      favoriteGames: (map['favoriteGames'] as List?)
-          ?.map((e) => e.toString())
-          .toList() ?? [],
+      favoriteGames:
+          (map['favoriteGames'] as List?)?.map((e) => e.toString()).toList() ??
+          [],
       rank: map['rank'] ?? 'Gà Mờ',
       location: locationString,
       playTime: (map['playTime'] ?? 0).toInt(),
@@ -403,24 +403,25 @@ class UserModel {
       likeCount: (map['likeCount'] ?? map['like_count'] ?? 0).toInt(),
       matchCount: (map['matchCount'] ?? map['match_count'] ?? 0).toInt(),
       friendCount: (map['friendCount'] ?? map['friend_count'] ?? 0).toInt(),
-      superLikeCount: (map['superLikeCount'] ?? map['super_like_count'] ?? 0).toInt(),
+      superLikeCount: (map['superLikeCount'] ?? map['super_like_count'] ?? 0)
+          .toInt(),
       showOnlineStatus: map['showOnlineStatus'] ?? false,
-      lastSeen: map['lastSeen']?.toString() ??
-          map['lastActiveTime']?.toString(),
+      lastSeen:
+          map['lastSeen']?.toString() ?? map['lastActiveTime']?.toString(),
       gamingStats: map['gamingStats'],
       gamingPlatforms: List<String>.from(map['gamingPlatforms'] ?? []),
       distanceKm: map['distanceKm']?.toDouble(),
       isAdmin: map['isAdmin'] ?? false,
       premiumEndDate: map['premiumEndDate'] != null
           ? (map['premiumEndDate'] is Timestamp
-              ? (map['premiumEndDate'] as Timestamp).toDate()
-              : DateTime.tryParse(map['premiumEndDate'].toString()))
+                ? (map['premiumEndDate'] as Timestamp).toDate()
+                : DateTime.tryParse(map['premiumEndDate'].toString()))
           : null,
       premiumPlan: map['premiumPlan'],
       premiumStartDate: map['premiumStartDate'] != null
           ? (map['premiumStartDate'] is Timestamp
-              ? (map['premiumStartDate'] as Timestamp).toDate()
-              : DateTime.tryParse(map['premiumStartDate'].toString()))
+                ? (map['premiumStartDate'] as Timestamp).toDate()
+                : DateTime.tryParse(map['premiumStartDate'].toString()))
           : null,
       coinBalance: (map['coinBalance'] ?? 0).toInt(),
     );

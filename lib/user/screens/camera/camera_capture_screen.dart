@@ -312,7 +312,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       if (choice == null) return;
       XFile? pickedFile;
       if (choice == 'image') {
-        pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+        pickedFile = await _picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 80,
+          maxWidth: 800,
+        );
         if (pickedFile != null) {
           setState(() {
             _capturedMedia = pickedFile;

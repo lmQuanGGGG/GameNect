@@ -12,9 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import '../../core/models/livestream_model.dart';
-import '../../core/providers/livestream_provider.dart';
-import '../../core/providers/profile_provider.dart';
+import '../../../core/models/livestream_model.dart';
+import '../../../core/providers/livestream_provider.dart';
+import '../../../core/providers/profile_provider.dart';
 import 'dart:developer' as developer;
 
 const _kAccent = Color(0xFFFF6E40);
@@ -308,7 +308,8 @@ class _LivePageItemState extends State<_LivePageItem>
   Future<void> _initStream() async {
     if (_joined) return;
     try {
-      final appId = dotenv.env['AGORA_APP_ID'] ?? '';
+      final envAppId = const String.fromEnvironment('AGORA_APP_ID', defaultValue: '');
+      final appId = envAppId.isNotEmpty ? envAppId.trim() : (dotenv.env['AGORA_APP_ID'] ?? '').trim();
       if (appId.isEmpty) return;
 
       _engine = createAgoraRtcEngine();

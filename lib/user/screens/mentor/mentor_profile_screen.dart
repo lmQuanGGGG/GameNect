@@ -7,13 +7,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:video_player/video_player.dart';
-import '../../core/models/mentor_model.dart';
-import '../../core/models/user_model.dart';
-import '../../core/providers/mentor_provider.dart';
-import '../../core/services/firestore_service.dart';
+import '../../../core/models/mentor_model.dart';
+import '../../../core/models/user_model.dart';
+import '../../../core/providers/mentor_provider.dart';
+import '../../../core/services/firestore_service.dart';
 import 'mentor_media_screen.dart';
 import 'mentor_edit_profile_screen.dart';
-import 'shared/peer_profile_screen.dart';
+import '../shared/peer_profile_screen.dart';
 
 const _kBg = Color(0xFF101012);
 const _kAccent = Color(0xFFFF6E40);

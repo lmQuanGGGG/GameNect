@@ -7,8 +7,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:developer' as dev;
-import '../../core/providers/mentor_provider.dart';
-import '../../core/theme/theme_helper.dart';
+import '../../../core/providers/mentor_provider.dart';
+import '../../../core/theme/theme_helper.dart';
 
 // Design tokens
 const _kAccent = Color(0xFFFF6E40);

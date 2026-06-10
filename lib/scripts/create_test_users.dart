@@ -152,6 +152,14 @@ class CreateTestUsers {
     'Quái vật cân team',
     'Trùm Cuối',
     'Thượng Đế AFK',
+    'Đồng',
+    'Bạc',
+    'Vàng',
+    'Bạch kim',
+    'Kim cương',
+    'Cao thủ',
+    'Đại cao thủ',
+    'Thách đấu',
   ];
 
   final List<String> _gameStyles = [

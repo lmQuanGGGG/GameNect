@@ -8,7 +8,7 @@ import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/mentor_provider.dart';
 import '../premium/subscription_screen.dart';
 import '../../../core/theme/theme_helper.dart';
-import '../live_discover_screen.dart';
+import '../live/live_discover_screen.dart';
 
 // Sub-widgets (tách ra theo từng file để dễ bảo trì)
 import 'moment_feed_tab.dart';

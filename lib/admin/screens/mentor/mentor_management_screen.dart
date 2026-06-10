@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/mentor_model.dart';
 import '../../../core/services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../user/screens/mentor_profile_screen.dart';
+import '../../../user/screens/mentor/mentor_profile_screen.dart';
 
 const _kAdminBg = Color(0xFF0D0D10);
 const _kAccent = Color(0xFFFF6E40);

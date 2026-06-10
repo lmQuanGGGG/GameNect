@@ -1507,3 +1507,18 @@ RefreshIndicator(
   - `lib/admin/screens/mentor/mentor_management_screen.dart`
   - `lib/core/providers/chat_provider.dart`
   - `lib/main.dart`
+
+### [2026-06-10] — Nâng cấp Giao diện Khám phá Mentor Posts & Grid View Responsive
+- **Thay đổi:**
+  - Tạo mới tính năng xem bài viết (posts) của Mentor trong tab Moments (Khám phá Mentor Posts). Dữ liệu được fetch từ tất cả mentors và cache vào `MentorMediaFeedScreen.mentorCache`.
+  - Hỗ trợ 2 chế độ hiển thị linh hoạt trong `MentorMediaFeedScreen`:
+    1. **Chế độ vuốt toàn màn hình (Page View / TikTok-style)**: Chỉnh sửa lại `BoxFit` của hình ảnh từ `cover` thành `contain`, và căn giữa (`Center`) VideoPlayer để tôn trọng tỷ lệ gốc của media, không bị cắt xén (crop), viền thừa sẽ tự động đổ nền đen.
+    2. **Chế độ lưới (Grid View)**: Tạo mới component `MentorGridItem` hiển thị dạng ô vuông, có đầy đủ avatar, tên và caption overlay bên trên ảnh/video thumb.
+  - Thêm một thanh tìm kiếm Glassmorphism nổi (floating) ở đáy màn hình lưới `MentorMediaFeedScreen` để tìm kiếm bài viết theo nội dung caption hoặc tên mentor. Thanh tìm kiếm trượt mượt mà theo bàn phím (nhờ `resizeToAvoidBottomInset: false` và `viewInsets.bottom`) và sẽ tự động ẩn đi khi chuyển sang chế độ lướt (Feed).
+  - Khắc phục tình trạng "ảnh bự chà bá" trên nền tảng Web/Desktop đối với các màn hình Grid View (Của tôi, Khám phá, Mentor Posts) bằng cách chuyển từ `SliverGridDelegateWithFixedCrossAxisCount` (ép cứng 2 cột) sang `SliverGridDelegateWithMaxCrossAxisExtent` (`maxCrossAxisExtent: 250`). Điều này giúp lưới tự động thêm số cột tuỳ theo độ rộng thiết bị (2 cột trên mobile, 3-8 cột trên Web).
+- **File ảnh hưởng:**
+  - `lib/user/screens/mentor/mentor_media_feed_screen.dart`
+  - `lib/user/screens/mentor/all_mentor_media_screen.dart`
+  - `lib/user/screens/moments/moment_feed_tab.dart`
+  - `lib/user/screens/moments/my_moments_tab.dart`
+  - `lib/user/screens/moments/discover_mentor_posts_page.dart` (Nếu có tạo/sửa)

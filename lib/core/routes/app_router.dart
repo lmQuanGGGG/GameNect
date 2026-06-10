@@ -8,8 +8,8 @@ import '../../user/screens/auth/email_login_screen.dart';
 import '../../admin/screens/users/admin_test_users_screen.dart';
 import '../../user/screens/chat/chat_screen.dart';
 import '../../user/screens/call/video_call_screen.dart';
-import '../../user/screens/live_swipe_feed_screen.dart';
-import '../../user/screens/live_stream_screen.dart';
+import '../../user/screens/live/live_swipe_feed_screen.dart';
+import '../../user/screens/live/live_stream_screen.dart';
 import '../../user/screens/wallet/wallet_screen.dart';
 import '../../core/models/livestream_model.dart';
 import '../../main.dart'; // For AuthWrapper

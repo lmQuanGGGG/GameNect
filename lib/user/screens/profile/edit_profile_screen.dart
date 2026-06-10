@@ -148,10 +148,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAvatar() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80, // Nén ảnh để upload nhanh hơn
+      maxWidth: 800,
+    );
     if (pickedFile != null) {
       setState(() {
-        _avatarImage = pickedFile; // Lưu XFile trực tiếp, không dùng File(path)
+        _avatarImage = pickedFile;
       });
     }
   }
@@ -162,7 +166,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chỉ được phép thêm tối đa 4 ảnh')));
       return;
     }
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80, // Nén ảnh
+      maxWidth: 800,
+    );
     if (pickedFile != null) {
       setState(() {
         _additionalImages.add(pickedFile);
@@ -171,7 +179,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
   
   Future<void> _editAdditionalPhoto(int index) async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70, // Nén ảnh
+      maxWidth: 800,
+    );
     if (pickedFile != null) {
       setState(() {
         if (index < _additionalPhotoUrls.length) {
@@ -196,6 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _uploadImages(String userId) async {
     try {
+      // 1. Upload avatar
       if (_avatarImage != null) {
         final avatarFileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final bytes = await _avatarImage!.readAsBytes();
@@ -203,17 +216,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (_avatarUrl == null) throw Exception('Không thể tải lên ảnh đại diện');
       }
 
+      // 2. Upload additional photos concurrently
       List<String> newPhotoUrls = List.from(_additionalPhotoUrls);
-      for (int i = 0; i < _additionalImages.length; i++) {
-        final fileName = 'photo_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-        final bytes = await _additionalImages[i].readAsBytes();
-        final url = await _firestoreService.uploadImageBytes(bytes, userId, fileName);
-        if (url != null) {
-          newPhotoUrls.add(url);
-        } else {
-          throw Exception('Không thể tải lên ảnh bổ sung');
+      
+      if (_additionalImages.isNotEmpty) {
+        final uploadTasks = <Future<String?>>[];
+        for (int i = 0; i < _additionalImages.length; i++) {
+          final fileName = 'photo_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+          uploadTasks.add(() async {
+            final bytes = await _additionalImages[i].readAsBytes();
+            return await _firestoreService.uploadImageBytes(bytes, userId, fileName);
+          }());
+        }
+        
+        final results = await Future.wait(uploadTasks);
+        for (final url in results) {
+          if (url != null) {
+            newPhotoUrls.add(url);
+          } else {
+            throw Exception('Không thể tải lên ảnh bổ sung');
+          }
         }
       }
+      
       _additionalPhotoUrls = newPhotoUrls;
     } catch (e) {
       throw Exception('Lỗi khi tải ảnh lên: $e');
@@ -252,8 +277,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (!mounted) return;
           final locationProvider = Provider.of<LocationProvider>(context, listen: false);
           if (locationProvider.currentLocation == null) {
-            await locationProvider.getCurrentLocation();
-            await locationProvider.updateUserLocation(user.uid);
+            locationProvider.getCurrentLocation().then((_) {
+              locationProvider.updateUserLocation(user.uid);
+            });
           }
 
           final locationText = locationProvider.currentLocation ?? locationProvider.address ?? locationProvider.city ?? 'Không xác định';
@@ -287,12 +313,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isUpdating ? 'Cập nhật hồ sơ thành công!' : 'Tạo hồ sơ thành công!')));
           
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PeerProfileScreen(peerUser: newUser),
-            ),
-          );
+          Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/', (route) => false);
         } catch (e) {
           developer.log('Error saving profile', name: 'EditProfile', error: e);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lưu hồ sơ thất bại: $e')));

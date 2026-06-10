@@ -6,9 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../core/providers/livestream_provider.dart';
-import '../../core/providers/profile_provider.dart';
-import '../../core/theme/theme_helper.dart';
+import '../../../core/providers/livestream_provider.dart';
+import '../../../core/providers/profile_provider.dart';
+import '../../../core/theme/theme_helper.dart';
 import 'package:flutter/cupertino.dart';
 
 const _kAccent = Color(0xFFFF6E40);

@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/livestream_model.dart';
 import '../services/firestore_service.dart';
-import '../../user/screens/floating_live_window.dart';
+import '../../user/screens/live/floating_live_window.dart';
 
 /// LivestreamProvider — Quản lý state livestream cho cả streamer lẫn viewer.
 /// Theo Plan Task 5.2.
@@ -64,7 +64,10 @@ class LivestreamProvider extends ChangeNotifier {
     try {
       await _pipChannel.invokeMethod('setIsLiveActive', {'isActive': isActive});
     } catch (e) {
-      developer.log('Error updating native live state: $e', name: 'LivestreamProvider');
+      developer.log(
+        'Error updating native live state: $e',
+        name: 'LivestreamProvider',
+      );
     }
   }
 
@@ -94,7 +97,13 @@ class LivestreamProvider extends ChangeNotifier {
   Future<void> _initEngine() async {
     if (_engine != null) return;
     try {
-      final appId = dotenv.env['AGORA_APP_ID'] ?? '';
+      final envAppId = const String.fromEnvironment(
+        'AGORA_APP_ID',
+        defaultValue: '',
+      );
+      final appId = envAppId.isNotEmpty
+          ? envAppId.trim()
+          : (dotenv.env['AGORA_APP_ID'] ?? '').trim();
       if (appId.isEmpty) {
         developer.log('AGORA_APP_ID is missing!', name: 'LivestreamProvider');
         return;
@@ -167,16 +176,21 @@ class LivestreamProvider extends ChangeNotifier {
               notifyListeners();
             },
             onError: (code, msg) {
-              developer.log('Agora error: $code $msg', name: 'LivestreamProvider');
+              developer.log(
+                'Agora error: $code $msg',
+                name: 'LivestreamProvider',
+              );
             },
-            onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
-              bool isLandscape = width > height;
-              if (rotation == 90 || rotation == 270) isLandscape = !isLandscape;
-              if (_isLandscapeVideo != isLandscape) {
-                _isLandscapeVideo = isLandscape;
-                notifyListeners();
-              }
-            },
+            onVideoSizeChanged:
+                (connection, sourceType, uid, width, height, rotation) {
+                  bool isLandscape = width > height;
+                  if (rotation == 90 || rotation == 270)
+                    isLandscape = !isLandscape;
+                  if (_isLandscapeVideo != isLandscape) {
+                    _isLandscapeVideo = isLandscape;
+                    notifyListeners();
+                  }
+                },
           ),
         );
         await _engine!.joinChannel(
@@ -204,7 +218,10 @@ class LivestreamProvider extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
-      developer.log('startStream: streamId=$streamId', name: 'LivestreamProvider');
+      developer.log(
+        'startStream: streamId=$streamId',
+        name: 'LivestreamProvider',
+      );
       return streamId;
     } catch (e) {
       _error = e.toString();
@@ -221,7 +238,10 @@ class LivestreamProvider extends ChangeNotifier {
       _streamDocSub?.cancel();
       _streamDocSub = null;
       await _service.endLivestream(streamId).catchError((e) {
-        developer.log('endLivestream service error: $e', name: 'LivestreamProvider');
+        developer.log(
+          'endLivestream service error: $e',
+          name: 'LivestreamProvider',
+        );
       });
     } catch (e) {
       developer.log('endStream error: $e', name: 'LivestreamProvider');
@@ -238,10 +258,16 @@ class LivestreamProvider extends ChangeNotifier {
 
       // Clean up hardware resources asynchronously
       _cleanupAgora().catchError((e) {
-        developer.log('_cleanupAgora error in background: $e', name: 'LivestreamProvider');
+        developer.log(
+          '_cleanupAgora error in background: $e',
+          name: 'LivestreamProvider',
+        );
       });
       _updateNativeLiveState(false);
-      developer.log('endStream completed local cleanup: streamId=$streamId', name: 'LivestreamProvider');
+      developer.log(
+        'endStream completed local cleanup: streamId=$streamId',
+        name: 'LivestreamProvider',
+      );
     }
   }
 
@@ -261,33 +287,39 @@ class LivestreamProvider extends ChangeNotifier {
     try {
       await _initEngine();
       if (_engine != null) {
-        await _engine!.setClientRole(
-          role: ClientRoleType.clientRoleAudience,
-        );
+        await _engine!.setClientRole(role: ClientRoleType.clientRoleAudience);
         _engine!.registerEventHandler(
           RtcEngineEventHandler(
             onUserJoined: (connection, uid, elapsed) {
               _remoteUid = uid;
               notifyListeners();
-              developer.log('Remote user joined: $uid', name: 'LivestreamProvider');
+              developer.log(
+                'Remote user joined: $uid',
+                name: 'LivestreamProvider',
+              );
             },
             onUserOffline: (connection, uid, reason) {
               _remoteUid = null;
               notifyListeners();
             },
             onError: (code, msg) {
-              developer.log('Agora error: $code $msg', name: 'LivestreamProvider');
+              developer.log(
+                'Agora error: $code $msg',
+                name: 'LivestreamProvider',
+              );
             },
-            onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
-              bool isLandscape = width > height;
-              if (rotation == 90 || rotation == 270) isLandscape = !isLandscape;
-              if (_isLandscapeVideo != isLandscape) {
-                _isLandscapeVideo = isLandscape;
-                notifyListeners();
-              }
-              // Không dùng sourceType để detect screen share — không tin cậy trên viewer side.
-              // Trạng thái này được đồng bộ qua Firestore bởi broadcaster.
-            },
+            onVideoSizeChanged:
+                (connection, sourceType, uid, width, height, rotation) {
+                  bool isLandscape = width > height;
+                  if (rotation == 90 || rotation == 270)
+                    isLandscape = !isLandscape;
+                  if (_isLandscapeVideo != isLandscape) {
+                    _isLandscapeVideo = isLandscape;
+                    notifyListeners();
+                  }
+                  // Không dùng sourceType để detect screen share — không tin cậy trên viewer side.
+                  // Trạng thái này được đồng bộ qua Firestore bởi broadcaster.
+                },
           ),
         );
         await _engine!.joinChannel(
@@ -309,7 +341,10 @@ class LivestreamProvider extends ChangeNotifier {
 
       // Tăng viewerCount trong Firestore
       _service.incrementViewerCount(streamId, 1).catchError((e) {
-        developer.log('Failed to increment viewerCount: $e', name: 'LivestreamProvider');
+        developer.log(
+          'Failed to increment viewerCount: $e',
+          name: 'LivestreamProvider',
+        );
       });
 
       // Lắng nghe trạng thái stream để tự động đóng khi stream ended và để biết broadcaster có đang share màn hình không.
@@ -319,22 +354,26 @@ class LivestreamProvider extends ChangeNotifier {
           .doc(streamId)
           .snapshots()
           .listen((doc) {
-        if (!doc.exists) return;
-        final data = doc.data()!;
-        final status = data['status'] as String?;
-        if (status == 'ended') {
-          if (_isMinimized) {
-            closeMinimizedStream(streamId);
-          }
-        }
-        // Đồng bộ trạng thái share màn hình từ Firestore (broadcaster ghi, viewer đọc).
-        final remoteScreenSharing = data['isScreenSharing'] as bool? ?? false;
-        if (_remoteIsScreenSharing != remoteScreenSharing) {
-          _remoteIsScreenSharing = remoteScreenSharing;
-          notifyListeners();
-          developer.log('remoteIsScreenSharing from Firestore: $remoteScreenSharing', name: 'LivestreamProvider');
-        }
-      });
+            if (!doc.exists) return;
+            final data = doc.data()!;
+            final status = data['status'] as String?;
+            if (status == 'ended') {
+              if (_isMinimized) {
+                closeMinimizedStream(streamId);
+              }
+            }
+            // Đồng bộ trạng thái share màn hình từ Firestore (broadcaster ghi, viewer đọc).
+            final remoteScreenSharing =
+                data['isScreenSharing'] as bool? ?? false;
+            if (_remoteIsScreenSharing != remoteScreenSharing) {
+              _remoteIsScreenSharing = remoteScreenSharing;
+              notifyListeners();
+              developer.log(
+                'remoteIsScreenSharing from Firestore: $remoteScreenSharing',
+                name: 'LivestreamProvider',
+              );
+            }
+          });
 
       _isLoading = false;
       notifyListeners();
@@ -351,7 +390,7 @@ class LivestreamProvider extends ChangeNotifier {
     try {
       _streamDocSub?.cancel();
       _streamDocSub = null;
-      
+
       // Reset state instantly
       _joinedChannelId = null;
       _currentStream = null;
@@ -362,12 +401,18 @@ class LivestreamProvider extends ChangeNotifier {
 
       // Giảm viewerCount trong Firestore
       _service.incrementViewerCount(streamId, -1).catchError((e) {
-        developer.log('Failed to decrement viewerCount: $e', name: 'LivestreamProvider');
+        developer.log(
+          'Failed to decrement viewerCount: $e',
+          name: 'LivestreamProvider',
+        );
       });
 
       // Clean up hardware asynchronously
       _cleanupAgora().catchError((e) {
-        developer.log('_cleanupAgora error in background: $e', name: 'LivestreamProvider');
+        developer.log(
+          '_cleanupAgora error in background: $e',
+          name: 'LivestreamProvider',
+        );
       });
       _updateNativeLiveState(false);
     } catch (e) {
@@ -380,15 +425,20 @@ class LivestreamProvider extends ChangeNotifier {
   /// Bắt đầu lắng nghe messages realtime.
   void listenToMessages(String streamId) {
     _messageSub?.cancel();
-    _messageSub = _service.getStreamMessages(streamId).listen(
-      (msgs) {
-        _messages = msgs;
-        notifyListeners();
-      },
-      onError: (e) {
-        developer.log('listenToMessages error: $e', name: 'LivestreamProvider');
-      },
-    );
+    _messageSub = _service
+        .getStreamMessages(streamId)
+        .listen(
+          (msgs) {
+            _messages = msgs;
+            notifyListeners();
+          },
+          onError: (e) {
+            developer.log(
+              'listenToMessages error: $e',
+              name: 'LivestreamProvider',
+            );
+          },
+        );
   }
 
   /// Gửi text message trong stream.
@@ -452,15 +502,20 @@ class LivestreamProvider extends ChangeNotifier {
   /// Bắt đầu lắng nghe danh sách livestreams đang live.
   void listenToLiveStreams({String? gameFilter}) {
     _streamsSub?.cancel();
-    _streamsSub = _service.getLivestreams(gameFilter: gameFilter).listen(
-      (streams) {
-        _liveStreams = streams;
-        notifyListeners();
-      },
-      onError: (e) {
-        developer.log('listenToLiveStreams error: $e', name: 'LivestreamProvider');
-      },
-    );
+    _streamsSub = _service
+        .getLivestreams(gameFilter: gameFilter)
+        .listen(
+          (streams) {
+            _liveStreams = streams;
+            notifyListeners();
+          },
+          onError: (e) {
+            developer.log(
+              'listenToLiveStreams error: $e',
+              name: 'LivestreamProvider',
+            );
+          },
+        );
   }
 
   /// Load coin balance của user.
@@ -563,21 +618,26 @@ class LivestreamProvider extends ChangeNotifier {
     if (_engine == null) return;
     try {
       // Dừng camera preview trước để tránh conflict với Extension
-      await _engine!.stopPreview();
+      await _engine!.stopPreview(sourceType: VideoSourceType.videoSourceCamera);
 
       // Khởi động screen capture trước để mở cổng IPC lắng nghe Extension
-      await _engine!.startScreenCapture(const ScreenCaptureParameters2(
-        captureVideo: true,
-        captureAudio: true,
-      ));
+      await _engine!.startScreenCapture(
+        const ScreenCaptureParameters2(captureVideo: true, captureAudio: true),
+      );
+
+      await _engine!.startPreview(
+        sourceType: VideoSourceType.videoSourceScreen,
+      );
 
       // Sau đó cập nhật channel options để publish screen track
-      await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
-        publishCameraTrack: false,
-        publishScreenCaptureVideo: true,
-        publishMicrophoneTrack: true,
-        publishScreenCaptureAudio: true,
-      ));
+      await _engine!.updateChannelMediaOptions(
+        const ChannelMediaOptions(
+          publishCameraTrack: false,
+          publishScreenCaptureVideo: true,
+          publishMicrophoneTrack: true,
+          publishScreenCaptureAudio: true,
+        ),
+      );
 
       _isScreenSharing = true;
       notifyListeners();
@@ -588,7 +648,12 @@ class LivestreamProvider extends ChangeNotifier {
             .collection('livestreams')
             .doc(_joinedChannelId)
             .update({'isScreenSharing': true})
-            .catchError((e) => developer.log('Failed to write isScreenSharing: $e', name: 'LivestreamProvider'));
+            .catchError(
+              (e) => developer.log(
+                'Failed to write isScreenSharing: $e',
+                name: 'LivestreamProvider',
+              ),
+            );
       }
 
       developer.log('Screen sharing started', name: 'LivestreamProvider');
@@ -600,15 +665,23 @@ class LivestreamProvider extends ChangeNotifier {
   Future<void> stopScreenShare() async {
     if (_engine == null) return;
     try {
+      await _engine!.stopPreview(sourceType: VideoSourceType.videoSourceScreen);
       await _engine!.stopScreenCapture();
-      await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
-        publishCameraTrack: true,
-        publishScreenCaptureVideo: false,
-        publishMicrophoneTrack: true,
-        publishScreenCaptureAudio: false,
-      ));
+
       // Bật lại camera preview sau khi dừng screen share
-      await _engine!.startPreview();
+      await _engine!.startPreview(
+        sourceType: VideoSourceType.videoSourceCamera,
+      );
+
+      await _engine!.updateChannelMediaOptions(
+        const ChannelMediaOptions(
+          publishCameraTrack: true,
+          publishScreenCaptureVideo: false,
+          publishMicrophoneTrack: true,
+          publishScreenCaptureAudio: false,
+        ),
+      );
+
       _isScreenSharing = false;
       notifyListeners();
 
@@ -618,7 +691,12 @@ class LivestreamProvider extends ChangeNotifier {
             .collection('livestreams')
             .doc(_joinedChannelId)
             .update({'isScreenSharing': false})
-            .catchError((e) => developer.log('Failed to write isScreenSharing: $e', name: 'LivestreamProvider'));
+            .catchError(
+              (e) => developer.log(
+                'Failed to write isScreenSharing: $e',
+                name: 'LivestreamProvider',
+              ),
+            );
       }
 
       developer.log('Screen sharing stopped', name: 'LivestreamProvider');

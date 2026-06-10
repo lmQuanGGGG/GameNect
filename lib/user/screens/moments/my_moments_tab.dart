@@ -159,8 +159,8 @@ class MyMomentsTab extends StatelessWidget {
 
         return GridView.builder(
           padding: EdgeInsets.fromLTRB(8, topPadding, 8, 120),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 250,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
             childAspectRatio: 0.65,

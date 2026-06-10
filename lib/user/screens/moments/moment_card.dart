@@ -22,9 +22,18 @@ class MomentCard extends StatelessWidget {
     required this.currentUserId,
   });
 
+  static final Map<String, Map<String, dynamic>> _userCache = {};
+
   Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
+    if (_userCache.containsKey(userId)) {
+      return _userCache[userId];
+    }
     final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    return doc.exists ? doc.data() : null;
+    if (doc.exists) {
+      _userCache[userId] = doc.data() as Map<String, dynamic>;
+      return _userCache[userId];
+    }
+    return null;
   }
 
   String _formatTime(DateTime dateTime) {

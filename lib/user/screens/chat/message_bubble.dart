@@ -6,6 +6,7 @@ import '../../../core/providers/chat_provider.dart';
 import '../games/game_detail_screen.dart';
 import 'video_player_bubble.dart';
 import 'voice_message_bubble.dart';
+import 'full_screen_media_viewer.dart';
 import '../../../core/theme/theme_helper.dart';
 
 /// Bubble hiển thị tin nhắn (text, image, video, voice, call)
@@ -203,14 +204,26 @@ class MessageBubbleWidget extends StatelessWidget {
             : CrossAxisAlignment.start,
         children: [
           if (mediaUrl != null && mediaUrl.isNotEmpty)
-            Container(
-              margin: EdgeInsets.only(
-                bottom: 6,
-                left: isMe ? 40 : 0,
-                right: isMe ? 8 : 40,
-              ),
-              constraints: const BoxConstraints(maxWidth: 250, maxHeight: 250),
-              child: ClipRRect(
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullScreenMediaViewer(
+                      mediaUrl: mediaUrl,
+                      isVideo: isVideo,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                margin: EdgeInsets.only(
+                  bottom: 6,
+                  left: isMe ? 40 : 0,
+                  right: isMe ? 8 : 40,
+                ),
+                constraints: const BoxConstraints(maxWidth: 250, maxHeight: 250),
+                child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: isVideo
                     ? VideoPlayerBubble(videoUrl: mediaUrl)
@@ -235,6 +248,7 @@ class MessageBubbleWidget extends StatelessWidget {
                       ),
               ),
             ),
+          ),
           if (text.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.only(

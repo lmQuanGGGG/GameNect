@@ -51,6 +51,9 @@ class _NotificationLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (!kIsWeb) {
+        AwesomeNotifications().resetGlobalBadge();
+      }
       AppNotificationHandler.processPendingAction();
     }
   }
@@ -85,13 +88,16 @@ void main() async {
         await FirebaseMessaging.instance.requestPermission();
         FirebaseMessaging.onMessage.listen(_handleWebForegroundMessage);
       } else {
-        developer.log('Push notifications not supported on this browser/tab. Skipping FCM init.', name: 'FCM-Web');
+        developer.log(
+          'Push notifications not supported on this browser/tab. Skipping FCM init.',
+          name: 'FCM-Web',
+        );
       }
     } catch (e) {
       developer.log('Error checking FCM support: $e', name: 'FCM-Web');
     }
-    
-    // Vẫn listen web message vì app có thể đang chạy dưới dạng Standalone PWA trên iOS 
+
+    // Vẫn listen web message vì app có thể đang chạy dưới dạng Standalone PWA trên iOS
     // và nhận message từ Service Worker (do OS mở lại)
     WebMessageService.listen((data) async {
       await _handleFcmTap(data);
@@ -163,6 +169,7 @@ void main() async {
   if (!kIsWeb) {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(const Duration(milliseconds: 1000));
+      AwesomeNotifications().resetGlobalBadge();
 
       // Handle any queued notification actions once navigator is ready
       await AppNotificationHandler.processPendingAction();
@@ -213,7 +220,10 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
 
       navigatorKey.currentState?.popUntil((route) => route.isFirst);
       mainScreenTabIndex.value = targetIndex;
-      developer.log('Web FCM tap: Navigated to tab index $targetIndex', name: 'FCM-Tap');
+      developer.log(
+        'Web FCM tap: Navigated to tab index $targetIndex',
+        name: 'FCM-Tap',
+      );
       return;
     }
 
@@ -243,9 +253,7 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
         developer.log('Navigated to /moments', name: 'FCM-Tap');
         break;
       case 'like':
-        navigatorKey.currentState?.pushNamed(
-          '/liked-me',
-        );
+        navigatorKey.currentState?.pushNamed('/liked-me');
         developer.log('Navigated to /liked-me', name: 'FCM-Tap');
         break;
       case 'mentor_live':
@@ -255,7 +263,10 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
             '/live-stream',
             arguments: {'streamId': streamId, 'isMentor': false},
           );
-          developer.log('Navigated to /live-stream streamId=$streamId', name: 'FCM-Tap');
+          developer.log(
+            'Navigated to /live-stream streamId=$streamId',
+            name: 'FCM-Tap',
+          );
         }
         break;
       default:
@@ -364,11 +375,11 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
               title: data['mentorUsername'] != null
                   ? '🔴 ${data['mentorUsername']} đang LIVE!'
                   : message.notification?.title ?? '🔴 Mentor đang LIVE!',
-              body: data['streamTitle'] ?? message.notification?.body ?? 'Nhấn để xem ngay',
-              payload: {
-                'type': 'mentor_live',
-                'streamId': mlStreamId,
-              },
+              body:
+                  data['streamTitle'] ??
+                  message.notification?.body ??
+                  'Nhấn để xem ngay',
+              payload: {'type': 'mentor_live', 'streamId': mlStreamId},
               notificationLayout: NotificationLayout.Default,
               category: NotificationCategory.Reminder,
               wakeUpScreen: true,
@@ -665,12 +676,14 @@ class AuthWrapper extends StatelessWidget {
 
                 // Bắt đầu lắng nghe khi mentor follow đang live
                 if (context.mounted) {
-                  Provider.of<MentorProvider>(context, listen: false)
-                      .startMentorLiveListener(currentUserId);
+                  Provider.of<MentorProvider>(
+                    context,
+                    listen: false,
+                  ).startMentorLiveListener(currentUserId);
                   developer.log('Mentor live listener started', name: 'Auth');
                 }
               }
-              
+
               await _handleWebDeepLinkIfAny();
             } catch (e) {
               developer.log('Error getting FCM token: $e', name: 'Auth');
@@ -702,17 +715,27 @@ class AuthWrapper extends StatelessWidget {
                 );
               }
 
-              if (userSnapshot.hasError ||
-                  !userSnapshot.hasData ||
-                  !userSnapshot.data!.exists) {
+              if (userSnapshot.hasError) {
                 return const HomeScreen();
+              }
+
+              if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                return const UserApp(initialRoute: '/profile');
               }
 
               final userData =
                   userSnapshot.data!.data() as Map<String, dynamic>?;
 
               if (userData == null) {
-                return const HomeScreen();
+                return const UserApp(initialRoute: '/profile');
+              }
+
+              final isNewUser =
+                  userData['username'] == null ||
+                  userData['username'].toString().isEmpty;
+
+              if (isNewUser) {
+                return const UserApp(initialRoute: '/profile');
               }
 
               final isAdmin = userData['isAdmin'] ?? false;
@@ -725,7 +748,10 @@ class AuthWrapper extends StatelessWidget {
         } else {
           // Người dùng đã đăng xuất, dọn dẹp các call subscriptions trong ChatProvider
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+            final chatProvider = Provider.of<ChatProvider>(
+              context,
+              listen: false,
+            );
             chatProvider.clearAllSubscriptions();
           });
         }

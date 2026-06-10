@@ -255,7 +255,7 @@ class TrendingGamesButton extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('🎮 Trending Games',
+                Text('Trending Games',
                     style: TextStyle(
                         color: context.textColor, fontSize: 18,
                         fontWeight: FontWeight.bold, letterSpacing: 0.3)),

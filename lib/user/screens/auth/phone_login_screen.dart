@@ -295,7 +295,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> with SingleTickerPr
                                                 if (_formKey.currentState?.validate() ?? false) {
                                                   final success = await auth.verifyOTP(_otpController.text);
                                                   if (success && mounted) {
-                                                    Navigator.pushReplacementNamed(context, '/home');
+                                                    Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/', (route) => false);
                                                   }
                                                 }
                                               },

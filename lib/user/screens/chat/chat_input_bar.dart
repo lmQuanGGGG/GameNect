@@ -364,6 +364,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 onTap: () async {
                   final file = await picker.pickImage(
                     source: ImageSource.gallery,
+                    imageQuality: 80,
+                    maxWidth: 800,
                   );
                   if (context.mounted) Navigator.pop(context, file);
                 },

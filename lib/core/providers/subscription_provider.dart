@@ -22,9 +22,18 @@ class SubscriptionProvider with ChangeNotifier {
   String? get selectedPlan => _selectedPlan;
 
   // Lấy thông tin cấu hình PayOS từ file .env
-  static String get _payOSClientId => dotenv.env['PAYOS_CLIENT_ID'] ?? '';
-  static String get _payOSApiKey => dotenv.env['PAYOS_API_KEY'] ?? '';
-  static String get _payOSChecksumKey => dotenv.env['PAYOS_CHECKSUM_KEY'] ?? '';
+  static String get _payOSClientId {
+    final envVal = const String.fromEnvironment('PAYOS_CLIENT_ID', defaultValue: '');
+    return envVal.isNotEmpty ? envVal.trim() : (dotenv.env['PAYOS_CLIENT_ID'] ?? '').trim();
+  }
+  static String get _payOSApiKey {
+    final envVal = const String.fromEnvironment('PAYOS_API_KEY', defaultValue: '');
+    return envVal.isNotEmpty ? envVal.trim() : (dotenv.env['PAYOS_API_KEY'] ?? '').trim();
+  }
+  static String get _payOSChecksumKey {
+    final envVal = const String.fromEnvironment('PAYOS_CHECKSUM_KEY', defaultValue: '');
+    return envVal.isNotEmpty ? envVal.trim() : (dotenv.env['PAYOS_CHECKSUM_KEY'] ?? '').trim();
+  }
 
   // Hàm chọn loại gói premium
   void selectPlan(String plan) {

@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../core/providers/livestream_provider.dart';
-import '../../core/providers/mentor_provider.dart';
-import '../../core/models/livestream_model.dart';
-import '../../core/theme/theme_helper.dart';
+import '../../../core/providers/livestream_provider.dart';
+import '../../../core/providers/mentor_provider.dart';
+import '../../../core/models/livestream_model.dart';
+import '../../../core/theme/theme_helper.dart';
 import 'live_swipe_feed_screen.dart';
 
 const _kAccent = Color(0xFFFF6E40);

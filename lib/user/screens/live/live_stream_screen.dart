@@ -9,8 +9,9 @@ import 'package:provider/provider.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:replay_kit_launcher/replay_kit_launcher.dart';
-import '../../core/providers/livestream_provider.dart';
-import '../../core/providers/profile_provider.dart';
+import '../../../core/providers/livestream_provider.dart';
+import '../../../core/providers/profile_provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveBadge = Color(0xFFFF3B30);
@@ -93,6 +94,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   @override
   void initState() {
     super.initState();
+    try {
+      WakelockPlus.enable().catchError((e) {
+        debugPrint('WakelockPlus enable async error: $e');
+      });
+    } catch (e) {
+      debugPrint('WakelockPlus enable error: $e');
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final profileProvider = context.read<ProfileProvider>();
       await profileProvider.loadUserProfile();
@@ -134,6 +142,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
 
   @override
   void dispose() {
+    try {
+      WakelockPlus.disable().catchError((e) {
+        debugPrint('WakelockPlus disable async error: $e');
+      });
+    } catch (e) {
+      debugPrint('WakelockPlus disable error: $e');
+    }
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -900,9 +915,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           return AgoraVideoView(
             controller: VideoViewController(
               rtcEngine: provider.engine!,
-              canvas: const VideoCanvas(
+              canvas: VideoCanvas(
                 uid: 0,
-                mirrorMode: VideoMirrorModeType.videoMirrorModeEnabled,
+                sourceType: provider.isScreenSharing 
+                    ? VideoSourceType.videoSourceScreen 
+                    : VideoSourceType.videoSourceCamera,
+                mirrorMode: provider.isScreenSharing 
+                    ? VideoMirrorModeType.videoMirrorModeDisabled 
+                    : VideoMirrorModeType.videoMirrorModeEnabled,
               ),
             ),
           );
@@ -925,6 +945,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             );
           }
           return AgoraVideoView(
+            key: ValueKey('remote_${provider.remoteUid}_${provider.remoteIsScreenSharing}'),
             controller: VideoViewController.remote(
               rtcEngine: provider.engine!,
               canvas: VideoCanvas(

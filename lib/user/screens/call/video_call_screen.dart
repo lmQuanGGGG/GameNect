@@ -9,9 +9,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/providers/chat_provider.dart';
 import '../../../core/services/firestore_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
-// Lấy App ID của Agora từ file .env
-final agoraAppId = dotenv.env['AGORA_APP_ID'] ?? '';
+// Lấy App ID của Agora từ file .env hoặc Dart defines
+String get agoraAppId {
+  const envAppId = String.fromEnvironment('AGORA_APP_ID', defaultValue: '');
+  if (envAppId.isNotEmpty) return envAppId.trim();
+  return (dotenv.env['AGORA_APP_ID'] ?? '').trim();
+}
 
 // Màn hình video call và voice call sử dụng Agora RTC
 // Hỗ trợ cả video call và voice call (chỉ audio)
@@ -81,6 +86,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   void initState() {
     super.initState();
+    try {
+      WakelockPlus.enable().catchError((e) {
+        debugPrint('WakelockPlus enable async error: $e');
+      });
+    } catch (e) {
+      debugPrint('WakelockPlus enable error: $e');
+    }
     _callStartTime = DateTime.now(); // Lưu thời gian bắt đầu cuộc gọi
 
     // Lắng nghe realtime trạng thái cuộc gọi từ Firestore
@@ -215,9 +227,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         token: '', // Token để xác thực (để trống nếu không dùng)
         channelId: widget.channelName,
         uid: 0, // UID = 0 thì Agora tự động generate
-        options: const ChannelMediaOptions(
+        options: ChannelMediaOptions(
           channelProfile: ChannelProfileType.channelProfileCommunication,
           clientRoleType: ClientRoleType.clientRoleBroadcaster, // Broadcaster để có thể gửi stream
+          publishCameraTrack: !widget.isVoiceCall,
+          publishMicrophoneTrack: true,
+          autoSubscribeAudio: true,
+          autoSubscribeVideo: !widget.isVoiceCall,
         ),
       );
 
@@ -268,6 +284,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void dispose() {
+    try {
+      WakelockPlus.disable().catchError((e) {
+        debugPrint('WakelockPlus disable async error: $e');
+      });
+    } catch (e) {
+      debugPrint('WakelockPlus disable error: $e');
+    }
     _activeCallTimer?.cancel();
     _callStatusSubscription?.cancel(); // Hủy subscription Firestore
     _callTimeoutTimer?.cancel(); // Hủy timer timeout

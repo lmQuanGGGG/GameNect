@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../core/models/mentor_match_request_model.dart';
-import '../../core/services/firestore_service.dart';
-import '../../core/theme/theme_helper.dart';
+import '../../../core/models/mentor_match_request_model.dart';
+import '../../../core/services/firestore_service.dart';
+import '../../../core/theme/theme_helper.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 

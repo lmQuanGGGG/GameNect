@@ -21,12 +21,12 @@ import '../../core/providers/chat_provider.dart';
 import '../../core/providers/moment_provider.dart'; 
 import '../../core/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'screens/live_discover_screen.dart';
-import 'screens/mentor_profile_screen.dart';
-import 'screens/live_stream_screen.dart';
-import 'screens/go_live_screen.dart';
-import 'screens/mentor_apply_screen.dart';
-import 'screens/mentor_requests_screen.dart';
+import 'screens/live/live_discover_screen.dart';
+import 'screens/mentor/mentor_profile_screen.dart';
+import 'screens/live/live_stream_screen.dart';
+import 'screens/live/go_live_screen.dart';
+import 'screens/mentor/mentor_apply_screen.dart';
+import 'screens/mentor/mentor_requests_screen.dart';
 import 'screens/wallet/wallet_screen.dart';
 
 /// Widget gốc cho phần User của ứng dụng.
@@ -55,7 +55,7 @@ class UserApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
-            title: 'GameNect User',
+            title: 'GameNect',
             debugShowCheckedModeBanner: false,
             themeMode: themeProvider.themeMode,
             theme: AppTheme.lightTheme,

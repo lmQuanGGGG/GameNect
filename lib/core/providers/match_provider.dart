@@ -35,20 +35,30 @@ class MatchProvider with ChangeNotifier {
       final interestedInGender = currentUser.interestedInGender;
       final maxDistance = currentUser.maxDistance;
 
-      debugPrint('Filter settings: Age[$minAge-$maxAge], Gender[$interestedInGender], Distance[<=$maxDistance km]');
-      debugPrint('Current User Location: (${currentUser.latitude}, ${currentUser.longitude})');
+      debugPrint(
+        'Filter settings: Age[$minAge-$maxAge], Gender[$interestedInGender], Distance[<=$maxDistance km]',
+      );
+      debugPrint(
+        'Current User Location: (${currentUser.latitude}, ${currentUser.longitude})',
+      );
 
       // Lấy danh sách user đã swipe
-      final swipedUserIds = await FirestoreService().getSwipedUserIds(currentUser.id);
+      final swipedUserIds = await FirestoreService().getSwipedUserIds(
+        currentUser.id,
+      );
       debugPrint('Already swiped users: ${swipedUserIds.length}');
 
       // Tính khoảng cách cho tất cả candidates
       for (var user in candidateUsers) {
-        if (user.latitude != null && user.longitude != null &&
-            currentUser.latitude != null && currentUser.longitude != null) {
+        if (user.latitude != null &&
+            user.longitude != null &&
+            currentUser.latitude != null &&
+            currentUser.longitude != null) {
           user.distanceKm = calculateDistance(
-            currentUser.latitude!, currentUser.longitude!,
-            user.latitude!, user.longitude!,
+            currentUser.latitude!,
+            currentUser.longitude!,
+            user.latitude!,
+            user.longitude!,
           );
         } else {
           user.distanceKm = null;
@@ -60,26 +70,36 @@ class MatchProvider with ChangeNotifier {
       final filterGame = currentUser.filterCommonGame;
       final filteredCandidates = candidateUsers.where((user) {
         final notCurrentUser = user.id != currentUser.id;
-        final notSwiped     = !swipedUserIds.contains(user.id);
-        final ageOk         = user.age >= minAge && user.age <= maxAge;
-        final genderOk      = interestedInGender == 'Tất cả' ||
-                              user.gender == interestedInGender;
-        final distanceOk    = user.distanceKm == null ||
-                              user.distanceKm! <= maxDistance;
+        final notSwiped = !swipedUserIds.contains(user.id);
+        final ageOk = user.age >= minAge && user.age <= maxAge;
+        final genderOk =
+            interestedInGender == 'Tất cả' || user.gender == interestedInGender;
+        final distanceOk =
+            user.distanceKm == null || user.distanceKm! <= maxDistance;
         // Game filter — chỉ áp dụng khi user bật tùy chọn này
-        final gameOk        = !filterGame ||
-                              user.favoriteGames.any(currentUser.favoriteGames.contains);
-        return notCurrentUser && notSwiped && ageOk && genderOk && distanceOk && gameOk;
+        final gameOk =
+            !filterGame ||
+            user.favoriteGames.any(currentUser.favoriteGames.contains);
+        return notCurrentUser &&
+            notSwiped &&
+            ageOk &&
+            genderOk &&
+            distanceOk &&
+            gameOk;
       }).toList();
 
       final withCommonGame = filteredCandidates
           .where((u) => u.favoriteGames.any(currentUser.favoriteGames.contains))
           .length;
-      debugPrint('Filtered: ${filteredCandidates.length}/${candidateUsers.length} '
-          '(chung game: $withCommonGame | filterGame=$filterGame)');
+      debugPrint(
+        'Filtered: ${filteredCandidates.length}/${candidateUsers.length} '
+        '(chung game: $withCommonGame | filterGame=$filterGame)',
+      );
 
       // Chuẩn bị dữ liệu gửi lên API
-      final url = Uri.parse('https://web-production-188ce.up.railway.app/recommend');
+      final url = Uri.parse(
+        'https://web-production-188ce.up.railway.app/recommend',
+      );
       final currentUserMap = currentUser.toMap();
       if (currentUserMap.containsKey('id')) {
         currentUserMap['user_id'] = currentUserMap['id'];
@@ -114,30 +134,36 @@ class MatchProvider with ChangeNotifier {
         final Map<String, dynamic> data = json.decode(response.body);
         final List<dynamic> recs = data['recommendations'] ?? [];
         List<UserModel> temp = [];
-        
+
         debugPrint('Processing ${recs.length} recommendations from API');
         debugPrint('=========================================');
-        
+
         for (var e in recs) {
           final String userId = e['user_id'];
           debugPrint('---');
           debugPrint('User ID from API: $userId');
-          
+
           // TỐI ƯU: Tìm trực tiếp trong danh sách filteredCandidates đã lọc
-          // Tránh lỗi N+1 Query: Không gọi Firestore lại vì candidate đã đầy đủ thông tin 
+          // Tránh lỗi N+1 Query: Không gọi Firestore lại vì candidate đã đầy đủ thông tin
           // và đã thoả mãn 100% điều kiện khoảng cách, tuổi, giới tính,...
           try {
             final user = filteredCandidates.firstWhere((u) => u.id == userId);
             temp.add(user);
-            debugPrint('ADDED to recommendations: ${user.username} - Distance: ${user.distanceKm?.toStringAsFixed(1)} km');
+            debugPrint(
+              'ADDED to recommendations: ${user.username} - Distance: ${user.distanceKm?.toStringAsFixed(1)} km',
+            );
           } catch (_) {
-            debugPrint('REJECTED: User $userId không tìm thấy trong filteredCandidates');
+            debugPrint(
+              'REJECTED: User $userId không tìm thấy trong filteredCandidates',
+            );
           }
         }
-        
+
         debugPrint('=========================================');
-        debugPrint('Final recommendations count: ${temp.length}/${recs.length}');
-        
+        debugPrint(
+          'Final recommendations count: ${temp.length}/${recs.length}',
+        );
+
         _recommendations = temp;
       } else {
         _recommendations = [];
@@ -162,15 +188,22 @@ class MatchProvider with ChangeNotifier {
     const double R = 6371; // bán kính Trái Đất km
     final dLat = (lat2 - lat1) * pi / 180;
     final dLon = (lon2 - lon1) * pi / 180;
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1 * pi / 180) * cos(lat2 * pi / 180) *
-        sin(dLon / 2) * sin(dLon / 2);
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * pi / 180) *
+            cos(lat2 * pi / 180) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return R * c;
   }
 
   // Lưu lịch sử swipe (like/dislike), kiểm tra match, tạo match mới nếu like đôi bên
-  Future<void> saveSwipeHistory(String currentUserId, UserModel targetUser, bool isLike) async {
+  Future<void> saveSwipeHistory(
+    String currentUserId,
+    UserModel targetUser,
+    bool isLike,
+  ) async {
     try {
       await FirestoreService().saveSwipeHistory(
         userId: currentUserId,
@@ -205,10 +238,12 @@ class MatchProvider with ChangeNotifier {
       final allUsers = await FirestoreService().getAllUsers();
 
       // Lọc những người dùng đã vuốt (swiped) bởi người dùng hiện tại
-      final swipedUserIds = await FirestoreService().getSwipedUserIds(currentUserId);
-      final filteredUsers = allUsers.where((u) =>
-        u.id != currentUserId && !swipedUserIds.contains(u.id)
-      ).toList();
+      final swipedUserIds = await FirestoreService().getSwipedUserIds(
+        currentUserId,
+      );
+      final filteredUsers = allUsers
+          .where((u) => u.id != currentUserId && !swipedUserIds.contains(u.id))
+          .toList();
 
       return filteredUsers;
     } catch (e) {
@@ -218,18 +253,26 @@ class MatchProvider with ChangeNotifier {
   }
 
   // Lấy lịch sử dislike, giới hạn số lượng theo loại tài khoản
-  Future<void> fetchDislikeHistory(UserModel currentUser, BuildContext context) async {
+  Future<void> fetchDislikeHistory(
+    UserModel currentUser,
+    BuildContext context,
+  ) async {
     try {
       final isPremium = currentUser.isPremium ?? false;
       final limit = isPremium ? 1000 : 10;
-      final dislikeHistory = await FirestoreService().getDislikeHistory(currentUser.id, limit: limit);
+      final dislikeHistory = await FirestoreService().getDislikeHistory(
+        currentUser.id,
+        limit: limit,
+      );
 
       debugPrint('Dislike history: $dislikeHistory');
 
       if (!isPremium && dislikeHistory.length >= 10) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Tài khoản chưa mua gói chỉ xem được tối đa 10 người đã dislike/match bạn.'),
+            content: Text(
+              'Tài khoản chưa mua gói chỉ xem được tối đa 10 người đã dislike/match bạn.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -240,16 +283,26 @@ class MatchProvider with ChangeNotifier {
   }
 
   // Lấy danh sách người đã like mình nhưng chưa match
-  Future<List<UserModel>> fetchLikedMeUsers(String currentUserId, {int limit = 20}) async {
+  Future<List<UserModel>> fetchLikedMeUsers(
+    String currentUserId, {
+    int limit = 20,
+  }) async {
     try {
-      final likedMeHistory = await FirestoreService().getLikedMeHistory(currentUserId, limit: limit);
+      final likedMeHistory = await FirestoreService().getLikedMeHistory(
+        currentUserId,
+        limit: limit,
+      );
       final userIds = likedMeHistory.map((h) => h.userId).toList();
 
       // Lấy danh sách user đã match với mình
-      final matchedUserIds = await FirestoreService().getMatchedUserIds(currentUserId);
+      final matchedUserIds = await FirestoreService().getMatchedUserIds(
+        currentUserId,
+      );
 
       // Lọc bỏ những user đã match
-      final filteredUserIds = userIds.where((id) => !matchedUserIds.contains(id)).toList();
+      final filteredUserIds = userIds
+          .where((id) => !matchedUserIds.contains(id))
+          .toList();
 
       List<UserModel> users = [];
       for (final id in filteredUserIds) {
@@ -264,58 +317,64 @@ class MatchProvider with ChangeNotifier {
   }
 
   // Lấy danh sách user đã match kèm matchId và tin nhắn cuối cùng
-  Future<List<Map<String, dynamic>>> fetchMatchedUsersWithMatchId(String currentUserId) async {
-  try {
-    final matchDocs = await FirestoreService().getMatchDocsForUser(currentUserId);
-    List<Map<String, dynamic>> result = [];
-
-    for (var matchDoc in matchDocs) {
-      final data = matchDoc.data() as Map<String, dynamic>?;
-      if (data == null) continue;
-
-      final userIds = List<String>.from(data['userIds'] ?? []);
-      final peerUserId = userIds.firstWhere(
-        (id) => id != currentUserId,
-        orElse: () => '',
+  Future<List<Map<String, dynamic>>> fetchMatchedUsersWithMatchId(
+    String currentUserId,
+  ) async {
+    try {
+      final matchDocs = await FirestoreService().getMatchDocsForUser(
+        currentUserId,
       );
-      if (peerUserId.isEmpty) continue;
+      List<Map<String, dynamic>> result = [];
 
-      final user = await FirestoreService().getUser(peerUserId);
+      for (var matchDoc in matchDocs) {
+        final data = matchDoc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
 
-      // LẤY TIN NHẮN CUỐI CÙNG TỪ CHATS
-      final lastMsg = await FirestoreService().getLastMessage(matchDoc.id);
-      String? lastMessage;
-      DateTime? lastMessageTime;
-      if (lastMsg != null) {
-        lastMessage = lastMsg['text'] as String?;
-        lastMessageTime = (lastMsg['timestamp'] as Timestamp?)?.toDate();
+        final userIds = List<String>.from(data['userIds'] ?? []);
+        final peerUserId = userIds.firstWhere(
+          (id) => id != currentUserId,
+          orElse: () => '',
+        );
+        if (peerUserId.isEmpty) continue;
+
+        final user = await FirestoreService().getUser(peerUserId);
+
+        // LẤY TIN NHẮN CUỐI CÙNG TỪ CHATS
+        final lastMsg = await FirestoreService().getLastMessage(matchDoc.id);
+        String? lastMessage;
+        DateTime? lastMessageTime;
+        if (lastMsg != null) {
+          lastMessage = lastMsg['text'] as String?;
+          lastMessageTime = (lastMsg['timestamp'] as Timestamp?)?.toDate();
+        }
+
+        if (user != null) {
+          result.add({
+            'matchId': matchDoc.id,
+            'user': user,
+            'lastMessage': lastMessage,
+            'lastMessageTime': lastMessageTime,
+            'lastMessageRead': data['lastMessageRead'] ?? true,
+            'lastMessageSenderId': data['lastMessageSenderId'] ?? '',
+          });
+        }
       }
 
-      if (user != null) {
-        result.add({
-          'matchId': matchDoc.id,
-          'user': user,
-          'lastMessage': lastMessage,
-          'lastMessageTime': lastMessageTime,
-          'lastMessageRead': data['lastMessageRead'] ?? true,
-          'lastMessageSenderId': data['lastMessageSenderId'] ?? '',
-        });
-      }
+      // SẮP XẾP THEO THỜI GIAN TIN NHẮN MỚI NHẤT
+      result.sort((a, b) {
+        final aTime =
+            a['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime =
+            b['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching matched users: $e');
+      return [];
     }
-
-    // SẮP XẾP THEO THỜI GIAN TIN NHẮN MỚI NHẤT
-    result.sort((a, b) {
-      final aTime = a['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bTime.compareTo(aTime);
-    });
-
-    return result;
-  } catch (e) {
-    debugPrint('Error fetching matched users: $e');
-    return [];
   }
-}
 
   // Cache thông tin user để tránh query lại nhiều lần khi stream cập nhật
   final Map<String, UserModel> _userCache = {};
@@ -335,8 +394,11 @@ class MatchProvider with ChangeNotifier {
         final data = doc.data();
         final matchId = doc.id;
         final userIds = List<String>.from(data['userIds'] ?? []);
-        final peerId = userIds.firstWhere((id) => id != currentUserId, orElse: () => '');
-        
+        final peerId = userIds.firstWhere(
+          (id) => id != currentUserId,
+          orElse: () => '',
+        );
+
         UserModel? user;
         if (_userCache.containsKey(peerId)) {
           user = _userCache[peerId];
@@ -348,17 +410,20 @@ class MatchProvider with ChangeNotifier {
         }
 
         String? lastMessage = data['lastMessage'] as String?;
-        final lastMessageTime = (data['lastMessageTime'] as Timestamp?)?.toDate();
-        final lastMessageSenderId = data['lastMessageSenderId'] as String? ?? '';
-        final lastSeenMe = (data['lastSeen_$currentUserId'] as Timestamp?)?.toDate();
-        
+        final lastMessageTime = (data['lastMessageTime'] as Timestamp?)
+            ?.toDate();
+        final lastMessageSenderId =
+            data['lastMessageSenderId'] as String? ?? '';
+        final lastSeenMe = (data['lastSeen_$currentUserId'] as Timestamp?)
+            ?.toDate();
+
         // Tính toán trạng thái đã đọc
         bool lastMessageRead = true;
         if (data.containsKey('lastMessageRead')) {
-           lastMessageRead = data['lastMessageRead'] == true;
+          lastMessageRead = data['lastMessageRead'] == true;
         }
         if (lastSeenMe != null && lastMessageTime != null) {
-           lastMessageRead = !lastSeenMe.isBefore(lastMessageTime);
+          lastMessageRead = !lastSeenMe.isBefore(lastMessageTime);
         }
 
         final isMe = lastMessageSenderId == currentUserId;
@@ -390,116 +455,154 @@ class MatchProvider with ChangeNotifier {
     });
   }
 
-
-
   // Stream danh sách người đã like mình nhưng chưa match hoặc đã bị hủy match
-  Stream<List<UserModel>> streamLikedMeUsers(String currentUserId, {int limit = 20}) {
-  // Stream các thay đổi của swipe_history
-  final swipeStream = FirebaseFirestore.instance
-      .collection('swipe_history')
-      .where('targetUserId', isEqualTo: currentUserId)
-      .where('action', isEqualTo: 'like')
-      .limit(limit)
-      .snapshots();
+  Stream<List<UserModel>> streamLikedMeUsers(
+    String currentUserId, {
+    int limit = 20,
+  }) {
+    // Stream các thay đổi của swipe_history (người khác like mình)
+    final swipeStream = FirebaseFirestore.instance
+        .collection('swipe_history')
+        .where('targetUserId', isEqualTo: currentUserId)
+        .where('action', isEqualTo: 'like')
+        .limit(limit)
+        .snapshots();
 
-  // Stream các thay đổi của matches
-  final matchStream = FirebaseFirestore.instance
-      .collection('matches')
-      .where('userIds', arrayContains: currentUserId)
-      .where('status', isEqualTo: 'confirmed') // CHỈ LẤY CONFIRMED
-      .snapshots();
-
-  // Kết hợp 2 stream để luôn cập nhật khi có match mới hoặc swipe mới
-  return Rx.combineLatest2(swipeStream, matchStream, (QuerySnapshot swipeSnap, QuerySnapshot matchSnap) async {
-    // Lấy danh sách user đã match CONFIRMED với mình
-    final matchedUserIds = <String>{};
-    for (var doc in matchSnap.docs) {
-      final userIds = List<String>.from(doc['userIds'] ?? []);
-      matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
-    }
-
-    // THÊM: Lấy danh sách user đã unmatch (cancelled)
-    final cancelledMatchSnap = await FirebaseFirestore.instance
+    // Stream các thay đổi của matches
+    final matchStream = FirebaseFirestore.instance
         .collection('matches')
         .where('userIds', arrayContains: currentUserId)
-        .where('status', isEqualTo: 'cancelled')
-        .get();
-    
-    final cancelledUserIds = <String>{};
-    for (var doc in cancelledMatchSnap.docs) {
-      final userIds = List<String>.from(doc['userIds'] ?? []);
-      cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
-    }
+        .where('status', isEqualTo: 'confirmed') // CHỈ LẤY CONFIRMED
+        .snapshots();
 
-    // Lấy danh sách user đã thích mình nhưng chưa match VÀ chưa bị cancelled
-    final users = <UserModel>[];
-    for (var doc in swipeSnap.docs) {
-      final userId = doc['userId'];
-      
-      // BỎ QUA user đã match HOẶC đã cancelled
-      if (matchedUserIds.contains(userId) || cancelledUserIds.contains(userId)) {
-        continue;
+    // Lắng nghe thêm danh sách mình đã quẹt (để ẩn ngay khi mình ấn like/dislike)
+    final mySwipeStream = FirebaseFirestore.instance
+        .collection('swipe_latest')
+        .where('userId', isEqualTo: currentUserId)
+        .snapshots();
+
+    // Kết hợp 3 stream
+    return Rx.combineLatest3(swipeStream, matchStream, mySwipeStream, (
+      QuerySnapshot swipeSnap,
+      QuerySnapshot matchSnap,
+      QuerySnapshot mySwipeSnap,
+    ) async {
+      // Lấy danh sách user đã match CONFIRMED với mình
+      final matchedUserIds = <String>{};
+      for (var doc in matchSnap.docs) {
+        final userIds = List<String>.from(doc['userIds'] ?? []);
+        matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
       }
-      
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        users.add(UserModel.fromMap(userDoc.data()!, userId));
+
+      // Lấy danh sách user mình ĐÃ quẹt (cả like/dislike)
+      final mySwipedIds = <String>{};
+      for (var doc in mySwipeSnap.docs) {
+        mySwipedIds.add(doc['targetUserId'] as String);
       }
-    }
-    
-    developer.log('Liked me users: ${users.length} (excluded ${matchedUserIds.length} matched + ${cancelledUserIds.length} cancelled)', name: 'MatchProvider');
-    
-    return users;
-  }).asyncMap((f) => f).asBroadcastStream();
-}
+
+      // Lấy danh sách user đã unmatch (cancelled)
+      final cancelledMatchSnap = await FirebaseFirestore.instance
+          .collection('matches')
+          .where('userIds', arrayContains: currentUserId)
+          .where('status', isEqualTo: 'cancelled')
+          .get();
+
+      final cancelledUserIds = <String>{};
+      for (var doc in cancelledMatchSnap.docs) {
+        final userIds = List<String>.from(doc['userIds'] ?? []);
+        cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
+      }
+
+      // Lấy danh sách user đã thích mình nhưng chưa match VÀ chưa bị cancelled VÀ mình chưa quẹt
+      final users = <UserModel>[];
+      for (var doc in swipeSnap.docs) {
+        final userId = doc['userId'];
+
+        // BỎ QUA user đã match HOẶC đã cancelled HOẶC mình đã quẹt phản hồi
+        if (matchedUserIds.contains(userId) ||
+            cancelledUserIds.contains(userId) ||
+            mySwipedIds.contains(userId)) {
+          continue;
+        }
+
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        if (userDoc.exists) {
+          users.add(UserModel.fromMap(userDoc.data()!, userId));
+        }
+      }
+
+      developer.log(
+        'Liked me users: ${users.length} (excluded ${matchedUserIds.length} matched, ${cancelledUserIds.length} cancelled, ${mySwipedIds.length} swiped by me)',
+        name: 'MatchProvider',
+      );
+
+      return users;
+    }).asyncMap((f) => f).asBroadcastStream();
+  }
 
   // Stream danh sách người mình đã dislike, loại bỏ những người đã match hoặc đã hủy match
-  Stream<List<UserModel>> streamMyDislikedUsers(String currentUserId, {int limit = 100}) {
-  final swipeStream = FirebaseFirestore.instance
-      .collection('swipe_latest')
-      .where('userId', isEqualTo: currentUserId)
-      .where('action', isEqualTo: 'dislike')
-      .limit(limit)
-      .snapshots();
+  Stream<List<UserModel>> streamMyDislikedUsers(
+    String currentUserId, {
+    int limit = 100,
+  }) {
+    final swipeStream = FirebaseFirestore.instance
+        .collection('swipe_latest')
+        .where('userId', isEqualTo: currentUserId)
+        .where('action', isEqualTo: 'dislike')
+        .limit(limit)
+        .snapshots();
 
-  final matchStream = FirebaseFirestore.instance
-      .collection('matches')
-      .where('userIds', arrayContains: currentUserId)
-      .snapshots(); // ← Lấy TẤT CẢ matches (confirmed + cancelled) 1 lần
+    final matchStream = FirebaseFirestore.instance
+        .collection('matches')
+        .where('userIds', arrayContains: currentUserId)
+        .snapshots(); // ← Lấy TẤT CẢ matches (confirmed + cancelled) 1 lần
 
-  return Rx.combineLatest2(swipeStream, matchStream,
-      (QuerySnapshot swipeSnap, QuerySnapshot matchSnap) async {
-    // Lọc confirmed và cancelled từ cùng 1 snapshot
-    final matchedUserIds = <String>{};
-    final cancelledUserIds = <String>{};
-    
-    for (var doc in matchSnap.docs) {
-      final status = doc['status'];
-      final ids = List<String>.from(doc['userIds'] ?? []);
-      final otherIds = ids.where((id) => id != currentUserId);
-      
-      if (status == 'confirmed') {
-        matchedUserIds.addAll(otherIds);
-      } else if (status == 'cancelled') {
-        cancelledUserIds.addAll(otherIds);
+    return Rx.combineLatest2(swipeStream, matchStream, (
+      QuerySnapshot swipeSnap,
+      QuerySnapshot matchSnap,
+    ) async {
+      // Lọc confirmed và cancelled từ cùng 1 snapshot
+      final matchedUserIds = <String>{};
+      final cancelledUserIds = <String>{};
+
+      for (var doc in matchSnap.docs) {
+        final status = doc['status'];
+        final ids = List<String>.from(doc['userIds'] ?? []);
+        final otherIds = ids.where((id) => id != currentUserId);
+
+        if (status == 'confirmed') {
+          matchedUserIds.addAll(otherIds);
+        } else if (status == 'cancelled') {
+          cancelledUserIds.addAll(otherIds);
+        }
       }
-    }
 
-    final users = <UserModel>[];
-    for (var doc in swipeSnap.docs) {
-      final targetId = doc['targetUserId'];
-      if (matchedUserIds.contains(targetId) || cancelledUserIds.contains(targetId)) continue;
+      final users = <UserModel>[];
+      for (var doc in swipeSnap.docs) {
+        final targetId = doc['targetUserId'];
+        if (matchedUserIds.contains(targetId) ||
+            cancelledUserIds.contains(targetId))
+          continue;
 
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(targetId).get();
-      if (userDoc.exists) {
-        users.add(UserModel.fromMap(userDoc.data()!, targetId));
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(targetId)
+            .get();
+        if (userDoc.exists) {
+          users.add(UserModel.fromMap(userDoc.data()!, targetId));
+        }
       }
-    }
 
-    developer.log('My disliked users: ${users.length}', name: 'MatchProvider');
-    return users;
-  }).asyncMap((f) => f).asBroadcastStream(); // ← ĐÃ CÓ broadcast
-}
+      developer.log(
+        'My disliked users: ${users.length}',
+        name: 'MatchProvider',
+      );
+      return users;
+    }).asyncMap((f) => f).asBroadcastStream(); // ← ĐÃ CÓ broadcast
+  }
 
   // Hàm hủy match giữa hai người dùng
   Future<void> unmatch(String matchId) async {

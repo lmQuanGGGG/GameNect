@@ -2,7 +2,7 @@ name: gamenect_new
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+7
+version: 1.0.1+9
 
 environment:
   sdk: ^3.8.1
@@ -88,6 +88,7 @@ dependencies:
   image: ^4.8.0
   shared_preferences: ^2.5.5
   replay_kit_launcher: ^1.0.0
+  wakelock_plus: ^1.5.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -104,4 +105,5 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
+  remove_alpha_ios: true
   image_path: "assets/images/avt.png"

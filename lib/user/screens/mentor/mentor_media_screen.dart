@@ -8,9 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
-import '../../core/providers/profile_provider.dart';
-import '../../core/services/firestore_service.dart';
-import 'premium/subscription_screen.dart';
+import '../../../core/providers/profile_provider.dart';
+import '../../../core/services/firestore_service.dart';
+import '../premium/subscription_screen.dart';
+import 'mentor_media_feed_screen.dart';
 
 const _kBg = Color(0xFF101012);
 const _kAccent = Color(0xFFFF6E40);
@@ -133,8 +134,8 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
 
     final xFile = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1920,
+      imageQuality: 80,
+      maxWidth: 800,
     );
     if (xFile == null) return;
 
@@ -385,7 +386,17 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                     final url = data['url'] as String? ?? '';
 
                     return GestureDetector(
-                      onTap: () => _viewMedia(context, data, docId),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MentorMediaFeedScreen(
+                              docs: docs,
+                              initialIndex: i,
+                            ),
+                          ),
+                        );
+                      },
                       onLongPress: widget.isSelf ? () => _deleteMedia(docId, url) : null,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
@@ -431,41 +442,6 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _viewMedia(BuildContext context, Map<String, dynamic> data, String docId) {
-    final isVideo = data['type'] == 'video';
-    final url = data['url'] as String? ?? '';
-    final caption = data['caption']?.toString() ?? '';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, ctrl) => Column(
-          children: [
-            Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-            Expanded(
-              child: isVideo
-                  ? _VideoPlayer(url: url)
-                  : InteractiveViewer(child: Image.network(url, fit: BoxFit.contain)),
-            ),
-            if (caption.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(caption, style: const TextStyle(color: Colors.white, fontSize: 14)),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -589,65 +565,3 @@ class _CaptionDialog extends StatelessWidget {
   }
 }
 
-// ── Video player widget ───────────────────────────────────────────────────
-
-class _VideoPlayer extends StatefulWidget {
-  final String url;
-  const _VideoPlayer({required this.url});
-
-  @override
-  State<_VideoPlayer> createState() => _VideoPlayerState();
-}
-
-class _VideoPlayerState extends State<_VideoPlayer> {
-  late VideoPlayerController _ctrl;
-  bool _initialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _initialized = true);
-          _ctrl.play();
-          _ctrl.setLooping(true);
-        }
-      });
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_initialized) {
-      return const Center(child: CircularProgressIndicator(color: _kAccent));
-    }
-    return GestureDetector(
-      onTap: () {
-        if (_ctrl.value.isPlaying) {
-          _ctrl.pause();
-        } else {
-          _ctrl.play();
-        }
-        setState(() {});
-      },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          AspectRatio(aspectRatio: _ctrl.value.aspectRatio, child: VideoPlayer(_ctrl)),
-          if (!_ctrl.value.isPlaying)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
-            ),
-        ],
-      ),
-    );
-  }
-}

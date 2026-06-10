@@ -84,10 +84,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> with SingleTickerPr
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const UserApp()),
-      );
+      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/', (route) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

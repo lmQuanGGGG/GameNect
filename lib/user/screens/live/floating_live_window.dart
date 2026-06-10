@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import '../../core/providers/livestream_provider.dart';
+import '../../../core/providers/livestream_provider.dart';
 
 class FloatingLiveWindow extends StatefulWidget {
   final String streamId;
