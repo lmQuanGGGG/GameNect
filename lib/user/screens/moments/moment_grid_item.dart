@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
 import 'dart:ui';
 import 'moment_card.dart';
 
 /// Item trong grid view của FeedTab.
 /// Hiển thị thumbnail (ảnh/video), play icon nếu là video,
 /// reactions count và username. Khi tap mở MomentCard chi tiết.
-class MomentGridItem extends StatelessWidget {
+class MomentGridItem extends StatefulWidget {
   final dynamic moment;
   final String currentUserId;
 
@@ -17,7 +17,19 @@ class MomentGridItem extends StatelessWidget {
     required this.currentUserId,
   });
 
+  @override
+  State<MomentGridItem> createState() => _MomentGridItemState();
+}
+
+class _MomentGridItemState extends State<MomentGridItem> {
   static final Map<String, Map<String, dynamic>> _userCache = {};
+  Future<Map<String, dynamic>?>? _userInfoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userInfoFuture = _getUserInfo(widget.moment.userId);
+  }
 
   Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
     if (_userCache.containsKey(userId)) {
@@ -41,9 +53,17 @@ class MomentGridItem extends StatelessWidget {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.black,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: Colors.white, width: 4),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.white24,
+                blurRadius: 10,
+                offset: Offset(0, -4),
+              ),
+            ],
           ),
           child: Stack(
             children: [
@@ -51,14 +71,18 @@ class MomentGridItem extends StatelessWidget {
                 children: [
                   Container(
                     margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 40, height: 4,
+                    width: 40, height: 6,
                     decoration: BoxDecoration(
-                      color: Colors.white38,
-                      borderRadius: BorderRadius.circular(2),
+                      color: Colors.white54,
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                   Expanded(
-                    child: MomentCard(moment: moment, currentUserId: currentUserId),
+                    child: MomentCard(
+                      key: ValueKey(widget.moment.id),
+                      moment: widget.moment,
+                      currentUserId: widget.currentUserId,
+                    ),
                   ),
                 ],
               ),
@@ -75,26 +99,26 @@ class MomentGridItem extends StatelessWidget {
       onTap: () => _showMomentDetail(context),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-          boxShadow: [
+          color: const Color(0xFFF4F4F4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black, width: 3),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black,
+              offset: Offset(4, 4),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(9),
           child: Stack(
             fit: StackFit.expand,
           children: [
             // Thumbnail
-            CachedNetworkImage(
-              imageUrl: (moment.isVideo && moment.thumbnailUrl != null)
-                  ? moment.thumbnailUrl!
-                  : moment.mediaUrl,
+            GamenectNetworkImage(
+              imageUrl: (widget.moment.isVideo && widget.moment.thumbnailUrl != null)
+                  ? widget.moment.thumbnailUrl!
+                  : widget.moment.mediaUrl,
               fit: BoxFit.cover,
               placeholder: (context, url) => Container(
                 decoration: BoxDecoration(
@@ -118,24 +142,20 @@ class MomentGridItem extends StatelessWidget {
               ),
             ),
 
-            // Gradient overlay
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.2),
-                    Colors.black.withValues(alpha: 0.8),
-                  ],
-                  stops: const [0.0, 0.6, 1.0],
+            // Solid bottom bar instead of gradient
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: Container(
+                height: 50,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Colors.black, width: 3)),
                 ),
               ),
             ),
 
             // Play icon overlay for videos
-            if (moment.isVideo)
+            if (widget.moment.isVideo)
               Positioned(
                 top: 12, left: 12,
                 child: ClipRRect(
@@ -156,40 +176,35 @@ class MomentGridItem extends StatelessWidget {
               ),
 
             // Reactions badge
-            if (moment.reactions.isNotEmpty)
+            if (widget.moment.reactions.isNotEmpty)
               Positioned(
-                top: 10, right: 10,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('❤️', style: TextStyle(fontSize: 14)),
-                          const SizedBox(width: 4),
-                          Text('${moment.reactions.length}',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
+                top: 8, right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white, // White
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('❤️', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 4),
+                      Text('${widget.moment.reactions.length}',
+                          style: const TextStyle(
+                              color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+                    ],
                   ),
                 ),
               ),
 
             // Username + caption at bottom
             Positioned(
-              left: 12, right: 12, bottom: 12,
+              left: 8, right: 8, bottom: 8,
               child: FutureBuilder<Map<String, dynamic>?>(
-                future: _getUserInfo(moment.userId),
+                future: _userInfoFuture,
                 builder: (context, snapshot) {
                   final userInfo = snapshot.data;
                   final username = userInfo?['username'] ?? 'User';
@@ -200,34 +215,34 @@ class MomentGridItem extends StatelessWidget {
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                          border: Border.all(color: Colors.black, width: 2),
                         ),
                         child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.grey[800],
+                          radius: 14,
+                          backgroundColor: const Color(0xFF00E676),
                           backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
                           child: avatarUrl == null
                               ? Text(username[0].toUpperCase(),
                                   style: const TextStyle(
-                                      color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))
+                                      color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900))
                               : null,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(username,
+                            Text(username.toUpperCase(),
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                                    color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
-                            if (moment.caption?.isNotEmpty == true)
-                              Text(moment.caption!,
-                                  style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                            if (widget.moment.caption?.isNotEmpty == true)
+                              Text(widget.moment.caption!,
+                                  style: const TextStyle(
+                                      color: Colors.black87, fontSize: 10, fontWeight: FontWeight.bold),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis),
                           ],

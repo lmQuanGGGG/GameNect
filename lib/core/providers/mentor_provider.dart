@@ -105,9 +105,15 @@ class MentorProvider extends ChangeNotifier {
   /// Follow mentor.
   Future<void> followMentor(String mentorId, String followerId) async {
     try {
+      // Cập nhật local trước (optimistic) — không gọi loadApprovedMentors để tránh reload list
+      final idx = _approvedMentors.indexWhere((m) => m['userId'] == mentorId);
+      if (idx != -1) {
+        final updated = Map<String, dynamic>.from(_approvedMentors[idx]);
+        updated['followerCount'] = ((updated['followerCount'] as int? ?? 0) + 1);
+        _approvedMentors[idx] = updated;
+        notifyListeners();
+      }
       await _service.followMentor(mentorId, followerId);
-      // Refresh danh sách để cập nhật followerCount nếu đang hiển thị
-      await loadApprovedMentors(gameFilter: _selectedGameFilter);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -118,8 +124,16 @@ class MentorProvider extends ChangeNotifier {
   /// Unfollow mentor.
   Future<void> unfollowMentor(String mentorId, String followerId) async {
     try {
+      // Cập nhật local trước (optimistic) — không gọi loadApprovedMentors để tránh reload list
+      final idx = _approvedMentors.indexWhere((m) => m['userId'] == mentorId);
+      if (idx != -1) {
+        final updated = Map<String, dynamic>.from(_approvedMentors[idx]);
+        final current = updated['followerCount'] as int? ?? 0;
+        updated['followerCount'] = current > 0 ? current - 1 : 0;
+        _approvedMentors[idx] = updated;
+        notifyListeners();
+      }
       await _service.unfollowMentor(mentorId, followerId);
-      await loadApprovedMentors(gameFilter: _selectedGameFilter);
     } catch (e) {
       _error = e.toString();
       notifyListeners();

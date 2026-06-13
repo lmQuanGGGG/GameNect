@@ -324,20 +324,26 @@ class MatchProvider with ChangeNotifier {
       final matchDocs = await FirestoreService().getMatchDocsForUser(
         currentUserId,
       );
-      List<Map<String, dynamic>> result = [];
-
-      for (var matchDoc in matchDocs) {
+      final futures = matchDocs.map((matchDoc) async {
         final data = matchDoc.data() as Map<String, dynamic>?;
-        if (data == null) continue;
+        if (data == null) return null;
 
         final userIds = List<String>.from(data['userIds'] ?? []);
         final peerUserId = userIds.firstWhere(
           (id) => id != currentUserId,
           orElse: () => '',
         );
-        if (peerUserId.isEmpty) continue;
+        if (peerUserId.isEmpty) return null;
 
-        final user = await FirestoreService().getUser(peerUserId);
+        UserModel? user;
+        if (_userCache.containsKey(peerUserId)) {
+          user = _userCache[peerUserId];
+        } else {
+          user = await FirestoreService().getUser(peerUserId);
+          if (user != null) {
+            _userCache[peerUserId] = user;
+          }
+        }
 
         // LẤY TIN NHẮN CUỐI CÙNG TỪ CHATS
         final lastMsg = await FirestoreService().getLastMessage(matchDoc.id);
@@ -349,19 +355,23 @@ class MatchProvider with ChangeNotifier {
         }
 
         if (user != null) {
-          result.add({
+          return <String, dynamic>{
             'matchId': matchDoc.id,
             'user': user,
             'lastMessage': lastMessage,
             'lastMessageTime': lastMessageTime,
             'lastMessageRead': data['lastMessageRead'] ?? true,
             'lastMessageSenderId': data['lastMessageSenderId'] ?? '',
-          });
+          };
         }
-      }
+        return null;
+      });
+
+      final results = await Future.wait(futures);
+      final list = results.whereType<Map<String, dynamic>>().toList();
 
       // SẮP XẾP THEO THỜI GIAN TIN NHẮN MỚI NHẤT
-      result.sort((a, b) {
+      list.sort((a, b) {
         final aTime =
             a['lastMessageTime'] ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bTime =
@@ -369,7 +379,7 @@ class MatchProvider with ChangeNotifier {
         return bTime.compareTo(aTime);
       });
 
-      return result;
+      return list;
     } catch (e) {
       debugPrint('Error fetching matched users: $e');
       return [];

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -32,8 +32,9 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: bgColor,
       body: Consumer<GameProvider>(
         builder: (context, provider, child) {
           if (provider.isLoadingDetail) {
@@ -66,33 +67,37 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         SliverAppBar(
           expandedHeight: 350,
           pinned: true,
-          backgroundColor: _backgroundColor,
-          leading: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          leading: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.black, width: 2),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.black),
             ),
           ),
           actions: [
-            Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-              ),
-              child: IconButton(
-                icon: const Icon(
-                  Icons.ios_share_rounded,
+            GestureDetector(
+              onTap: () => _showShareBottomSheet(context, game),
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                width: 40, height: 40,
+                decoration: BoxDecoration(
                   color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.black, width: 2),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                ),
+                child: const Icon(
+                  Icons.ios_share_rounded,
+                  color: Colors.black,
                   size: 20,
                 ),
-                onPressed: () => _showShareBottomSheet(context, game),
               ),
             ),
           ],
@@ -101,7 +106,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               fit: StackFit.expand,
               children: [
                 if (game.backgroundImage != null)
-                  CachedNetworkImage(
+                  GamenectNetworkImage(
                     imageUrl: game.backgroundImage!,
                     fit: BoxFit.cover,
                   ),
@@ -113,8 +118,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        _backgroundColor.withValues(alpha: 0.8),
-                        _backgroundColor,
+                        Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.8),
+                        Theme.of(context).scaffoldBackgroundColor,
                       ],
                       stops: const [0.5, 0.8, 1.0],
                     ),
@@ -129,48 +134,70 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        game.name,
+                        game.name.toUpperCase(),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w900,
                           height: 1.1,
+                          letterSpacing: 1.5,
                           shadows: [
-                            Shadow(blurRadius: 10, color: Colors.black),
+                            Shadow(offset: Offset(0, 4), color: Colors.black),
+                            Shadow(offset: Offset(-2, -2), color: Colors.black),
+                            Shadow(offset: Offset(2, -2), color: Colors.black),
+                            Shadow(offset: Offset(2, 2), color: Colors.black),
+                            Shadow(offset: Offset(-2, 2), color: Colors.black),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           if (game.metacritic > 0)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                                horizontal: 10,
+                                vertical: 6,
                               ),
                               decoration: BoxDecoration(
                                 color: _getMetacriticColor(game.metacritic),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.black, width: 2),
+                                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
                               ),
                               child: Text(
-                                'Metacritic ${game.metacritic}',
+                                'SCORE ${game.metacritic}',
                                 style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w900,
                                   fontSize: 12,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ),
                           const SizedBox(width: 12),
-                          Icon(Icons.star, color: Colors.amber, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${game.rating} / 5',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD54F),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.black, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star, color: Colors.black, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${game.rating} / 5',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -214,8 +241,9 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                   Text(
                     game.descriptionRaw!,
                     style: TextStyle(
-                      color: Colors.grey[300],
+                      color: Theme.of(context).textTheme.bodyLarge!.color ?? Colors.white,
                       fontSize: 15,
+                      fontWeight: FontWeight.w600,
                       height: 1.6,
                     ),
                   ),
@@ -251,7 +279,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                           margin: const EdgeInsets.only(right: 16),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: CachedNetworkImage(
+                            child: GamenectNetworkImage(
                               imageUrl: game.screenshots[index],
                               width: 320,
                               fit: BoxFit.cover,
@@ -266,42 +294,34 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
                 // Website Button
                 if (game.website != null)
-                  Container(
-                    width: double.infinity,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6E40), Color(0xFFE64A19)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () => _launchUrl(game.website!),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                  GestureDetector(
+                    onTap: () => _launchUrl(game.website!),
+                    child: Container(
+                      width: double.infinity,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6E40),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black,
+                            offset: const Offset(4, 4),
+                          ),
+                        ],
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.language, color: Colors.white),
+                          Icon(Icons.language, color: Colors.black),
                           SizedBox(width: 8),
                           Text(
-                            'Visit Official Website',
+                            'VISIT OFFICIAL WEBSITE',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.black,
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
                             ),
                           ),
                         ],
@@ -338,33 +358,33 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Widget _buildStatBox(IconData icon, String label, String value) {
+    final textColor = Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor, width: 3),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: textColor,
+            offset: const Offset(4, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: _primaryColor, size: 24),
+          Icon(icon, color: textColor, size: 24),
           const SizedBox(height: 12),
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Text(label.toUpperCase(), style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
           const SizedBox(height: 4),
           Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
+            value.toUpperCase(),
+            style: TextStyle(
+              color: textColor,
               fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -373,37 +393,42 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
+    final textColor = Theme.of(context).textTheme.bodyLarge!.color ?? Colors.white;
     return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.5,
+      title.toUpperCase(),
+      style: TextStyle(
+        color: textColor,
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.0,
       ),
     );
   }
 
   Widget _buildChip(String label, {bool isPlatform = false}) {
+    final textColor = Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: isPlatform
-            ? Colors.blue.withValues(alpha: 0.15)
-            : _primaryColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+            ? const Color(0xFF2979FF)
+            : const Color(0xFFFF6E40),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isPlatform
-              ? Colors.blue.withValues(alpha: 0.3)
-              : _primaryColor.withValues(alpha: 0.3),
+          color: textColor,
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(color: textColor, offset: const Offset(2, 2)),
+        ],
       ),
       child: Text(
-        label,
-        style: TextStyle(
-          color: isPlatform ? Colors.blue[200] : _primaryColor,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+        label.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -444,60 +469,51 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
             return Container(
               height: MediaQuery.of(context).size.height * 0.6,
               decoration: BoxDecoration(
-                color: const Color(0xFF101012).withValues(alpha: 0.85),
+                color: Colors.white,
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(32),
+                  top: Radius.circular(24),
                 ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  width: 1.5,
+                border: const Border(
+                  top: BorderSide(color: Colors.black, width: 4),
+                  left: BorderSide(color: Colors.black, width: 4),
+                  right: BorderSide(color: Colors.black, width: 4),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
-                    blurRadius: 40,
-                    spreadRadius: 5,
-                    offset: const Offset(0, -5),
-                  ),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(0, -4)),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(32),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                  child: Column(
-                    children: [
-                      // Drag handle
-                      Container(
-                        margin: const EdgeInsets.only(top: 12, bottom: 20),
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      const Text(
-                        'Chia sẻ Game',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Gửi "${game.name}" cho bạn bè',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Divider(color: Colors.white24, height: 1),
+              child: Column(
+                children: [
+                  // Drag handle
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 20),
+                    width: 40,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const Text(
+                    'CHIA SẺ GAME',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'GỬI "${game.name.toUpperCase()}" CHO BẠN BÈ',
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(color: Colors.black, height: 4, thickness: 4),
                       Expanded(
                         child:
                             snapshot.connectionState == ConnectionState.waiting
@@ -511,9 +527,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                   snapshot.data!.isEmpty
                             ? Center(
                                 child: Text(
-                                  'Bạn chưa có Match nào',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
+                                  'BẠN CHƯA CÓ MATCH NÀO',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w900,
                                   ),
                                 ),
                               )
@@ -538,31 +555,31 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                         width: 48,
                                         height: 48,
                                         child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                                            ? CachedNetworkImage(
+                                            ? GamenectNetworkImage(
                                                 imageUrl: user.avatarUrl!,
                                                 fit: BoxFit.cover,
-                                                placeholder: (context, url) => Container(color: Colors.white.withValues(alpha: 0.1)),
+                                                placeholder: (context, url) => Container(color: Colors.black.withValues(alpha: 0.1)),
                                                 errorWidget: (context, url, error) => Container(
-                                                  color: Colors.white.withValues(alpha: 0.1),
-                                                  child: const Icon(Icons.person, color: Colors.white),
+                                                  color: Colors.black.withValues(alpha: 0.1),
+                                                  child: const Icon(Icons.person, color: Colors.black54),
                                                 ),
                                               )
                                             : Container(
-                                                color: Colors.white.withValues(alpha: 0.1),
-                                                child: const Icon(Icons.person, color: Colors.white),
+                                                color: Colors.black.withValues(alpha: 0.1),
+                                                child: const Icon(Icons.person, color: Colors.black54),
                                               ),
                                       ),
                                     ),
                                     title: Text(
                                       user.username ?? 'User',
                                       style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w900,
                                         fontSize: 16,
                                       ),
                                     ),
-                                    trailing: ElevatedButton(
-                                      onPressed: () {
+                                    trailing: GestureDetector(
+                                      onTap: () {
                                         Navigator.pop(bottomSheetContext);
                                         // Chuyển GameDetailModel thành GameModel để lưu
                                         final gameToShare = GameModel(
@@ -591,38 +608,33 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              'Đã gửi ${game.name} cho ${user.username}',
+                                              'ĐÃ GỬI ${game.name.toUpperCase()} CHO ${user.username?.toUpperCase()}',
+                                              style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
                                             ),
-                                            backgroundColor: const Color(
-                                              0xFFFF6E40,
-                                            ),
+                                            backgroundColor: Colors.white,
                                             behavior: SnackBarBehavior.floating,
                                             shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+                                              borderRadius: BorderRadius.circular(8),
+                                              side: const BorderSide(color: Colors.black, width: 2),
                                             ),
                                           ),
                                         );
                                       },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFFFF6E40,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Gửi',
-                                        style: TextStyle(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
                                           color: Colors.white,
-                                          fontWeight: FontWeight.bold,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.black, width: 2),
+                                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                                        ),
+                                        child: const Text(
+                                          'GỬI',
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1.0,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -632,8 +644,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       ),
                     ],
                   ),
-                ),
-              ),
             );
           },
         );

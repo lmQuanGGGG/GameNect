@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -28,6 +29,8 @@ class VideoCallScreen extends StatefulWidget {
   final String? peerAvatarUrl; // Avatar của người được gọi
   final bool isVoiceCall; // True nếu là cuộc gọi thoại, false nếu là video call
   
+  static bool isCallActive = false;
+  
   const VideoCallScreen({
     super.key,
     required this.channelName,
@@ -46,6 +49,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   int? _remoteUid; // UID của người dùng remote (người được gọi)
   bool _isInitialized = false; // Trạng thái engine đã khởi tạo chưa
   bool _isJoined = false; // Trạng thái đã join channel chưa
+  late final Stream<DocumentSnapshot> _callStream;
   DateTime? _callStartTime; // Thời gian bắt đầu cuộc gọi
   bool _isMuted = false; // Trạng thái tắt/bật mic
   bool _isCameraOff = false; // Trạng thái tắt/bật camera
@@ -61,6 +65,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   // Real-time Timer
   Timer? _activeCallTimer;
   int _activeDuration = 0;
+  
+  double _remoteVideoAspectRatio = 9 / 16; // Tỷ lệ khung hình remote
 
   // Draggable PiP Coordinates
   double _localViewX = 24.0;
@@ -86,6 +92,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   void initState() {
     super.initState();
+    VideoCallScreen.isCallActive = true;
+    _callStream = FirebaseFirestore.instance
+        .collection('calls')
+        .doc(widget.channelName)
+        .snapshots();
     try {
       WakelockPlus.enable().catchError((e) {
         debugPrint('WakelockPlus enable async error: $e');
@@ -156,19 +167,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   // Khởi tạo Agora RTC Engine
   Future<void> _initAgora() async {
     try {
-      // Yêu cầu quyền truy cập camera và microphone
-      final statuses = await [Permission.microphone, Permission.camera].request();
+      // Yêu cầu quyền truy cập camera và microphone (Chỉ dành cho Mobile)
+      if (!kIsWeb) {
+        final statuses = await [Permission.microphone, Permission.camera].request();
 
-      if (statuses[Permission.microphone] != PermissionStatus.granted ||
-          statuses[Permission.camera] != PermissionStatus.granted) {
-        debugPrint('Permission denied');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cần cấp quyền camera và mic')),
-          );
-          Navigator.pop(context);
+        if (statuses[Permission.microphone] != PermissionStatus.granted ||
+            statuses[Permission.camera] != PermissionStatus.granted) {
+          debugPrint('Permission denied');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cần cấp quyền camera và mic')),
+            );
+            Navigator.pop(context);
+          }
+          return;
         }
-        return;
       }
 
       // Tạo Agora RTC Engine instance
@@ -180,6 +193,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         await _engine!.enableAudio();
       } else {
         await _engine!.enableVideo();
+        // Ép lật video gửi đi cho camera trước (để người nhận nhìn thấy ảnh lật như soi gương giống mình)
+        await _engine!.setVideoEncoderConfiguration(
+          const VideoEncoderConfiguration(
+            dimensions: VideoDimensions(width: 1280, height: 720),
+            frameRate: 30,
+            orientationMode: OrientationMode.orientationModeAdaptive,
+            mirrorMode: VideoMirrorModeType.videoMirrorModeEnabled,
+          ),
+        );
         await _engine!.startPreview(); // Bật preview video của mình
       }
 
@@ -218,6 +240,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           // Khi có lỗi xảy ra
           onError: (err, msg) {
             debugPrint('Agora Error: $err - $msg');
+          },
+          // Lấy tỷ lệ video remote
+          onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
+            if (uid != 0 && width > 0 && height > 0) {
+              double newRatio = width / height;
+              // Nếu video bị xoay 90 hoặc 270 độ (thường gặp trên thiết bị thật cầm dọc)
+              if (rotation == 90 || rotation == 270) {
+                newRatio = height / width;
+              }
+              
+              if (mounted && (_remoteVideoAspectRatio - newRatio).abs() > 0.01) {
+                setState(() {
+                  _remoteVideoAspectRatio = newRatio;
+                });
+              }
+            }
           },
         ),
       );
@@ -275,15 +313,28 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   // Đổi camera trước/sau
-  void _switchCamera() {
+  void _switchCamera() async {
     setState(() {
       _isFrontCamera = !_isFrontCamera;
     });
-    _engine?.switchCamera();
+    await _engine?.switchCamera();
+    
+    // Cập nhật lại chế độ lật video tùy theo đang dùng cam trước hay sau
+    await _engine?.setVideoEncoderConfiguration(
+      VideoEncoderConfiguration(
+        dimensions: const VideoDimensions(width: 1280, height: 720),
+        frameRate: 30,
+        orientationMode: OrientationMode.orientationModeAdaptive,
+        mirrorMode: _isFrontCamera
+            ? VideoMirrorModeType.videoMirrorModeEnabled
+            : VideoMirrorModeType.videoMirrorModeDisabled,
+      ),
+    );
   }
 
   @override
   void dispose() {
+    VideoCallScreen.isCallActive = false;
     try {
       WakelockPlus.disable().catchError((e) {
         debugPrint('WakelockPlus disable async error: $e');
@@ -384,7 +435,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('calls').doc(widget.channelName).snapshots(),
+      stream: _callStream,
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data?.get('status') == 'ended') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -451,7 +502,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       ? AgoraVideoView(
                           controller: VideoViewController.remote(
                             rtcEngine: _engine!,
-                            canvas: VideoCanvas(uid: _remoteUid),
+                            canvas: VideoCanvas(
+                              uid: _remoteUid,
+                              renderMode: (MediaQuery.of(context).size.width / MediaQuery.of(context).size.height > 1.0) == (_remoteVideoAspectRatio > 1.0)
+                                  ? RenderModeType.renderModeHidden
+                                  : RenderModeType.renderModeFit,
+                            ),
                             connection: RtcConnection(channelId: widget.channelName),
                           ),
                         )
@@ -612,12 +668,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                   child: const Center(child: Icon(Icons.videocam_off, color: Colors.white54, size: 36)),
                                 ),
                               )
-                            : AgoraVideoView(
-                                controller: VideoViewController(
-                                  rtcEngine: _engine!,
-                                  canvas: const VideoCanvas(uid: 0),
+                            : ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: AspectRatio(
+                                aspectRatio: 9 / 16,
+                                child: AgoraVideoView(
+                                  controller: VideoViewController(
+                                    rtcEngine: _engine!,
+                                    canvas: const VideoCanvas(
+                                      uid: 0,
+                                      renderMode: RenderModeType.renderModeFit,
+                                    ),
+                                  ),
                                 ),
                               ),
+                            ),
                       ),
                     ),
                   ),

@@ -6,6 +6,8 @@ import 'screens/premium/subscription_config_screen.dart';
 import 'screens/mentor/mentor_management_screen.dart';
 import 'screens/withdrawals/withdrawals_screen.dart';
 
+// Shell chính của Admin Panel
+// Giao diện Neo-Brutalism nền trắng, chữ đen chủ đạo.
 class AdminApp extends StatefulWidget {
   final VoidCallback? onBack;
   const AdminApp({super.key, this.onBack});
@@ -16,11 +18,6 @@ class AdminApp extends StatefulWidget {
 
 class _AdminAppState extends State<AdminApp> {
   int _selectedIndex = 0;
-
-  static const _kBg = Color(0xFF0F0F13);
-  static const _kSurface = Color(0xFF1A1A22);
-  static const _kAccent = Color(0xFFFF5722); // deep orange
-  static const _kAccentEnd = Color(0xFFFF9800); // orange
 
   final List<Widget> _screens = [
     const AdminDashboardScreen(),
@@ -52,101 +49,103 @@ class _AdminAppState extends State<AdminApp> {
       title: 'GameNect Admin',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: _kBg,
-        colorScheme: const ColorScheme.dark(
-          primary: _kAccent,
-          surface: _kSurface,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: const ColorScheme.light(
+          primary: Colors.black,
+          surface: Colors.white,
         ),
         fontFamily: 'SF Pro Display',
       ),
       home: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
+        value: SystemUiOverlayStyle.dark,
         child: Scaffold(
-          backgroundColor: _kBg,
-          extendBody: true,
-          // ── AppBar premium ──────────────────────────────────────────────────
+          backgroundColor: Colors.white,
+          // ── AppBar Neo-Brutalism ──────────────────────────────────────────────
           appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(70),
+            preferredSize: const Size.fromHeight(60),
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF121217),
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFF22222B), width: 1),
-                ),
-              ),
+              color: Colors.white,
               child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    children: [
-                      // Nút quay lại
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            if (widget.onBack != null) {
-                              widget.onBack!();
-                            } else {
-                              Navigator.of(context).pop();
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      // Badge ADMIN + tiêu đề
-                      Expanded(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [_kAccent, _kAccentEnd],
+                            // Nút quay lại
+                            GestureDetector(
+                              onTap: () {
+                                if (widget.onBack != null) {
+                                  widget.onBack!();
+                                } else {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                      color: Colors.black, width: 2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black,
+                                      offset: Offset(2, 2),
+                                    ),
+                                  ],
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                child: const Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  color: Colors.black,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Badge ADMIN
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
                                 'ADMIN',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.5,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 10),
+                            // Tiêu đề trang hiện tại
                             Text(
                               _titles[_selectedIndex],
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: Colors.black,
                                 fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // Spacer cho cân đối vì không còn nút logout
-                      const SizedBox(width: 40),
-                    ],
-                  ),
+                    ),
+                    // Đường kẻ dưới header
+                    Container(height: 2, color: Colors.black),
+                  ],
                 ),
               ),
             ),
           ),
           body: _screens[_selectedIndex],
-          // ── Bottom nav premium ───────────────────────────────────────────────
+          // ── Bottom nav Neo-Brutalism ─────────────────────────────────────────
           bottomNavigationBar: _buildBottomNav(),
         ),
       ),
@@ -155,18 +154,23 @@ class _AdminAppState extends State<AdminApp> {
 
   Widget _buildBottomNav() {
     return Container(
-      padding: const EdgeInsets.only(bottom: 8, left: 12, right: 12, top: 8),
       decoration: const BoxDecoration(
-        color: Color(0xFF13131A),
+        color: Colors.white,
         border: Border(
-          top: BorderSide(color: Color(0xFF252530), width: 1),
+          top: BorderSide(color: Colors.black, width: 2),
         ),
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(_icons.length, (i) => _buildNavItem(i)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(
+              _icons.length,
+              (i) => _buildNavItem(i),
+            ),
+          ),
         ),
       ),
     );
@@ -178,30 +182,32 @@ class _AdminAppState extends State<AdminApp> {
       onTap: () => setState(() => _selectedIndex = index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? const LinearGradient(
-                  colors: [Color(0xFF2C1A14), Color(0xFF20120C)],
-                )
+          color: isSelected ? Colors.black : Colors.white,
+          border: Border.all(
+            color: isSelected ? Colors.black : Colors.black26,
+            width: isSelected ? 2 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? const [
+                  BoxShadow(
+                    color: Colors.black,
+                    offset: Offset(2, 2),
+                  ),
+                ]
               : null,
-          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => isSelected
-                  ? const LinearGradient(
-                      colors: [_kAccent, _kAccentEnd],
-                    ).createShader(bounds)
-                  : const LinearGradient(
-                      colors: [Color(0xFF666680), Color(0xFF666680)],
-                    ).createShader(bounds),
-              child: Icon(_icons[index], size: 22),
+            Icon(
+              _icons[index],
+              size: 20,
+              color: isSelected ? Colors.white : Colors.black38,
             ),
             if (isSelected) ...[
               const SizedBox(width: 6),
@@ -210,7 +216,7 @@ class _AdminAppState extends State<AdminApp> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
@@ -220,6 +226,3 @@ class _AdminAppState extends State<AdminApp> {
     );
   }
 }
-
-
-

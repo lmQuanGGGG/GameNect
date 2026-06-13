@@ -8,10 +8,9 @@ import '../../../core/providers/moment_provider.dart';
 import 'moment_card.dart';
 import 'moment_grid_item.dart';
 import 'trending_games_page.dart';
-import 'discover_mentor_posts_page.dart';
+import 'discover_hub_page.dart';
 import '../camera/camera_capture_screen.dart';
 import '../../../core/theme/theme_helper.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../mentor/all_mentor_media_screen.dart';
 
 /// Tab "Khám phá" — hiển thị moments của tất cả bạn bè trong 2 chế độ:
@@ -120,7 +119,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final topPadding = MediaQuery.of(context).padding.top + 120;
+    final topPadding = MediaQuery.of(context).padding.top + 92;
 
     return Stack(
       children: [
@@ -160,24 +159,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                                 builder: (_) => const AllMentorMediaScreen(),
                               ),
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: kIsWeb
-                                  ? _buildMentorButtonContent(
-                                      context,
-                                      isWeb: true,
-                                    )
-                                  : BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: 15,
-                                        sigmaY: 15,
-                                      ),
-                                      child: _buildMentorButtonContent(
-                                        context,
-                                        isWeb: false,
-                                      ),
-                                    ),
-                            ),
+                            child: _buildMentorButtonContent(context, isWeb: false),
                           ),
                         ],
                       ),
@@ -213,14 +195,14 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 child: PageView.builder(
                   controller: _pageController,
                   scrollDirection: Axis.vertical,
-                  itemCount: hasMoments ? provider.moments.length + 2 : 3,
+                  itemCount: hasMoments ? provider.moments.length + 1 : 2,
                   itemBuilder: (context, index) {
-                    if (index == 0) return const TrendingGamesPage();
-                    if (index == 1) return const DiscoverMentorPostsPage();
-                    if (!hasMoments && index == 2)
+                    if (index == 0) return const DiscoverHubPage();
+                    if (!hasMoments && index == 1)
                       return _buildEmptyState(context);
                     return MomentCard(
-                      moment: provider.moments[index - 2],
+                      key: ValueKey(provider.moments[index - 1].id),
+                      moment: provider.moments[index - 1],
                       currentUserId: userId,
                     );
                   },
@@ -249,35 +231,25 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
           right: 16,
           child: GestureDetector(
             onTap: () => setState(() => isGridMode = !isGridMode),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: context.cardBgColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: context.cardBorderColor,
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white, // White
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black, width: 3),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black,
+                    offset: Offset(4, 4),
                   ),
-                  child: Icon(
-                    isGridMode
-                        ? Icons.view_agenda_rounded
-                        : Icons.grid_view_rounded,
-                    color: context.textColor,
-                    size: 24,
-                  ),
-                ),
+                ],
+              ),
+              child: Icon(
+                isGridMode
+                    ? Icons.view_agenda_rounded
+                    : Icons.grid_view_rounded,
+                color: Colors.black,
+                size: 24,
               ),
             ),
           ),
@@ -291,16 +263,15 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
     required bool isWeb,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: context.cardBorderColor, width: 1.5),
-        boxShadow: [
+        color: Colors.white, // White
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black, width: 3),
+        boxShadow: const [
           BoxShadow(
-            color: const Color(0xFFE040FB).withValues(alpha: 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black,
+            offset: Offset(4, 4),
           ),
         ],
       ),
@@ -309,45 +280,37 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFE040FB).withValues(alpha: 0.5),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFE040FB).withValues(alpha: 0.2),
-                  blurRadius: 12,
-                ),
-              ],
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black, width: 2),
             ),
             child: const Icon(
               Icons.auto_awesome_mosaic_rounded,
-              color: Colors.white,
+              color: Colors.black,
               size: 28,
             ),
           ),
           const SizedBox(width: 16),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Mentor Posts',
+                  'MENTOR POSTS',
                   style: TextStyle(
-                    color: context.textColor,
+                    color: Colors.black,
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.3,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'Ảnh, video độc quyền từ Mentor',
                   style: TextStyle(
-                    color: context.textSecondaryColor,
+                    color: Colors.black87,
                     fontSize: 13,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
@@ -356,12 +319,13 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: context.cardBgColor,
+              color: Colors.white,
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.black, width: 2),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.arrow_forward_ios_rounded,
-              color: context.textColor,
+              color: Colors.black,
               size: 16,
             ),
           ),

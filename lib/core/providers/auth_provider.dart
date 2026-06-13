@@ -33,16 +33,16 @@ class AuthProvider extends ChangeNotifier {
 
       // 1. Đăng nhập Google
       final user = await _authService.signInWithGoogle();
-      
+
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
         if (_locationProvider != null) {
           await _locationProvider!.updateUserLocation(user.uid);
         }
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       _error = _getReadableErrorMessage(e);
@@ -91,16 +91,16 @@ class AuthProvider extends ChangeNotifier {
 
       // 1. Đăng ký với Email/Password
       final user = await _authService.signUpWithEmailPassword(email, password);
-      
+
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
         if (_locationProvider != null) {
           await _locationProvider!.updateUserLocation(user.uid);
         }
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       _error = _getReadableErrorMessage(e);
@@ -120,16 +120,16 @@ class AuthProvider extends ChangeNotifier {
 
       // 1. Đăng nhập với Email/Password
       final user = await _authService.signInWithEmailPassword(email, password);
-      
+
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
         if (_locationProvider != null) {
           await _locationProvider!.updateUserLocation(user.uid);
         }
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       _error = _getReadableErrorMessage(e);
@@ -155,19 +155,19 @@ class AuthProvider extends ChangeNotifier {
 
       // 1. Xác thực OTP
       final user = await _authService.verifyOTP(_verificationId!, otp);
-      
+
       if (user != null) {
         _isVerifying = false;
         _verificationId = null;
-        
+
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
         if (_locationProvider != null) {
           await _locationProvider!.updateUserLocation(user.uid);
         }
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       _error = _getReadableErrorMessage(e);

@@ -122,29 +122,13 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(left: 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: context.cardBgColor,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: context.cardBorderColor,
-                                    width: 0.8,
-                                  ),
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    CupertinoIcons.back,
-                                    color: Color(0xFFFF6E40),
-                                    size: 24,
-                                  ),
-                                  onPressed: () => Navigator.pop(context),
-                                ),
-                              ),
+                          child: IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.back,
+                              color: Color(0xFFFF6E40),
+                              size: 28,
                             ),
+                            onPressed: () => Navigator.pop(context),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -165,7 +149,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                             style: TextStyle(
                               color: locationProvider.isLoading
                                   ? context.textTertiaryColor
-                                  : const Color(0xFFFF6E40),
+                                  : context.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -180,48 +164,9 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
             ),
           ),
           body: locationProvider.isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40)))
+              ? Center(child: CircularProgressIndicator(color: context.textColor))
               : Stack(
                   children: [
-                    // Orbs background
-                    Positioned(
-                      top: 100,
-                      left: -80,
-                      child: Container(
-                        width: 300,
-                        height: 300,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                              blurRadius: 100,
-                              spreadRadius: 40,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 100,
-                      right: -80,
-                      child: Container(
-                        width: 350,
-                        height: 350,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFBF360C).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                              blurRadius: 120,
-                              spreadRadius: 50,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     SafeArea(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -234,23 +179,28 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: context.cardBgColor,
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: context.scaffoldBackgroundColor,
+                                  borderRadius: BorderRadius.circular(0),
                                   border: Border.all(
-                                    color: context.cardBorderColor,
+                                    color: context.textColor,
+                                    width: 3,
                                   ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: context.textColor,
+                                      offset: const Offset(4, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                                        color: context.textColor.withValues(alpha: 0.2),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(
-                                        CupertinoIcons.location_solid,
-                                        color: Color(0xFFFF6E40),
+                                      child: const Icon(CupertinoIcons.location_solid, color: Color(0xFFFF6E40),
                                         size: 24,
                                       ),
                                     ),
@@ -279,9 +229,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(
-                                        CupertinoIcons.refresh,
-                                        color: Color(0xFFFF6E40),
+                                      icon: const Icon(CupertinoIcons.refresh, color: Color(0xFFFF6E40),
                                       ),
                                       onPressed: _refreshLocation,
                                     ),
@@ -403,12 +351,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                               title: 'Tìm kiếm',
                               subtitle: 'Giới tính bạn muốn tìm',
                               child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: context.cardBgColor,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: context.cardBorderColor),
-                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 child: Row(
                                   children: [
                                     Expanded(child: _buildGenderButton(label: 'Nam', isSelected: locationProvider.interestedInGender == 'Nam', onTap: () => locationProvider.setInterestedInGender('Nam'))),
@@ -495,16 +438,14 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                                color: context.textColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.3)),
+                                border: Border.all(color: context.textColor.withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(
-                                    CupertinoIcons.info_circle_fill,
-                                    color: Color(0xFFFF6E40),
+                                  Icon(CupertinoIcons.info_circle_fill, color: context.textColor,
                                     size: 24,
                                   ),
                                   const SizedBox(width: 12),
@@ -543,9 +484,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         Text(
           title,
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
             color: context.textColor,
+            letterSpacing: 1.0,
           ),
         ),
         if (subtitle != null) ...[
@@ -577,21 +519,22 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF6E40) : context.cardBgColor,
+          color: isSelected ? const Color(0xFFFF6E40) : context.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF6E40) : context.cardBorderColor,
+            color: isSelected ? context.textColor : context.textColor.withValues(alpha: 0.3),
+            width: isSelected ? 3 : 1,
           ),
           boxShadow: isSelected
-              ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              ? [BoxShadow(color: context.textColor, offset: const Offset(4, 4))]
               : [],
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : context.textSecondaryColor,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? context.scaffoldBackgroundColor : context.textSecondaryColor,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
             fontSize: 13,
           ),
         ),
@@ -615,21 +558,22 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF6E40) : context.cardBgColor,
+          color: isSelected ? const Color(0xFFFF6E40) : context.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF6E40) : context.cardBorderColor,
+            color: isSelected ? context.textColor : context.textColor.withValues(alpha: 0.3),
+            width: isSelected ? 3 : 1,
           ),
           boxShadow: isSelected
-              ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              ? [BoxShadow(color: context.textColor, offset: const Offset(4, 4))]
               : [],
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : context.textSecondaryColor,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? context.scaffoldBackgroundColor : context.textSecondaryColor,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
             fontSize: 13,
           ),
         ),
@@ -650,16 +594,17 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFFF6E40) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
+          border: isSelected ? Border.all(color: context.textColor, width: 3) : null,
           boxShadow: isSelected
-              ? [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+              ? [BoxShadow(color: context.textColor, offset: const Offset(4, 4))]
               : [],
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.white : context.textSecondaryColor,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? context.scaffoldBackgroundColor : context.textSecondaryColor,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
               fontSize: 14,
             ),
           ),

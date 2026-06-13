@@ -4,16 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/providers/subscription_provider.dart';
 
-
 // Màn hình cấu hình các gói Premium dành cho admin.
-// Kiểm tra quyền admin trước khi cho phép truy cập màn hình này.
-// Nếu không phải admin, hiển thị thông báo không có quyền truy cập.
-
+// Giao diện thiết kế theo phong cách Neo-Brutalism nền trắng, chữ đen, viền dày nổi bật.
 class SubscriptionConfigScreen extends StatelessWidget {
   const SubscriptionConfigScreen({super.key});
 
-  // Hàm kiểm tra user hiện tại có phải admin hay không.
-  // Trả về true nếu user có quyền admin, ngược lại trả về false.
   Future<bool> _isAdmin() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
@@ -23,30 +18,30 @@ class SubscriptionConfigScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sử dụng FutureBuilder để kiểm tra quyền admin trước khi hiển thị nội dung.
     return FutureBuilder<bool>(
       future: _isAdmin(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          // Hiển thị vòng quay khi đang kiểm tra quyền.
           return const Scaffold(
-            backgroundColor: Color(0xFF181A20),
-            body: Center(child: CircularProgressIndicator()),
+            backgroundColor: Colors.white,
+            body: Center(child: CircularProgressIndicator(color: Colors.black)),
           );
         }
         if (!snapshot.data!) {
-          // Nếu không phải admin, hiển thị thông báo không có quyền truy cập.
           return const Scaffold(
-            backgroundColor: Color(0xFF181A20),
+            backgroundColor: Colors.white,
             body: Center(
               child: Text(
                 'Bạn không có quyền truy cập!',
-                style: TextStyle(fontSize: 18, color: Colors.white70),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           );
         }
-        // Nếu là admin, khởi tạo provider và hiển thị nội dung cấu hình gói Premium.
         return ChangeNotifierProvider(
           create: (_) => SubscriptionProvider()..fetchPlans(),
           child: const _SubscriptionConfigContent(),
@@ -56,10 +51,6 @@ class SubscriptionConfigScreen extends StatelessWidget {
   }
 }
 
-// Widget hiển thị nội dung cấu hình các gói Premium.
-// Lấy danh sách các gói từ provider và hiển thị dưới dạng danh sách.
-// Cho phép thêm, sửa, xóa các gói Premium.
-
 class _SubscriptionConfigContent extends StatelessWidget {
   const _SubscriptionConfigContent();
 
@@ -68,7 +59,7 @@ class _SubscriptionConfigContent extends StatelessWidget {
     final provider = Provider.of<SubscriptionProvider>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF181A20),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -77,40 +68,52 @@ class _SubscriptionConfigContent extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
               child: Row(
                 children: [
-                  // Hiển thị icon Premium và tiêu đề màn hình.
-                  const Icon(Icons.workspace_premium, color: Colors.deepOrange, size: 28),
+                  const Icon(Icons.workspace_premium, color: Colors.black, size: 28),
                   const SizedBox(width: 12),
-                  Text(
+                  const Text(
                     'Quản lý gói Premium',
                     style: TextStyle(
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepOrange.shade200,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
                       letterSpacing: 0.5,
                     ),
                   ),
                   const Spacer(),
-                  // Nút thêm gói mới, khi bấm sẽ mở dialog nhập thông tin gói.
-                  FloatingActionButton(
-                    backgroundColor: Colors.deepOrange,
-                    mini: true,
-                    onPressed: () => _showAddDialog(context, provider),
-                    child: const Icon(Icons.add, color: Colors.white),
+                  GestureDetector(
+                    onTap: () => _showAddDialog(context, provider),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6E40), // Cam neon
+                        border: Border.all(color: Colors.black, width: 2.5),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                        ],
+                      ),
+                      child: const Icon(Icons.add, color: Colors.white, size: 22),
+                    ),
                   ),
                 ],
               ),
             ),
+            // Đường kẻ ngăn cách dày
+            Container(
+              height: 2,
+              color: Colors.black,
+              margin: const EdgeInsets.only(bottom: 8),
+            ),
             // Hiển thị danh sách các gói Premium.
             Expanded(
               child: provider.plans.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
                   : ListView.builder(
                       itemCount: provider.plans.length,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       itemBuilder: (context, index) {
                         final plan = provider.plans[index];
-                        // Hiển thị từng gói bằng GlassPlanCard, có nút sửa và xóa.
-                        return _GlassPlanCard(
+                        return _NeoPlanCard(
                           plan: plan,
                           onEdit: () => _showEditDialog(context, provider, plan),
                           onDelete: () => _deletePlan(context, provider, plan),
@@ -124,8 +127,6 @@ class _SubscriptionConfigContent extends StatelessWidget {
     );
   }
 
-  // Hàm hiển thị dialog thêm gói mới.
-  // Nhập thông tin gói và lưu vào Firestore khi bấm nút Thêm.
   void _showAddDialog(BuildContext context, SubscriptionProvider provider) {
     final planTypeController = TextEditingController();
     final titleController = TextEditingController();
@@ -138,29 +139,41 @@ class _SubscriptionConfigContent extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF232526),
-        title: const Text('Thêm gói mới', style: TextStyle(color: Colors.deepOrange)),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.black, width: 2.5),
+        ),
+        title: const Text(
+          'Thêm gói mới',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Các trường nhập thông tin gói mới.
-              _GlassTextField(controller: planTypeController, label: 'Loại gói (monthly/yearly)'),
-              _GlassTextField(controller: titleController, label: 'Tên gói'),
-              _GlassTextField(controller: priceController, label: 'Giá (số)', keyboardType: TextInputType.number),
-              _GlassTextField(controller: priceTextController, label: 'Giá hiển thị (vd: 84.500đ)'),
-              _GlassTextField(controller: pricePerMonthController, label: 'Giá/tháng (vd: 42.250đ/tháng)'),
-              _GlassTextField(controller: badgeController, label: 'Badge (vd: Tiết kiệm 50%)'),
+              _NeoTextField(controller: planTypeController, label: 'Loại gói (monthly/yearly)'),
+              _NeoTextField(controller: titleController, label: 'Tên gói'),
+              _NeoTextField(controller: priceController, label: 'Giá (số)', keyboardType: TextInputType.number),
+              _NeoTextField(controller: priceTextController, label: 'Giá hiển thị (vd: 84.500đ)'),
+              _NeoTextField(controller: pricePerMonthController, label: 'Giá/tháng (vd: 42.250đ/tháng)'),
+              _NeoTextField(controller: badgeController, label: 'Badge (vd: Tiết kiệm 50%)'),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  const Text('Kích hoạt', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    'Kích hoạt',
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   const Spacer(),
-                  // Switch để chọn trạng thái kích hoạt của gói.
                   ValueListenableBuilder<bool>(
                     valueListenable: isActive,
                     builder: (context, value, _) => Switch(
                       value: value,
-                      activeColor: Colors.deepOrange,
+                      activeColor: Colors.black,
+                      activeTrackColor: const Color(0xFFFF6E40),
+                      inactiveThumbColor: Colors.grey,
+                      inactiveTrackColor: Colors.grey.shade300,
                       onChanged: (v) => isActive.value = v,
                     ),
                   ),
@@ -169,10 +182,17 @@ class _SubscriptionConfigContent extends StatelessWidget {
             ],
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          // Nút Thêm để lưu gói mới vào Firestore.
           TextButton(
-            onPressed: () async {
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+          ),
+          GestureDetector(
+            onTap: () async {
               await FirebaseFirestore.instance.collection('premium_plans').add({
                 'planType': planTypeController.text,
                 'title': titleController.text,
@@ -183,22 +203,29 @@ class _SubscriptionConfigContent extends StatelessWidget {
                 'isActive': isActive.value,
               });
               provider.fetchPlans();
-              Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
-            child: const Text('Thêm', style: TextStyle(color: Colors.deepOrange)),
-          ),
-          // Nút Hủy để đóng dialog.
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6E40),
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                ],
+              ),
+              child: const Text(
+                'Thêm',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Hàm hiển thị dialog sửa thông tin gói Premium.
-  // Cho phép chỉnh sửa các trường và lưu lại vào Firestore.
   void _showEditDialog(BuildContext context, SubscriptionProvider provider, Map<String, dynamic> plan) {
     final titleController = TextEditingController(text: plan['title'] ?? '');
     final priceController = TextEditingController(text: plan['price']?.toString() ?? '');
@@ -210,28 +237,40 @@ class _SubscriptionConfigContent extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF232526),
-        title: const Text('Sửa gói', style: TextStyle(color: Colors.deepOrange)),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.black, width: 2.5),
+        ),
+        title: const Text(
+          'Sửa gói',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Các trường chỉnh sửa thông tin gói.
-              _GlassTextField(controller: titleController, label: 'Tên gói'),
-              _GlassTextField(controller: priceController, label: 'Giá (số)', keyboardType: TextInputType.number),
-              _GlassTextField(controller: priceTextController, label: 'Giá hiển thị'),
-              _GlassTextField(controller: pricePerMonthController, label: 'Giá/tháng'),
-              _GlassTextField(controller: badgeController, label: 'Badge'),
+              _NeoTextField(controller: titleController, label: 'Tên gói'),
+              _NeoTextField(controller: priceController, label: 'Giá (số)', keyboardType: TextInputType.number),
+              _NeoTextField(controller: priceTextController, label: 'Giá hiển thị'),
+              _NeoTextField(controller: pricePerMonthController, label: 'Giá/tháng'),
+              _NeoTextField(controller: badgeController, label: 'Badge'),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  const Text('Kích hoạt', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    'Kích hoạt',
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   const Spacer(),
-                  // Switch để chỉnh trạng thái kích hoạt của gói.
                   ValueListenableBuilder<bool>(
                     valueListenable: isActive,
                     builder: (context, value, _) => Switch(
                       value: value,
-                      activeColor: Colors.deepOrange,
+                      activeColor: Colors.black,
+                      activeTrackColor: const Color(0xFFFF6E40),
+                      inactiveThumbColor: Colors.grey,
+                      inactiveTrackColor: Colors.grey.shade300,
                       onChanged: (v) => isActive.value = v,
                     ),
                   ),
@@ -240,10 +279,17 @@ class _SubscriptionConfigContent extends StatelessWidget {
             ],
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          // Nút Lưu để cập nhật thông tin gói vào Firestore.
           TextButton(
-            onPressed: () async {
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+          ),
+          GestureDetector(
+            onTap: () async {
               final docId = plan['id'] ?? plan['docId'];
               if (docId != null) {
                 await FirebaseFirestore.instance.collection('premium_plans').doc(docId).update({
@@ -256,39 +302,92 @@ class _SubscriptionConfigContent extends StatelessWidget {
                 });
                 provider.fetchPlans();
               }
-              Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
-            child: const Text('Lưu', style: TextStyle(color: Colors.deepOrange)),
-          ),
-          // Nút Hủy để đóng dialog.
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6E40),
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                ],
+              ),
+              child: const Text(
+                'Lưu',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Hàm xóa một gói Premium khỏi Firestore.
   void _deletePlan(BuildContext context, SubscriptionProvider provider, Map<String, dynamic> plan) async {
     final docId = plan['id'] ?? plan['docId'];
     if (docId != null) {
-      await FirebaseFirestore.instance.collection('premium_plans').doc(docId).delete();
-      provider.fetchPlans();
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.black, width: 2.5),
+          ),
+          title: const Text(
+            'Xác nhận xóa',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            'Bạn có chắc chắn muốn xóa gói Premium "${plan['title']}"? Hành động này không thể hoàn tác.',
+            style: const TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(
+                'Hủy',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => Navigator.pop(context, true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF5350), // Đỏ neon
+                  border: Border.all(color: Colors.black, width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                  ],
+                ),
+                child: const Text(
+                  'Xóa',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        await FirebaseFirestore.instance.collection('premium_plans').doc(docId).delete();
+        provider.fetchPlans();
+      }
     }
   }
 }
 
-// Widget hiển thị thông tin một gói Premium dưới dạng thẻ.
-// Hiển thị tên gói, giá, badge, trạng thái kích hoạt, nút sửa và xóa.
-
-class _GlassPlanCard extends StatelessWidget {
+class _NeoPlanCard extends StatelessWidget {
   final Map<String, dynamic> plan;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _GlassPlanCard({
+  const _NeoPlanCard({
     required this.plan,
     required this.onEdit,
     required this.onDelete,
@@ -297,106 +396,119 @@ class _GlassPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.deepOrange.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 2.5),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black, offset: Offset(3, 3)),
         ],
-        border: Border.all(
-          color: Colors.deepOrange.withValues(alpha: 0.18),
-          width: 1.2,
-        ),
       ),
       child: Row(
         children: [
-          // Icon Premium của gói.
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.deepOrange.withValues(alpha: 0.18),
+              color: const Color(0xFFFFE0B2), // Cam nhạt
+              border: Border.all(color: Colors.black, width: 2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.workspace_premium, color: Colors.deepOrange, size: 28),
+            child: const Icon(Icons.workspace_premium, color: Colors.black, size: 28),
           ),
           const SizedBox(width: 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tên gói Premium.
                 Text(
                   plan['title'] ?? '',
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 4),
-                // Giá hiển thị của gói.
                 Text(
                   'Giá: ${plan['priceText'] ?? plan['price']}',
                   style: const TextStyle(
                     fontSize: 15,
-                    color: Colors.deepOrangeAccent,
+                    color: Color(0xFFFF6E40),
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                // Giá/tháng nếu có.
                 if (plan['pricePerMonth'] != null && plan['pricePerMonth'].toString().isNotEmpty)
-                  Text(
-                    plan['pricePerMonth'],
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      plan['pricePerMonth'],
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                // Badge khuyến mãi nếu có.
                 if (plan['badge'] != null && plan['badge'].toString().isNotEmpty)
                   Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    margin: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.deepOrange.withValues(alpha: 0.18),
+                      color: const Color(0xFFFFF176), // Vàng neon
+                      border: Border.all(color: Colors.black, width: 1.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       plan['badge'],
                       style: const TextStyle(
-                        color: Colors.deepOrange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
-                // Hiển thị trạng thái đã ẩn nếu gói không kích hoạt.
                 if (plan['isActive'] == false)
                   const Padding(
-                    padding: EdgeInsets.only(top: 2),
+                    padding: EdgeInsets.only(top: 4),
                     child: Text(
                       'Đã ẩn',
-                      style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                      style: TextStyle(color: Color(0xFFEF5350), fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          // Nút sửa gói.
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.deepOrangeAccent),
-            onPressed: onEdit,
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF176), // Vàng neon
+              border: Border.all(color: Colors.black, width: 2),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Colors.black, size: 18),
+              onPressed: onEdit,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+            ),
           ),
-          // Nút xóa gói.
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.redAccent),
-            onPressed: onDelete,
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF5350), // Đỏ neon
+              border: Border.all(color: Colors.black, width: 2),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.white, size: 18),
+              onPressed: onDelete,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+            ),
           ),
         ],
       ),
@@ -404,15 +516,12 @@ class _GlassPlanCard extends StatelessWidget {
   }
 }
 
-// Widget trường nhập liệu có hiệu ứng nền mờ.
-// Dùng cho dialog thêm/sửa gói Premium.
-
-class _GlassTextField extends StatelessWidget {
+class _NeoTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final TextInputType? keyboardType;
 
-  const _GlassTextField({
+  const _NeoTextField({
     required this.controller,
     required this.label,
     this.keyboardType,
@@ -425,16 +534,31 @@ class _GlassTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.white70),
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.08),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
+          labelStyle: const TextStyle(
+            color: Colors.black54,
+            fontWeight: FontWeight.bold,
           ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black, width: 2),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black, width: 2),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black, width: 2.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );

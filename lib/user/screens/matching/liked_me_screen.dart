@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gamenect_new/core/providers/profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,7 +8,7 @@ import '../../../core/services/firestore_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/providers/match_provider.dart';
 import '../../../core/theme/theme_helper.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
 import '../shared/peer_profile_screen.dart';
@@ -111,17 +112,13 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: context.cardBgColor,
-        border: Border.all(
-          color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
-          width: 1.5,
-        ),
+        color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+        border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 3),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
-            blurRadius: 16,
-            spreadRadius: 2,
+            color: context.isDarkMode ? Colors.white : Colors.black,
+            offset: const Offset(6, 6),
           ),
         ],
       ),
@@ -158,9 +155,10 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF6E40),
-                foregroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: context.isDarkMode ? Colors.white : Colors.black, width: 2),
                 ),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -181,10 +179,9 @@ class _LikedMeScreenState extends State<LikedMeScreen>
   Widget _buildAvatar(UserModel user, {bool shouldBlur = false}) {
     Widget avatarContent;
 
-    // Hiển thị avatar từ URL nếu có
     if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) {
       avatarContent = ClipOval(
-        child: CachedNetworkImage(
+        child: GamenectNetworkImage(
           imageUrl: user.avatarUrl!,
           width: 64,
           height: 64,
@@ -233,32 +230,28 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       );
     }
 
-    // Glassmorphism effect cho avatar với BackdropFilter
+    // Solid Neo-Brutalism avatar
     Widget glassAvatar = Container(
       width: 68,
       height: 68,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+        color: context.isDarkMode ? Colors.black : Colors.white,
         border: Border.all(
-          color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
+          color: context.isDarkMode ? Colors.white : Colors.black,
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: context.isDarkMode ? Colors.white : Colors.black,
+            offset: const Offset(2, 2),
           ),
         ],
       ),
       child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: Container(
-            padding: const EdgeInsets.all(2),
-            child: avatarContent,
-          ),
+        child: Container(
+          padding: const EdgeInsets.all(2),
+          child: avatarContent,
         ),
       ),
     );
@@ -292,6 +285,13 @@ class _LikedMeScreenState extends State<LikedMeScreen>
   // Tab 1: Người đã thích tôi
   // FREE user chỉ xem 3 người đầu tiên, còn lại blur và hiện banner upsell
   Widget _likedMeTab(String currentUserId) {
+    final shadowColors = const [
+      Color(0xFFFF6E40), // Orange
+      Color(0xFFC293FF), // Purple
+      Color(0xFFB9FF66), // Lime
+      Color(0xFF4EEAF6), // Cyan
+    ];
+
     // Hiển thị empty state nếu chưa có ai thích
     if (_likedMeUsers.isEmpty) {
       return const Center(
@@ -341,17 +341,13 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: context.cardBgColor,
-                border: Border.all(
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
+                color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+                border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 3),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
-                    blurRadius: 16,
-                    spreadRadius: 2,
+                    color: context.isDarkMode ? Colors.white : Colors.black,
+                    offset: const Offset(6, 6),
                   ),
                 ],
               ),
@@ -360,37 +356,29 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                   Stack(
                     alignment: Alignment.center,
                     children: [
-                      // 3 avatar xếp chồng nhau (blur) để tạo hiệu ứng nhiều người
+                      // 3 avatar xếp chồng nhau chuẩn Neo-brutalism
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           3,
                           (i) => Transform.translate(
-                            offset: Offset(i * 30.0, 0),
+                            offset: Offset((i - 1) * -20.0, 0), // Sửa lại offset để chồng hợp lý hơn ở center
                             child: Container(
                               width: 60,
                               height: 60,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
+                                color: context.isDarkMode ? Colors.black : Colors.white,
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  width: 2,
+                                  color: context.isDarkMode ? Colors.white : Colors.black,
+                                  width: 3,
                                 ),
                               ),
                               child: ClipOval(
-                                child: ImageFiltered(
-                                  imageFilter: ImageFilter.blur(
-                                    sigmaX: 10,
-                                    sigmaY: 10,
-                                  ),
-                                  child: Container(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    child: const Icon(
-                                      Icons.person,
-                                      size: 30,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                child: Icon(
+                                  Icons.person,
+                                  size: 32,
+                                  color: context.isDarkMode ? Colors.white : Colors.black,
                                 ),
                               ),
                             ),
@@ -428,9 +416,10 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF6E40),
-                        foregroundColor: Colors.white,
+                        foregroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: context.isDarkMode ? Colors.white : Colors.black, width: 2),
                         ),
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -458,19 +447,18 @@ class _LikedMeScreenState extends State<LikedMeScreen>
           final shouldBlur = !isPremium && userIndex >= freeLimit;
 
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: context.cardBgColor,
-              borderRadius: BorderRadius.circular(16),
+              color: context.isDarkMode ? Colors.black : Colors.white,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                width: 1.5,
+                color: context.isDarkMode ? Colors.white : Colors.black,
+                width: 2.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
+                  color: context.isDarkMode ? Colors.white : Colors.black,
+                  offset: const Offset(4, 4),
                 ),
               ],
             ),
@@ -624,6 +612,13 @@ class _LikedMeScreenState extends State<LikedMeScreen>
   // Tab 2: Bỏ lỡ - danh sách người đã dislike
   // Chỉ Premium user mới xem được và có thể Rewind để thích lại
   Widget _missedTab(String currentUserId) {
+    final shadowColors = const [
+      Color(0xFFFF6E40), // Orange
+      Color(0xFFC293FF), // Purple
+      Color(0xFFB9FF66), // Lime
+      Color(0xFF4EEAF6), // Cyan
+    ];
+
     // Nếu chưa premium thì hiển thị banner upsell
     if (!isPremium) {
       return SingleChildScrollView(
@@ -707,19 +702,18 @@ class _LikedMeScreenState extends State<LikedMeScreen>
           itemBuilder: (context, index) {
             final user = _myDislikedUsers[index];
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: context.cardBgColor,
-              borderRadius: BorderRadius.circular(16),
+              color: context.isDarkMode ? Colors.black : Colors.white,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                width: 1.5,
+                color: context.isDarkMode ? Colors.white : Colors.black,
+                width: 2.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
+                  color: context.isDarkMode ? Colors.white : Colors.black,
+                  offset: const Offset(4, 4),
                 ),
               ],
             ),
@@ -804,6 +798,13 @@ class _LikedMeScreenState extends State<LikedMeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final shadowColors = [
+      const Color(0xFFFF6E40), // Orange
+      const Color(0xFFC293FF), // Purple
+      const Color(0xFFB9FF66), // Lime
+      const Color(0xFF4EEAF6), // Cyan
+    ];
+
     super.build(context);
 
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -811,7 +812,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
     // Hiển thị loading khi đang khởi tạo dữ liệu
     if (isLoading) {
       return Scaffold(
-        backgroundColor: context.scaffoldBackgroundColor,
+        backgroundColor: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -854,7 +855,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       length: 2,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: context.scaffoldBackgroundColor,
+        backgroundColor: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -886,69 +887,79 @@ class _LikedMeScreenState extends State<LikedMeScreen>
             ],
           ),
           actions: [
-            // Hiển thị badge Premium hoặc nút Nâng cấp
-            if (isPremium)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.amber, Colors.orange.shade600],
+           Consumer<ProfileProvider>(
+            builder: (context, provider, _) {
+              final isPremium = provider.userData?.isPremium == true;
+              if (isPremium) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.workspace_premium_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          'Premium',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                      decoration: BoxDecoration(
+                        color: context.textColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.textColor, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: context.textColor,
+                            offset: const Offset(4, 4),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Color(0xFFFF6E40),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              color: context.scaffoldBackgroundColor,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              )
-            else
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const SubscriptionScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.workspace_premium_rounded,
-                  color: Color(0xFFFF6E40),
-                  size: 20,
-                ),
-                label: const Text(
-                  'Nâng cấp',
-                  style: TextStyle(
+                );
+              } else {
+                return TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SubscriptionScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.workspace_premium_rounded,
                     color: Color(0xFFFF6E40),
-                    fontWeight: FontWeight.w600,
+                    size: 20,
                   ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-              ),
+                  label: Text(
+                    'Nâng cấp',
+                    style: TextStyle(
+                      color: context.textColor,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                );
+              }
+            },
+          ),
           ],
           // TabBar với 2 tabs
           bottom: TabBar(
@@ -961,59 +972,37 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               fontSize: 15,
             ),
             dividerColor: context.cardBorderColor,
-            tabs: const [
-              Tab(icon: Icon(Icons.favorite), text: 'Thích bạn'),
-              Tab(icon: Icon(Icons.undo_rounded), text: 'Bỏ lỡ'),
+            tabs: [
+              Tab(
+                icon: Icon(
+                  Icons.favorite,
+                  shadows: [
+                    Shadow(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      offset: const Offset(1.5, 1.5),
+                    )
+                  ],
+                ),
+                text: 'Thích bạn',
+              ),
+              Tab(
+                icon: Icon(
+                  Icons.undo_rounded,
+                  shadows: [
+                    Shadow(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      offset: const Offset(1.5, 1.5),
+                    )
+                  ],
+                ),
+                text: 'Bỏ lỡ',
+              ),
             ],
           ),
         ),
         body: Stack(
           children: [
-            // Background Orbs
-            Positioned(
-              top: 100,
-              left: -50,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                      blurRadius: 100,
-                      spreadRadius: 40,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 100,
-              right: -50,
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFBF360C).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                      blurRadius: 120,
-                      spreadRadius: 50,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
+
             SafeArea(
               child: currentUserId == null
                   ? Center(

@@ -1,17 +1,12 @@
 // lib/admin/screens/mentor/mentor_management_screen.dart
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/models/mentor_model.dart';
 import '../../../core/services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../user/screens/mentor/mentor_profile_screen.dart';
 
-const _kAdminBg = Color(0xFF0D0D10);
-const _kAccent = Color(0xFFFF6E40);
-const _kGlassBg = Color(0x14FFFFFF);
-const _kGlassBorder = Color(0x1FFFFFFF);
-
-/// Admin: Màn hình quản lý đơn đăng ký Mentor — Task 7.1
+/// Admin: Màn hình quản lý đơn đăng ký Mentor
+/// Giao diện Neo-Brutalism nền trắng, chữ đen chủ đạo.
 class MentorManagementScreen extends StatefulWidget {
   const MentorManagementScreen({super.key});
 
@@ -39,42 +34,32 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
     super.dispose();
   }
 
-  Widget _buildGlass({required Widget child, double radius = 16}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _kGlassBg,
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: _kGlassBorder, width: 1.2),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kAdminBg,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
-        title: _buildGlass(
-          radius: 12,
+        automaticallyImplyLeading: false,
+        title: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.black, width: 2.5),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+          ),
           child: TextField(
             controller: _searchCtrl,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: 'Tìm kiếm theo tên mentor...',
-              hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 20),
+              hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+              prefixIcon: const Icon(Icons.search, color: Colors.black54, size: 20),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.white54, size: 18),
+                      icon: const Icon(Icons.clear, color: Colors.black54, size: 18),
                       onPressed: () {
                         _searchCtrl.clear();
                         setState(() => _searchQuery = '');
@@ -87,17 +72,27 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
             onChanged: (val) => setState(() => _searchQuery = val.trim()),
           ),
         ),
-        bottom: TabBar(
-          controller: _tabCtrl,
-          labelColor: _kAccent,
-          unselectedLabelColor: Colors.white38,
-          indicatorColor: _kAccent,
-          indicatorWeight: 2.5,
-          tabs: const [
-            Tab(text: 'Chờ duyệt'),
-            Tab(text: 'Đã duyệt'),
-            Tab(text: 'Từ chối'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Column(
+            children: [
+              TabBar(
+                controller: _tabCtrl,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.black54,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                indicator: const BoxDecoration(color: Colors.black),
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: const [
+                  Tab(text: 'Chờ duyệt'),
+                  Tab(text: 'Đã duyệt'),
+                  Tab(text: 'Từ chối'),
+                ],
+              ),
+              Container(height: 2, color: Colors.black),
+            ],
+          ),
         ),
       ),
       body: TabBarView(
@@ -124,7 +119,7 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Lỗi tải dữ liệu: ${snapshot.error}',
-                style: const TextStyle(color: Colors.redAccent),
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -132,44 +127,57 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _kAccent));
+          return const Center(child: CircularProgressIndicator(color: Colors.black));
         }
 
         final docs = snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.school_rounded, size: 56, color: Colors.white.withValues(alpha: 0.15)),
-                const SizedBox(height: 8),
-                Text(
-                  'Không có đơn nào',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                ),
-              ],
+            child: Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 2.5),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.school_rounded, size: 48, color: Colors.black26),
+                  const SizedBox(height: 10),
+                  Text(
+                    status == 'pending'
+                        ? 'Không có đơn chờ duyệt'
+                        : status == 'approved'
+                            ? 'Chưa có mentor nào được duyệt'
+                            : 'Chưa có đơn nào bị từ chối',
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        // Sắp xếp danh sách cục bộ theo appliedAt giảm dần (mới nhất lên đầu)
+        // Sắp xếp theo appliedAt giảm dần
         final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
         sortedDocs.sort((a, b) {
           final aMap = a.data() as Map<String, dynamic>? ?? {};
           final bMap = b.data() as Map<String, dynamic>? ?? {};
-          
           final aTime = aMap['appliedAt'];
           final bTime = bMap['appliedAt'];
-          
           DateTime aDate = DateTime.fromMillisecondsSinceEpoch(0);
           DateTime bDate = DateTime.fromMillisecondsSinceEpoch(0);
-          
           if (aTime is Timestamp) aDate = aTime.toDate();
           if (bTime is Timestamp) bDate = bTime.toDate();
           if (aTime is String) aDate = DateTime.tryParse(aTime) ?? aDate;
           if (bTime is String) bDate = DateTime.tryParse(bTime) ?? bDate;
-          
           return bDate.compareTo(aDate);
         });
 
@@ -184,7 +192,6 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
             return _ApplicationCard(
               mentor: mentor,
               service: _service,
-              glassBuilder: _buildGlass,
               searchQuery: _searchQuery,
             );
           },
@@ -198,13 +205,11 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
 class _ApplicationCard extends StatefulWidget {
   final MentorModel mentor;
   final FirestoreService service;
-  final Widget Function({required Widget child, double radius}) glassBuilder;
   final String searchQuery;
 
   const _ApplicationCard({
     required this.mentor,
     required this.service,
-    required this.glassBuilder,
     this.searchQuery = '',
   });
 
@@ -244,7 +249,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
       await widget.service.approveMentor(widget.mentor.userId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã duyệt Mentor: $_username'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('✅ Đã duyệt Mentor: $_username'),
+            backgroundColor: Colors.black,
+          ),
         );
       }
     } catch (e) {
@@ -262,31 +270,41 @@ class _ApplicationCardState extends State<_ApplicationCard> {
     final reasonCtrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Từ chối đơn của $_username?', style: const TextStyle(color: Colors.white)),
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.black, width: 2.5),
+        ),
+        title: Text(
+          'Từ chối đơn của $_username?',
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Nhập lý do từ chối:', style: TextStyle(color: Colors.white70)),
+            const Text(
+              'Nhập lý do từ chối:',
+              style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
-            TextField(
-              controller: reasonCtrl,
-              maxLines: 3,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'VD: Thiếu thông tin thành tích...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+              ),
+              child: TextField(
+                controller: reasonCtrl,
+                maxLines: 3,
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                decoration: const InputDecoration(
+                  hintText: 'VD: Thiếu thông tin thành tích...',
+                  hintStyle: TextStyle(color: Colors.black38),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(10),
                 ),
               ),
             ),
@@ -294,34 +312,47 @@ class _ApplicationCardState extends State<_ApplicationCard> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy', style: TextStyle(color: Colors.white38)),
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Hủy', style: TextStyle(color: Colors.black54)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              final reason = reasonCtrl.text.trim();
-              if (reason.isEmpty) return;
-              Navigator.pop(context);
-              setState(() => _isActing = true);
-              try {
-                await widget.service.rejectMentor(widget.mentor.userId, reason);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đã từ chối đơn'), backgroundColor: Colors.grey),
-                  );
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF5350),
+              border: Border.all(color: Colors.black, width: 2),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+            ),
+            child: TextButton(
+              onPressed: () async {
+                final reason = reasonCtrl.text.trim();
+                if (reason.isEmpty) return;
+                Navigator.pop(dialogCtx);
+                setState(() => _isActing = true);
+                try {
+                  await widget.service.rejectMentor(widget.mentor.userId, reason);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('❌ Đã từ chối đơn'),
+                        backgroundColor: Colors.black,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                } finally {
+                  if (mounted) setState(() => _isActing = false);
                 }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              } finally {
-                if (mounted) setState(() => _isActing = false);
-              }
-            },
-            child: const Text('Từ chối'),
+              },
+              child: const Text(
+                'Từ chối',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              ),
+            ),
           ),
         ],
       ),
@@ -332,8 +363,11 @@ class _ApplicationCardState extends State<_ApplicationCard> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF181A20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.black, width: 2.5),
+        ),
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -341,12 +375,14 @@ class _ApplicationCardState extends State<_ApplicationCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Header: Avatar + Tên
                 GestureDetector(
                   onTap: () {
                     Navigator.pop(ctx);
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => MentorProfileScreen(mentorId: widget.mentor.userId),
+                        builder: (context) =>
+                            MentorProfileScreen(mentorId: widget.mentor.userId),
                       ),
                     );
                   },
@@ -354,16 +390,23 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                   child: Row(
                     children: [
                       Container(
-                        width: 50, height: 50,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: _kAccent.withValues(alpha: 0.4), width: 2),
+                          border: Border.all(color: Colors.black, width: 2.5),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                          ],
                           image: _avatarUrl.isNotEmpty
-                              ? DecorationImage(image: NetworkImage(_avatarUrl), fit: BoxFit.cover)
+                              ? DecorationImage(
+                                  image: NetworkImage(_avatarUrl),
+                                  fit: BoxFit.cover,
+                                )
                               : null,
                         ),
                         child: _avatarUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.white38, size: 26)
+                            ? const Icon(Icons.person, color: Colors.black38, size: 28)
                             : null,
                       ),
                       const SizedBox(width: 12),
@@ -371,79 +414,211 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                            Text(
+                              _username,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                              ),
+                            ),
                             Text(
                               'Ứng tuyển ${_timeAgo(widget.mentor.appliedAt)}',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
                       ),
+                      const Icon(Icons.chevron_right, color: Colors.black38),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text('Tựa game đăng ký', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF64B5F6).withValues(alpha: 0.15),
+                    border: Border.all(color: const Color(0xFF64B5F6), width: 1.5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'Bấm để xem profile đầy đủ',
+                    style: TextStyle(
+                      color: Color(0xFF1565C0),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                Container(height: 2, color: Colors.black),
+                const SizedBox(height: 14),
+
+                // Games
+                const Text(
+                  'TỰAGAME ĐĂNG KÝ',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: widget.mentor.games.map((g) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _kAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(g, style: const TextStyle(color: _kAccent, fontSize: 13, fontWeight: FontWeight.bold)),
-                  )).toList(),
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: widget.mentor.games
+                      .map(
+                        (g) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.black, width: 2),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                            ],
+                          ),
+                          child: Text(
+                            g,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
-                const SizedBox(height: 16),
-                const Text('Giới thiệu bản thân (Bio)', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+
+                const SizedBox(height: 14),
+                const Text(
+                  'GIỚI THIỆU BẢN THÂN',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
-                  child: Text(widget.mentor.bio, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    border: Border.all(color: Colors.black, width: 1.5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    widget.mentor.bio,
+                    style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                const Text('Thành tích / Kinh nghiệm', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+
+                const SizedBox(height: 14),
+                const Text(
+                  'THÀNH TÍCH / KINH NGHIỆM',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
-                  child: Text(widget.mentor.achievements, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    border: Border.all(color: Colors.black, width: 1.5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    widget.mentor.achievements,
+                    style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500),
+                  ),
                 ),
+
                 if (widget.mentor.rejectReason?.isNotEmpty == true) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
+                      color: const Color(0xFFFFEBEE),
+                      border: Border.all(color: const Color(0xFFEF5350), width: 2),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Lý do từ chối trước đó:', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'LÝ DO TỪ CHỐI TRƯỚC ĐÓ',
+                          style: TextStyle(
+                            color: Color(0xFFEF5350),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(widget.mentor.rejectReason!, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                        Text(
+                          widget.mentor.rejectReason!,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Đóng', style: TextStyle(color: Colors.white)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.black, width: 2.5),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                      ],
+                    ),
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        'Đóng',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -465,165 +640,325 @@ class _ApplicationCardState extends State<_ApplicationCard> {
     final status = widget.mentor.status;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: GestureDetector(
         onTap: _showDetailDialog,
-        borderRadius: BorderRadius.circular(16),
-        child: widget.glassBuilder(
-          radius: 16,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(
+              color: status == 'pending'
+                  ? const Color(0xFFFFB300)
+                  : status == 'approved'
+                      ? const Color(0xFF66BB6A)
+                      : Colors.black,
+              width: 2.5,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: const [
+              BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+            ],
+          ),
           child: Padding(
             padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: Avatar + Tên + Badge
+                Row(
+                  children: [
+                    GestureDetector(
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => MentorProfileScreen(mentorId: widget.mentor.userId),
+                            builder: (context) =>
+                                MentorProfileScreen(mentorId: widget.mentor.userId),
                           ),
                         );
                       },
-                      behavior: HitTestBehavior.opaque,
-                      child: Row(
+                      child: Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black, width: 2),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                          ],
+                          image: _avatarUrl.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(_avatarUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: _avatarUrl.isEmpty
+                            ? const Icon(Icons.person, color: Colors.black38, size: 24)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 44, height: 44,
+                          Text(
+                            _username.isEmpty ? '...' : _username,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Text(
+                            _timeAgo(widget.mentor.appliedAt),
+                            style: const TextStyle(
+                              color: Colors.black45,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildStatusBadge(status),
+                  ],
+                ),
+
+                // Games
+                if (widget.mentor.games.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: widget.mentor.games
+                        .map(
+                          (g) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: _kAccent.withValues(alpha: 0.4), width: 2),
-                              image: _avatarUrl.isNotEmpty
-                                  ? DecorationImage(image: NetworkImage(_avatarUrl), fit: BoxFit.cover)
-                                  : null,
+                              color: Colors.white,
+                              border: Border.all(color: Colors.black, width: 1.5),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            child: _avatarUrl.isEmpty
-                                ? const Icon(Icons.person, color: Colors.white38, size: 22)
-                                : null,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                Text(
-                                  _timeAgo(widget.mentor.appliedAt),
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
-                                ),
-                              ],
+                            child: Text(
+                              g,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
+                        )
+                        .toList(),
                   ),
-                  const SizedBox(width: 10),
-                  _buildStatusBadge(status),
                 ],
-              ),
 
-              // Games
-              if (widget.mentor.games.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6, runSpacing: 6,
-                  children: widget.mentor.games.map((g) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _kAccent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kAccent.withValues(alpha: 0.25)),
-                    ),
-                    child: Text(g, style: const TextStyle(color: _kAccent, fontSize: 11)),
-                  )).toList(),
-                ),
-              ],
-
-              // Bio & Achievements
-              if (widget.mentor.bio.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text('📝 ${widget.mentor.bio}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
-              if (widget.mentor.achievements.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text('🏆 ${widget.mentor.achievements}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
-
-              // Reject reason
-              if (widget.mentor.rejectReason?.isNotEmpty == true) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
-                  ),
-                  child: Text('Lý do: ${widget.mentor.rejectReason}', style: const TextStyle(color: Colors.red, fontSize: 12)),
-                ),
-              ],
-
-              // Actions — chỉ hiển thị nếu pending
-              if (status == 'pending') ...[
-                const SizedBox(height: 12),
-                _isActing
-                    ? const Center(child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2))
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _showRejectDialog,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              child: const Text('Từ chối'),
-                            ),
+                // Bio
+                if (widget.mentor.bio.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('📝 ', style: TextStyle(fontSize: 13)),
+                      Expanded(
+                        child: Text(
+                          widget.mentor.bio,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _approve,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              child: const Text('Duyệt', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                        ],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                    ],
+                  ),
+                ],
+
+                // Achievements
+                if (widget.mentor.achievements.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('🏆 ', style: TextStyle(fontSize: 13)),
+                      Expanded(
+                        child: Text(
+                          widget.mentor.achievements,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Lý do từ chối
+                if (widget.mentor.rejectReason?.isNotEmpty == true) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      border: Border.all(color: const Color(0xFFEF5350), width: 1.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline,
+                            color: Color(0xFFEF5350), size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Lý do: ${widget.mentor.rejectReason}',
+                            style: const TextStyle(
+                              color: Color(0xFFEF5350),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Actions — chỉ pending
+                if (status == 'pending') ...[
+                  const SizedBox(height: 12),
+                  Container(height: 1.5, color: Colors.black),
+                  const SizedBox(height: 12),
+                  _isActing
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            // Từ chối
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF5350),
+                                  border: Border.all(color: Colors.black, width: 2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: Colors.black,
+                                        offset: Offset(2, 2)),
+                                  ],
+                                ),
+                                child: TextButton.icon(
+                                  onPressed: _showRejectDialog,
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.white, size: 16),
+                                  label: const Text(
+                                    'Từ chối',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Duyệt
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF66BB6A),
+                                  border: Border.all(color: Colors.black, width: 2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: Colors.black,
+                                        offset: Offset(2, 2)),
+                                  ],
+                                ),
+                                child: TextButton.icon(
+                                  onPressed: _approve,
+                                  icon: const Icon(Icons.check,
+                                      color: Colors.white, size: 16),
+                                  label: const Text(
+                                    'Duyệt',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
-      )
     );
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color;
-    String label;
+    final Color bg;
+    final Color border;
+    final String label;
+    final IconData icon;
+
     switch (status) {
-      case 'approved': color = Colors.green; label = '✅ Đã duyệt'; break;
-      case 'rejected': color = Colors.red; label = '❌ Từ chối'; break;
-      default: color = Colors.amber; label = '⏳ Chờ duyệt';
+      case 'approved':
+        bg = const Color(0xFFE8F5E9);
+        border = const Color(0xFF66BB6A);
+        label = 'Đã duyệt';
+        icon = Icons.check_circle_outline;
+        break;
+      case 'rejected':
+        bg = const Color(0xFFFFEBEE);
+        border = const Color(0xFFEF5350);
+        label = 'Từ chối';
+        icon = Icons.cancel_outlined;
+        break;
+      default:
+        bg = const Color(0xFFFFF8E1);
+        border = const Color(0xFFFFB300);
+        label = 'Chờ duyệt';
+        icon = Icons.hourglass_empty;
     }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        color: bg,
+        border: Border.all(color: border, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: border),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: border,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

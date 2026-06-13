@@ -58,7 +58,8 @@ async function sendCallFcmNotification({ token, title, body, data = {} }) {
     token,
     android: {
       priority: 'high',
-      notification: { title, body, channelId: 'call_channel', sound: 'default', priority: 'max' },
+      // Bỏ 'notification' field để Android nhận dạng là data-only push,
+      // từ đó trigger mySilentDataHandle tạo AwesomeNotification với nút Nghe/Từ chối
     },
     apns: {
       payload: {

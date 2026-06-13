@@ -192,10 +192,40 @@ class MomentProvider with ChangeNotifier {
 
   // Hàm thêm reaction vào moment
   Future<void> reactToMoment(String momentId, String userId, String emoji) async {
+    // 1. Cập nhật offline cục bộ (Optimistic local update) để UI hiển thị lập tức
+    final index = _moments.indexWhere((m) => m.id == momentId);
+    if (index != -1) {
+      final moment = _moments[index];
+      final newReactions = List<Map<String, dynamic>>.from(moment.reactions);
+      
+      // Kiểm tra xem user đã thả reaction này chưa để tránh add trùng cục bộ
+      final exists = newReactions.any((r) => r['userId'] == userId && r['emoji'] == emoji);
+      if (!exists) {
+        newReactions.add({
+          'userId': userId,
+          'emoji': emoji,
+          'reactedAt': Timestamp.now(),
+        });
+        
+        _moments[index] = MomentModel(
+          id: moment.id,
+          userId: moment.userId,
+          mediaUrl: moment.mediaUrl,
+          thumbnailUrl: moment.thumbnailUrl,
+          isVideo: moment.isVideo,
+          createdAt: moment.createdAt,
+          matchIds: moment.matchIds,
+          reactions: newReactions,
+          replies: moment.replies,
+          caption: moment.caption,
+        );
+        notifyListeners();
+      }
+    }
+
+    // 2. Gửi request lên Firestore
     try {
       await FirestoreService().addReactionToMoment(momentId, userId, emoji);
-      // KHÔNG CẦN gọi notification ở đây nữa
-      // Stream của chủ moment sẽ tự detect và gửi notification
       _logger.i('Reaction added to Firestore: $emoji on moment $momentId');
     } catch (e) {
       _logger.e('Error reacting to moment: $e');

@@ -4,8 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:intl_phone_number_input/intl_phone_number_input.dart';
 import '../../../core/providers/auth_provider.dart';
-import 'dart:ui';
-import 'dart:math' as math;
+import '../../../core/theme/theme_helper.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -14,21 +13,16 @@ class PhoneLoginScreen extends StatefulWidget {
   State<PhoneLoginScreen> createState() => _PhoneLoginScreenState();
 }
 
-class _PhoneLoginScreenState extends State<PhoneLoginScreen> with SingleTickerProviderStateMixin {
+class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _otpController = TextEditingController();
   PhoneNumber _phoneNumber = PhoneNumber(isoCode: 'VN');
   Timer? _timer;
   int _timeLeft = 60;
-  late AnimationController _bgController;
 
   @override
   void initState() {
     super.initState();
-    _bgController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 40),
-    )..repeat();
   }
 
   void startTimer() {
@@ -49,313 +43,285 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> with SingleTickerPr
   void dispose() {
     _timer?.cancel();
     _otpController.dispose();
-    _bgController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0C29), // Khắc phục viền trắng ở dưới
-      extendBodyBehindAppBar: true,
-      extendBody: true, // Thêm để Gradient bao phủ cả thanh điều hướng dưới
+      backgroundColor: context.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: context.scaffoldBackgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.dialogBgColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.textColor, width: 2.5),
+              boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
+            ),
+            child: Icon(Icons.arrow_back, color: context.textColor, size: 20),
+          ),
         ),
       ),
-      body: Stack(
-        children: [
-          // Background Gradient Tĩnh
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0F0C29), Color(0xFF302B63), Color(0xFF24243E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-          ),
-          
-          // Background lơ lửng nhẹ
-          ...List.generate(15, (index) {
-            final random = math.Random(index);
-            final size = random.nextDouble() * 60 + 20;
-            final leftPercent = random.nextDouble();
-            final topPercent = random.nextDouble();
-            final durationOffset = random.nextDouble();
-
-            return AnimatedBuilder(
-              animation: _bgController,
-              builder: (context, child) {
-                final width = MediaQuery.of(context).size.width;
-                final height = MediaQuery.of(context).size.height;
-                final left = leftPercent * width;
-                final top = topPercent * height;
-                final progress = (_bgController.value + durationOffset) % 1.0;
-                final yPos = top + (math.sin(progress * 2 * math.pi) * 30);
-                
-                return Positioned(
-                  left: left,
-                  top: yPos,
-                  child: Opacity(
-                    opacity: 0.05,
-                    child: Icon(Icons.star_rounded, color: Colors.white, size: size),
-                  ),
-                );
-              },
-            );
-          }),
-
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-
-          SafeArea(
-            child: Consumer<AuthProvider>(
-              builder: (context, auth, child) {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
-                  child: Form(
-                    key: _formKey,
+      body: Consumer<AuthProvider>(
+        builder: (context, auth, _) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Centered header ──────────────────────────
+                  Center(
                     child: Column(
                       children: [
-                        const SizedBox(height: 20),
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Colors.orange, Colors.deepOrangeAccent],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withValues(alpha: 0.5),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Icon(CupertinoIcons.phone_fill, color: Colors.white, size: 40),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        const Text(
-                          'Số Điện Thoại',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
                         const SizedBox(height: 12),
-                        Text(
-                          'Chúng tôi sẽ gửi mã OTP đến số điện thoại của bạn',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16),
-                        ),
-                        const SizedBox(height: 48),
-
                         Container(
-                          padding: const EdgeInsets.all(24),
+                          width: 80, height: 80,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            color: const Color(0xFFFF6E40),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: context.textColor, width: 2.5),
+                            boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                           ),
-                          child: Column(
-                            children: [
-                              if (!auth.isVerifying) ...[
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                                  ),
-                                  child: InternationalPhoneNumberInput(
-                                    onInputChanged: (PhoneNumber number) {
-                                      _phoneNumber = number;
-                                    },
-                                    selectorConfig: const SelectorConfig(
-                                      selectorType: PhoneInputSelectorType.BOTTOM_SHEET,
-                                      setSelectorButtonAsPrefixIcon: true,
-                                    ),
-                                    ignoreBlank: false,
-                                    autoValidateMode: AutovalidateMode.onUserInteraction,
-                                    selectorTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                                    textStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                                    initialValue: _phoneNumber,
-                                    formatInput: true,
-                                    keyboardType: TextInputType.phone, // Gọi bàn phím số chuẩn
-                                    inputDecoration: InputDecoration(
-                                      hintText: 'Số điện thoại',
-                                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                                      border: InputBorder.none,
-                                      filled: true,
-                                      fillColor: Colors.transparent,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                _buildButton(
-                                  onPressed: auth.isLoading
-                                      ? null
-                                      : () async {
-                                          if (_formKey.currentState?.validate() ?? false) {
-                                            final success = await auth.sendOTP(_phoneNumber.phoneNumber ?? '');
-                                            if (success && mounted) {
-                                              startTimer();
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Đã gửi mã OTP'), backgroundColor: Colors.green),
-                                              );
-                                              auth.setVerifying(true);
-                                            }
-                                          }
-                                        },
-                                  label: 'Gửi mã OTP',
-                                  isLoading: auth.isLoading,
-                                ),
-                              ] else ...[
-                                TextFormField(
-                                  controller: _otpController,
-                                  style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 8),
-                                  textAlign: TextAlign.center,
-                                  decoration: InputDecoration(
-                                    hintText: '------',
-                                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                                    filled: true,
-                                    fillColor: Colors.black.withValues(alpha: 0.2),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: const BorderSide(color: Colors.orange, width: 2),
-                                    ),
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                  validator: (value) {
-                                    if (value?.isEmpty ?? true) return 'Vui lòng nhập mã OTP';
-                                    if (value!.length != 6) return 'Mã OTP phải có 6 số';
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Mã OTP có hiệu lực trong $_timeLeft giây',
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
-                                ),
-                                const SizedBox(height: 24),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextButton(
-                                        onPressed: _timeLeft == 0
-                                            ? () async {
-                                                if (_formKey.currentState?.validate() ?? false) {
-                                                  final success = await auth.sendOTP(_phoneNumber.phoneNumber ?? '');
-                                                  if (success && mounted) {
-                                                    startTimer();
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Đã gửi lại mã OTP'), backgroundColor: Colors.green),
-                                                    );
-                                                  }
-                                                }
-                                              }
-                                            : null,
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.orange,
-                                        ),
-                                        child: Text(
-                                          _timeLeft > 0 ? 'Gửi lại sau ${_timeLeft}s' : 'Gửi lại mã',
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildButton(
-                                        onPressed: auth.isLoading
-                                            ? null
-                                            : () async {
-                                                if (_formKey.currentState?.validate() ?? false) {
-                                                  final success = await auth.verifyOTP(_otpController.text);
-                                                  if (success && mounted) {
-                                                    Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/', (route) => false);
-                                                  }
-                                                }
-                                              },
-                                        label: 'Xác nhận',
-                                        isLoading: auth.isLoading,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
+                          child: const Icon(CupertinoIcons.phone_fill, color: Colors.white, size: 40),
                         ),
-
-                        if (auth.error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 24),
-                            child: Text(
-                              auth.error!,
-                              style: const TextStyle(color: Colors.redAccent),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Số Điện Thoại',
+                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: context.textColor),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          auth.isVerifying
+                              ? 'Nhập mã OTP đã gửi về số điện thoại'
+                              : 'Chúng tôi sẽ gửi mã OTP đến số điện thoại của bạn',
+                          style: TextStyle(fontSize: 14, color: context.textSecondaryColor),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 32),
+
+                  if (!auth.isVerifying) ...[
+                    // ── Phone input ───────────────────────────
+                    Text(
+                      'Số điện thoại',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.textColor),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.dialogBgColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: context.textColor, width: 2.5),
+                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                      ),
+                      child: InternationalPhoneNumberInput(
+                        onInputChanged: (PhoneNumber number) => _phoneNumber = number,
+                        selectorConfig: const SelectorConfig(
+                          selectorType: PhoneInputSelectorType.BOTTOM_SHEET,
+                          setSelectorButtonAsPrefixIcon: true,
+                        ),
+                        ignoreBlank: false,
+                        autoValidateMode: AutovalidateMode.onUserInteraction,
+                        selectorTextStyle: TextStyle(color: context.textColor, fontSize: 15),
+                        textStyle: TextStyle(color: context.textColor, fontSize: 15, fontWeight: FontWeight.w600),
+                        initialValue: _phoneNumber,
+                        formatInput: true,
+                        keyboardType: TextInputType.phone,
+                        inputDecoration: InputDecoration(
+                          hintText: 'Số điện thoại',
+                          hintStyle: TextStyle(color: context.textTertiaryColor),
+                          border: InputBorder.none,
+                          filled: false,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    _buildPrimaryButton(
+                      context: context,
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              if (_formKey.currentState?.validate() ?? false) {
+                                final success = await auth.sendOTP(_phoneNumber.phoneNumber ?? '');
+                                if (success && mounted) {
+                                  startTimer();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Đã gửi mã OTP'), backgroundColor: Colors.green),
+                                  );
+                                  auth.setVerifying(true);
+                                }
+                              }
+                            },
+                      label: 'Gửi mã OTP',
+                      isLoading: auth.isLoading,
+                    ),
+                  ] else ...[
+                    // ── OTP input ─────────────────────────────
+                    Text(
+                      'Mã OTP',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.textColor),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.dialogBgColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: context.textColor, width: 2.5),
+                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                      ),
+                      child: TextFormField(
+                        controller: _otpController,
+                        style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: '······',
+                          hintStyle: TextStyle(color: context.textTertiaryColor, letterSpacing: 8),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) return 'Vui lòng nhập mã OTP';
+                          if (value!.length != 6) return 'Mã OTP phải có 6 số';
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Timer display
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _timeLeft > 0
+                            ? context.dialogBgColor
+                            : const Color(0xFFFF6E40).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _timeLeft > 0 ? context.textColor : const Color(0xFFFF6E40),
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Mã có hiệu lực trong ${_timeLeft}s',
+                            style: TextStyle(color: context.textSecondaryColor, fontSize: 13),
+                          ),
+                          GestureDetector(
+                            onTap: _timeLeft == 0
+                                ? () async {
+                                    final success = await auth.sendOTP(_phoneNumber.phoneNumber ?? '');
+                                    if (success && mounted) {
+                                      startTimer();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Đã gửi lại mã OTP'), backgroundColor: Colors.green),
+                                      );
+                                    }
+                                  }
+                                : null,
+                            child: Text(
+                              'Gửi lại',
+                              style: TextStyle(
+                                color: _timeLeft == 0 ? const Color(0xFFFF6E40) : context.textTertiaryColor,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    _buildPrimaryButton(
+                      context: context,
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              if (_formKey.currentState?.validate() ?? false) {
+                                final success = await auth.verifyOTP(_otpController.text);
+                                if (success && mounted) {
+                                  Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/', (route) => false);
+                                }
+                              }
+                            },
+                      label: 'Xác nhận OTP',
+                      isLoading: auth.isLoading,
+                    ),
+                  ],
+
+                  if (auth.error != null) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red, width: 2),
+                      ),
+                      child: Text(auth.error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                    ),
+                  ],
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildButton({required VoidCallback? onPressed, required String label, required bool isLoading}) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Colors.orange, Colors.deepOrange]),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.deepOrange.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: onPressed,
-          child: Center(
-            child: isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-          ),
+  Widget _buildPrimaryButton({
+    required BuildContext context,
+    required VoidCallback? onPressed,
+    required String label,
+    required bool isLoading,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: context.textColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.textColor, width: 2.5),
+          boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(6, 6))],
+        ),
+        child: Center(
+          child: isLoading
+              ? SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(color: context.scaffoldBackgroundColor, strokeWidth: 2.5),
+                )
+              : Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w900,
+                    color: context.scaffoldBackgroundColor,
+                    letterSpacing: 0.5,
+                  ),
+                ),
         ),
       ),
     );

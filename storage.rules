@@ -3,7 +3,7 @@ service firebase.storage {
   match /b/{bucket}/o {
     
     // Mentor media: authenticated users can upload to their own folder
-    match /mentor_media/{userId}/{fileName} {
+    match /mentor_media/{userId}/{allPaths=**} {
       // Anyone authenticated can read
       allow read: if request.auth != null;
       // Only the mentor themselves can write/delete (relaxed write check to debug uid mismatch)

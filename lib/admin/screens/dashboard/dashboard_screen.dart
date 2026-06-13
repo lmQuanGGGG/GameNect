@@ -2,18 +2,31 @@ import 'package:flutter/material.dart';
 
 // Màn hình bảng điều khiển dành cho admin.
 // Hiển thị các chức năng quản trị như quản lý người dùng, quản lý gói Premium.
-// Sử dụng Scaffold để tạo bố cục với AppBar và phần nội dung chính.
-// Phần nội dung gồm tiêu đề chào mừng và các thẻ chức năng được bố trí bằng Wrap.
-
+// Thiết kế theo phong cách Neo-Brutalism trắng đen cá tính, đồng bộ với toàn hệ thống.
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        // Tiêu đề của màn hình quản trị
-        title: const Text('Bảng điều khiển Admin'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        title: const Text(
+          'BẢNG ĐIỀU KHIỂN ADMIN',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+            letterSpacing: 1.0,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2),
+          child: Container(color: Colors.black, height: 2.5),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -21,11 +34,42 @@ class DashboardScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Hiển thị lời chào mừng admin
-            const Text(
-              'Chào mừng bạn đến với trang quản trị GameNect!',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 2.5),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                ],
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'XIN CHÀO ADMIN!',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Chào mừng bạn quay trở lại trang quản trị GameNect. Hãy quản lý hệ thống hiệu quả.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             // Các thẻ chức năng quản trị được bố trí bằng Wrap
             Wrap(
               spacing: 16,
@@ -33,17 +77,16 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 // Thẻ quản lý người dùng, khi bấm sẽ chuyển sang màn hình quản lý user
                 _AdminCard(
-                  icon: Icons.people,
+                  icon: Icons.people_alt_rounded,
                   title: 'Quản lý người dùng',
                   onTap: () => Navigator.pushNamed(context, '/user-management'),
                 ),
                 // Thẻ quản lý gói Premium, khi bấm sẽ chuyển sang màn hình cấu hình gói đăng ký
                 _AdminCard(
-                  icon: Icons.workspace_premium,
+                  icon: Icons.workspace_premium_rounded,
                   title: 'Quản lý gói Premium',
                   onTap: () => Navigator.pushNamed(context, '/subscription-config'),
                 ),
-                // Có thể thêm các chức năng quản trị khác tại đây
               ],
             ),
           ],
@@ -54,9 +97,6 @@ class DashboardScreen extends StatelessWidget {
 }
 
 // Widget hiển thị một thẻ chức năng cho admin.
-// Nhận vào icon, tiêu đề và hàm xử lý khi bấm vào thẻ.
-// Sử dụng InkWell để tạo hiệu ứng khi bấm, Container để tạo giao diện thẻ với màu nền, bo góc và bóng đổ.
-
 class _AdminCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -70,20 +110,19 @@ class _AdminCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 180,
-        height: 120,
+        width: 160,
+        height: 130,
         decoration: BoxDecoration(
-          color: Colors.deepOrange.shade50,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
+          color: Colors.white,
+          border: Border.all(color: Colors.black, width: 2.5),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.deepOrange.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Colors.black,
+              offset: Offset(4, 4),
             ),
           ],
         ),
@@ -91,12 +130,27 @@ class _AdminCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Hiển thị icon chức năng
-            Icon(icon, size: 40, color: Colors.deepOrange),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 2),
+                shape: BoxShape.circle,
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                ],
+              ),
+              child: Icon(icon, size: 28, color: Colors.black),
+            ),
             const SizedBox(height: 12),
             // Hiển thị tiêu đề chức năng
             Text(
               title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

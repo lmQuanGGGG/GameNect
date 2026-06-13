@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../../../core/utils/icon_helper.dart';
 
 class BasicInfoSection extends StatelessWidget {
   final TextEditingController usernameController;
@@ -59,32 +60,27 @@ class BasicInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fieldFillColor = context.isDarkMode
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.85);
-    final fieldStyle = TextStyle(
-      color: context.textColor,
-      fontSize: 16,
-    );
-    final labelStyle = TextStyle(color: context.textSecondaryColor);
-    final hintStyle = TextStyle(color: context.textTertiaryColor);
-    final helperStyle = TextStyle(color: context.textTertiaryColor);
+    final fieldFillColor = Colors.white;
+    final fieldStyle = const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold);
+    final labelStyle = const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold);
+    final hintStyle = const TextStyle(color: Colors.black54, fontWeight: FontWeight.w500);
+    final helperStyle = const TextStyle(color: Colors.black54, fontWeight: FontWeight.w500);
     
     final enabledBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: context.isDarkMode ? Colors.white24 : Colors.grey.shade400),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.black, width: 2.5),
     );
     final focusedBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.deepOrange, width: 3),
     );
     final errorBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 2.5),
     );
     final focusedErrorBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 3),
     );
 
     return Column(
@@ -115,7 +111,7 @@ class BasicInfoSection extends StatelessWidget {
           initialValue: gender,
           hint: Text('Chọn giới tính', style: hintStyle),
           style: fieldStyle,
-          dropdownColor: context.dialogBgColor,
+          dropdownColor: Colors.white,
           iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Giới tính',
@@ -239,32 +235,68 @@ class BasicInfoSection extends StatelessWidget {
         MultiSelectDialogField<String>(
           items: interestOptions.map((e) => MultiSelectItem(e, e)).toList(),
           initialValue: interests,
-          title: Text("Sở thích khác", style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)),
+          title: const Text("Sở thích khác", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
           selectedColor: Colors.deepOrange,
-          backgroundColor: context.dialogBgColor,
-          itemsTextStyle: TextStyle(color: context.textColor),
-          selectedItemsTextStyle: TextStyle(color: context.textColor),
-          searchTextStyle: TextStyle(color: context.textColor),
-          searchHintStyle: TextStyle(color: context.textTertiaryColor),
+          backgroundColor: Colors.white,
+          itemsTextStyle: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
+          selectedItemsTextStyle: const TextStyle(color: Colors.deepOrange, fontSize: 16, fontWeight: FontWeight.bold),
+          searchTextStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          searchHintStyle: const TextStyle(color: Colors.black54),
+          cancelText: const Text("HỦY", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 16)),
+          confirmText: const Text("CHỌN", style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 16)),
           decoration: BoxDecoration(
             color: fieldFillColor,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.deepOrange,
-            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black, width: 2.5),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
           ),
-          buttonIcon: Icon(
+          buttonIcon: const Icon(
             Icons.interests,
-            color: Colors.deepOrange[400],
+            color: Colors.deepOrange,
           ),
-          buttonText: Text(
+          buttonText: const Text(
             "Chọn sở thích",
             style: TextStyle(
-              color: Colors.deepOrange[400],
+              color: Colors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          chipDisplay: MultiSelectChipDisplay.none(),
           onConfirm: onInterestsChanged,
         ),
+        if (interests.isNotEmpty) const SizedBox(height: 12),
+        if (interests.isNotEmpty)
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: interests.map((interest) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black, width: 2.5),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(IconHelper.getInterestIcon(interest), size: 20, color: Colors.deepOrange),
+                    const SizedBox(width: 8),
+                    Text(
+                      interest,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
       ],
     );
   }

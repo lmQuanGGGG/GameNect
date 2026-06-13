@@ -7,7 +7,7 @@
 
 **GameNect** là nền tảng mạng xã hội hẹn hò và kết nối độc đáo dành riêng cho cộng đồng game thủ. Thiết kế hiện đại giúp người dùng dễ dàng tìm kiếm bạn chơi cùng, theo dõi các buổi Livestream, chia sẻ khoảnh khắc qua Moments (Stories), giao dịch nạp/rút tiền xu (Coin) và đăng ký trở thành Mentor để chia sẻ kinh nghiệm chiến đấu.
 
-🌐 **Website chính thức:** [https://incandescent-pavlova-a73522.netlify.app](https://incandescent-pavlova-a73522.netlify.app/)
+🌐 **Website chính thức:** [https://www.gamenect.space/](https://www.gamenect.space/)
 
 ---
 
@@ -128,7 +128,7 @@ lib/
 ## 🌐 SEO & Thông tin liên hệ
 
 * **Keywords:** GameNect, tinder cho game thủ, app hẹn hò game thủ, tìm bạn chơi game, livestream game, thuê mentor game, nạp coin cổng PayOS, hẹn hò gamer Việt Nam.
-* **Website:** [https://gamenect-9bec0.web.app/](hhttps://gamenect-9bec0.web.app/)
+* **Website:** [https://www.gamenect.space/](https://www.gamenect.space/)
 * **Repository:** [https://github.com/lmQuanGGGG/GameNect](https://github.com/lmQuanGGGG/GameNect)
 
 ---

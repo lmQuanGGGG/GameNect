@@ -24,6 +24,7 @@ class LivestreamProvider extends ChangeNotifier {
   String? _error;
   int _myCoins = 0;
   bool _isLandscapeVideo = false;
+  double _remoteVideoAspectRatio = 9 / 16; // Lưu tỷ lệ khung hình thực tế
 
   // Agora
   RtcEngine? _engine;
@@ -84,6 +85,7 @@ class LivestreamProvider extends ChangeNotifier {
   int? get remoteUid => _remoteUid;
   int get myCoins => _myCoins;
   bool get isLandscapeVideo => _isLandscapeVideo;
+  double get remoteVideoAspectRatio => _remoteVideoAspectRatio;
 
   bool get isMinimized => _isMinimized;
   bool get isScreenSharing => _isScreenSharing;
@@ -158,6 +160,8 @@ class LivestreamProvider extends ChangeNotifier {
         // Adaptive orientation: khi device xoay ngang, Agora tự encode đúng orientation
         await _engine!.setVideoEncoderConfiguration(
           const VideoEncoderConfiguration(
+            dimensions: VideoDimensions(width: 1920, height: 1080),
+            frameRate: 30, // Camera 30fps là quá mượt và chuẩn điện ảnh
             orientationMode: OrientationMode.orientationModeAdaptive,
             degradationPreference: DegradationPreference.maintainQuality,
           ),
@@ -313,13 +317,23 @@ class LivestreamProvider extends ChangeNotifier {
                   bool isLandscape = width > height;
                   if (rotation == 90 || rotation == 270)
                     isLandscape = !isLandscape;
+                  if (width > 0 && height > 0) {
+                    final newRatio = width / height;
+                    // Chỉ lấy 2 chữ số thập phân để tránh render lại liên tục vì sai số nhỏ
+                    if ((_remoteVideoAspectRatio - newRatio).abs() > 0.01) {
+                      _remoteVideoAspectRatio = newRatio;
+                      notifyListeners();
+                    }
+                  }
                   if (_isLandscapeVideo != isLandscape) {
                     _isLandscapeVideo = isLandscape;
                     notifyListeners();
                   }
-                  // Không dùng sourceType để detect screen share — không tin cậy trên viewer side.
-                  // Trạng thái này được đồng bộ qua Firestore bởi broadcaster.
                 },
+            onRemoteVideoStats: (connection, stats) {
+              // Log ra mỗi vài giây để biết người xem đang nhận được hình ảnh chất lượng bao nhiêu
+              print('[Người Xem] Đang nhận video: ${stats.width}x${stats.height} | ${stats.rendererOutputFrameRate} FPS | Bitrate: ${stats.receivedBitrate} kbps');
+            },
           ),
         );
         await _engine!.joinChannel(
@@ -622,7 +636,15 @@ class LivestreamProvider extends ChangeNotifier {
 
       // Khởi động screen capture trước để mở cổng IPC lắng nghe Extension
       await _engine!.startScreenCapture(
-        const ScreenCaptureParameters2(captureVideo: true, captureAudio: true),
+        const ScreenCaptureParameters2(
+          captureAudio: true,
+          captureVideo: true,
+          videoParams: ScreenVideoParameters(
+            dimensions: VideoDimensions(width: 1920, height: 1080),
+            frameRate: 60, // 60 fps cho trải nghiệm chơi game siêu mượt trên các máy đời mới
+            contentHint: VideoContentHint.contentHintMotion, // Ưu tiên fps (độ mượt chuyển động) hơn là độ phân giải tĩnh
+          ),
+        ),
       );
 
       await _engine!.startPreview(
@@ -634,6 +656,7 @@ class LivestreamProvider extends ChangeNotifier {
         const ChannelMediaOptions(
           publishCameraTrack: false,
           publishScreenCaptureVideo: true,
+          publishScreenTrack: true, // Bổ sung cho Web
           publishMicrophoneTrack: true,
           publishScreenCaptureAudio: true,
         ),
@@ -677,6 +700,7 @@ class LivestreamProvider extends ChangeNotifier {
         const ChannelMediaOptions(
           publishCameraTrack: true,
           publishScreenCaptureVideo: false,
+          publishScreenTrack: false, // Bổ sung
           publishMicrophoneTrack: true,
           publishScreenCaptureAudio: false,
         ),

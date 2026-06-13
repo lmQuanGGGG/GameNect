@@ -42,28 +42,28 @@ class PeerProfileScreen extends StatelessWidget {
                     // Nút back kính mờ
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: context.isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.03),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: context.cardBorderColor,
-                                width: 0.8,
-                              ),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.chevron_left,
-                                color: Color(0xFFFF6E40),
-                                size: 28,
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                            ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: context.scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: context.textColor,
+                            width: 3,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.textColor,
+                              offset: const Offset(4, 4),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: Color(0xFFFF6E40),
+                            size: 28,
+                          ),
+                          onPressed: () => Navigator.pop(context),
                         ),
                       ),
                     ),
@@ -75,10 +75,10 @@ class PeerProfileScreen extends StatelessWidget {
                           ? NetworkImage(peerUser.avatarUrl!)
                           : null,
                       backgroundColor:
-                          const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                          context.textColor.withValues(alpha: 0.1),
                       child: peerUser.avatarUrl == null
-                          ? Icon(Icons.person,
-                              size: 18, color: context.textColor)
+                          ? const Icon(Icons.person,
+                              size: 18, color: Color(0xFFFF6E40))
                           : null,
                     ),
                     const SizedBox(width: 10),
@@ -98,8 +98,9 @@ class PeerProfileScreen extends StatelessWidget {
                           ),
                           Text(
                             peerUser.rank,
-                            style: const TextStyle(
-                              color: Color(0xFFFF6E40),
+                            style: TextStyle(
+                              color: context.textColor,
+                              fontWeight: FontWeight.w900,
                               fontSize: 12,
                             ),
                           ),
@@ -115,46 +116,6 @@ class PeerProfileScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // Orb cam trái trên — tạo hiệu ứng Liquid Glass
-          Positioned(
-            top: 0,
-            left: -60,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.08 * context.bgOrbOpacityMultiplier),
-                    blurRadius: 100,
-                    spreadRadius: 40,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Orb cam tối phải dưới
-          Positioned(
-            bottom: 100,
-            right: -80,
-            child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFBF360C).withValues(alpha: 0.08 * context.bgOrbOpacityMultiplier),
-                    blurRadius: 120,
-                    spreadRadius: 50,
-                  ),
-                ],
-              ),
-            ),
-          ),
           // ProfileCard cuộn đầy đủ, tránh AppBar
           SafeArea(
             child: SingleChildScrollView(
@@ -169,48 +130,64 @@ class PeerProfileScreen extends StatelessWidget {
               left: 0,
               right: 0,
               child: Center(
-                child: FloatingActionButton.extended(
-                  heroTag: null,
-                  onPressed: () async {
-                    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                    if (currentUserId == null) return;
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: context.textColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: context.textColor, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.textColor,
+                        offset: const Offset(4, 4),
+                      ),
+                    ],
+                  ),
+                  child: FloatingActionButton.extended(
+                    heroTag: null,
+                    onPressed: () async {
+                      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                      if (currentUserId == null) return;
 
-                    final firestoreService = FirestoreService();
-                    await firestoreService.saveSwipeHistory(
-                      userId: currentUserId, 
-                      targetUserId: peerUser.id, 
-                      action: 'like'
-                    );
-
-                    final isMutual = await firestoreService.checkMutualLike(
-                      userId: currentUserId, 
-                      targetUserId: peerUser.id
-                    );
-
-                    if (isMutual) {
-                      await firestoreService.createNewMatch(
-                        userIds: [currentUserId, peerUser.id],
-                        game: 'Gamenect',
+                      final firestoreService = FirestoreService();
+                      await firestoreService.saveSwipeHistory(
+                        userId: currentUserId, 
+                        targetUserId: peerUser.id, 
+                        action: 'like'
                       );
-                    }
-                    
-                    if (context.mounted) {
-                      Navigator.pop(context);
+
+                      final isMutual = await firestoreService.checkMutualLike(
+                        userId: currentUserId, 
+                        targetUserId: peerUser.id
+                      );
+
                       if (isMutual) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('🎉 Đã Match thành công!')),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Đã gửi lượt thích 💖')),
+                        await firestoreService.createNewMatch(
+                          userIds: [currentUserId, peerUser.id],
+                          game: 'Gamenect',
                         );
                       }
-                    }
-                  },
-                  backgroundColor: const Color(0xFFFF6E40),
-                  icon: const Icon(Icons.favorite, color: Colors.white),
-                  label: const Text('Thích', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  elevation: 8,
+                      
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        if (isMutual) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('🎉 Đã Match thành công!')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Đã gửi lượt thích 💖')),
+                          );
+                        }
+                      }
+                    },
+                    backgroundColor: context.textColor,
+                    icon: const Icon(Icons.favorite, color: Color(0xFFFF6E40)),
+                    label: Text('Thích', style: TextStyle(color: context.scaffoldBackgroundColor, fontWeight: FontWeight.w900, fontSize: 16)),
+                    elevation: 0,
+                    highlightElevation: 0,
+                    hoverElevation: 0,
+                    focusElevation: 0,
+                  ),
                 ),
               ),
             ),

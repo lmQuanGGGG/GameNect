@@ -69,4 +69,32 @@ class WalletProvider with ChangeNotifier {
       return list;
     });
   }
+
+  /// Lấy danh sách lịch sử nạp coin của user hiện tại
+  Stream<List<Map<String, dynamic>>> getMyCoinOrders() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return Stream.value([]);
+
+    return FirebaseFirestore.instance
+        .collection('orders')
+        .where('userId', isEqualTo: userId)
+        .where('orderType', isEqualTo: 'coin')
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+      
+      // Sắp xếp giảm dần theo createdAt
+      list.sort((a, b) {
+        final tA = a['createdAt'] as Timestamp?;
+        final tB = b['createdAt'] as Timestamp?;
+        if (tA == null || tB == null) return 0;
+        return tB.compareTo(tA);
+      });
+      return list;
+    });
+  }
 }

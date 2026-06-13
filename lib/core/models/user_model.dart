@@ -101,6 +101,7 @@ class UserModel {
   String? premiumPlan; // Tên gói premium
   DateTime? premiumStartDate; // Thời điểm bắt đầu premium
   int coinBalance; // Số dư Coin hiện tại
+  DateTime? createdAt; // Thời điểm tạo tài khoản
 
   // Hàm khởi tạo đối tượng UserModel với các tham số truyền vào.
   UserModel({
@@ -178,6 +179,7 @@ class UserModel {
     this.premiumPlan,
     this.premiumStartDate,
     this.coinBalance = 0,
+    this.createdAt,
   });
 
   // Getter kiểm tra user có vị trí GPS chính xác không.
@@ -301,6 +303,7 @@ class UserModel {
       'premiumPlan': premiumPlan,
       'premiumStartDate': premiumStartDate?.toIso8601String(),
       'coinBalance': coinBalance,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 
@@ -424,6 +427,11 @@ class UserModel {
                 : DateTime.tryParse(map['premiumStartDate'].toString()))
           : null,
       coinBalance: (map['coinBalance'] ?? 0).toInt(),
+      createdAt: map['createdAt'] != null
+          ? (map['createdAt'] is Timestamp
+                ? (map['createdAt'] as Timestamp).toDate()
+                : DateTime.tryParse(map['createdAt'].toString()))
+          : null,
     );
   }
 
@@ -466,6 +474,7 @@ class UserModel {
     DateTime? premiumStartDate,
     DateTime? premiumEndDate,
     int? coinBalance,
+    DateTime? createdAt,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -503,6 +512,7 @@ class UserModel {
       premiumStartDate: premiumStartDate ?? this.premiumStartDate,
       premiumEndDate: premiumEndDate ?? this.premiumEndDate,
       coinBalance: coinBalance ?? this.coinBalance,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

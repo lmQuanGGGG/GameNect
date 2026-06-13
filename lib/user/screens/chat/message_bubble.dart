@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
 import 'dart:ui';
 import '../../../core/providers/chat_provider.dart';
 import '../games/game_detail_screen.dart';
@@ -40,7 +40,7 @@ class MessageBubbleWidget extends StatelessWidget {
               backgroundImage: avatarUrl.isNotEmpty
                   ? NetworkImage(avatarUrl)
                   : null,
-              backgroundColor: Colors.deepOrange.withValues(alpha: 0.18),
+              backgroundColor: Colors.black.withValues(alpha: 0.18),
               child: avatarUrl.isEmpty
                   ? const Icon(Icons.person, color: Colors.white, size: 18)
                   : null,
@@ -74,12 +74,12 @@ class MessageBubbleWidget extends StatelessWidget {
         case 'missed':
           callText = 'Cuộc gọi nhỡ';
           callIcon = Icons.call_missed_rounded;
-          callColor = const Color(0xFFFF6E40);
+          callColor = Colors.black;
           break;
         case 'declined':
           callText = 'Cuộc gọi bị từ chối';
           callIcon = Icons.phone_disabled_rounded;
-          callColor = Colors.orange;
+          callColor = Colors.black;
           break;
         case 'cancelled':
           callText = 'Đã hủy';
@@ -89,7 +89,7 @@ class MessageBubbleWidget extends StatelessWidget {
         case 'ended':
           callText = msg['text'] ?? 'Đã gọi';
           callIcon = Icons.call_rounded;
-          callColor = Colors.green;
+          callColor = Colors.black;
           break;
         default:
           callText = msg['text'] ?? 'Cuộc gọi';
@@ -227,14 +227,14 @@ class MessageBubbleWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 child: isVideo
                     ? VideoPlayerBubble(videoUrl: mediaUrl)
-                    : CachedNetworkImage(
+                    : GamenectNetworkImage(
                         imageUrl: mediaUrl,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: Colors.grey[800],
                           child: const Center(
                             child: CircularProgressIndicator(
-                              color: Color(0xFFFF6E40),
+                              color: Colors.black,
                             ),
                           ),
                         ),
@@ -242,7 +242,7 @@ class MessageBubbleWidget extends StatelessWidget {
                           color: Colors.grey[800],
                           child: const Icon(
                             Icons.error,
-                            color: Color(0xFFFF6E40),
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -269,19 +269,7 @@ class MessageBubbleWidget extends StatelessWidget {
                     horizontal: 16,
                   ),
                   decoration: BoxDecoration(
-                    gradient: isMe
-                        ? const LinearGradient(
-                            colors: [
-                              Color(0xFFFF6E40),
-                              Color(0xFFFF8A65),
-                            ],
-                          )
-                        : LinearGradient(
-                            colors: [
-                              context.isDarkMode ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05),
-                              context.isDarkMode ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
-                            ],
-                          ),
+                    color: isMe ? Colors.black : Colors.white,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(20),
                       topRight: const Radius.circular(20),
@@ -289,27 +277,22 @@ class MessageBubbleWidget extends StatelessWidget {
                       bottomRight: Radius.circular(isMe ? 4 : 20),
                     ),
                     border: Border.all(
-                      color: isMe ? Colors.transparent : context.cardBorderColor,
-                      width: 1,
+                      color: Colors.black,
+                      width: 3,
                     ),
-                    boxShadow: isMe
-                        ? [
-                            BoxShadow(
-                              color: const Color(
-                                0xFFFF6E40,
-                              ).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
+                    boxShadow: [
+                      const BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(4, 4),
+                      ),
+                    ],
                   ),
                   child: Text(
                     text,
                     style: TextStyle(
-                      color: isMe ? Colors.white : context.textColor,
+                      color: isMe ? Colors.white : Colors.black,
                       fontSize: 16,
-                      fontWeight: FontWeight.w400,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -374,15 +357,15 @@ class MessageBubbleWidget extends StatelessWidget {
       builder: (ctx) => Container(
         margin: const EdgeInsets.only(left: 16, right: 16, bottom: 40),
         decoration: BoxDecoration(
-          color: context.dialogBgColor.withValues(alpha: 0.8),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(40),
           border: Border.all(
-            color: context.cardBorderColor,
+            color: Colors.black,
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF6E40).withValues(alpha: 0.25),
+              color: Colors.black.withValues(alpha: 0.25),
               blurRadius: 30,
               spreadRadius: 2,
               offset: const Offset(0, 10),
@@ -458,10 +441,10 @@ class MessageBubbleWidget extends StatelessWidget {
             width: 200,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: context.cardBorderColor, width: 1),
+              border: Border.all(color: Colors.black, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -476,7 +459,7 @@ class MessageBubbleWidget extends StatelessWidget {
                     height: 180,
                     width: double.infinity,
                     child: gameImage.isNotEmpty
-                        ? CachedNetworkImage(
+                        ? GamenectNetworkImage(
                             imageUrl: gameImage,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(color: context.cardBgColor),

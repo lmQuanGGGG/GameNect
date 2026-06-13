@@ -4,16 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/theme/theme_helper.dart';
 
-// Màn hình đăng ký gói Premium
-// Hiển thị các tính năng Premium, gói đăng ký và xử lý thanh toán qua PayOS
-// Sử dụng flutter_web_browser để mở trang thanh toán trong Custom Tabs/Safari View Controller
 class SubscriptionScreen extends StatelessWidget {
   const SubscriptionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Tạo SubscriptionProvider riêng cho màn hình này
     return ChangeNotifierProvider(
       create: (_) => SubscriptionProvider(),
       child: const _SubscriptionScreenContent(),
@@ -28,369 +25,360 @@ class _SubscriptionScreenContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = Provider.of<SubscriptionProvider>(context);
 
-    // Fetch danh sách gói đăng ký từ Firestore khi mở màn hình
     if (provider.plans.isEmpty) {
       provider.fetchPlans();
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
+      backgroundColor: context.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: context.scaffoldBackgroundColor,
         elevation: 0,
-        scrolledUnderElevation: 0, // Đảm bảo AppBar luôn trong suốt kể cả khi cuộn (Material 3)
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white, size: 28),
-          onPressed: () => Navigator.pop(context),
+        scrolledUnderElevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.dialogBgColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.textColor, width: 2.5),
+              boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
+            ),
+            child: Icon(Icons.close, color: context.textColor, size: 20),
+          ),
+        ),
+        title: Text(
+          'Nâng cấp Premium',
+          style: TextStyle(
+            color: context.textColor,
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+          ),
         ),
       ),
-      body: Stack(
-        children: [
-          // Background gradient màu cam chuyển đen
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.deepOrange.withValues(alpha: 0.3),
-                  Colors.black,
-                  Colors.black,
-                ],
-              ),
-            ),
-          ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
 
-          // Content chính
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+            // ── Hero badge ────────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: context.textColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: context.textColor, width: 2.5),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(7, 7))],
+              ),
               child: Column(
                 children: [
-                  const SizedBox(height: 20),
-
-                  // Icon Premium với gradient vàng cam và shadow phát sáng
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.amber, Colors.orange.shade600],
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.amber.withValues(alpha: 0.5),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                        ),
-                      ],
+                      color: const Color(0xFFFF6E40),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: context.scaffoldBackgroundColor, width: 2),
                     ),
-                    child: const Icon(
-                      Icons.workspace_premium_rounded,
-                      size: 72,
-                      color: Colors.white,
+                    child: const Icon(Icons.workspace_premium_rounded, size: 48, color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'GameNect Premium',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: context.scaffoldBackgroundColor,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Title với gradient text effect
-                  ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                      colors: [Colors.amber, Colors.orange.shade600],
-                    ).createShader(bounds),
-                    child: const Text(
-                      'Nâng cấp Premium',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                   Text(
                     'Mở khóa tất cả tính năng độc quyền',
                     style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 14,
+                      color: context.scaffoldBackgroundColor.withValues(alpha: 0.65),
                     ),
                   ),
-                  const SizedBox(height: 40),
-
-                  // Danh sách tính năng Premium
-                  _buildFeature(
-                    icon: Icons.all_inclusive,
-                    title: 'Đăng khoảnh khắc không giới hạn',
-                    subtitle: 'Chia sẻ thoải mái mỗi ngày',
-                  ),
-                  const SizedBox(height: 20),
-                  _buildFeature(
-                    icon: Icons.favorite_rounded,
-                    title: 'Xem ai đã thích bạn',
-                    subtitle: 'Không cần đợi match',
-                  ),
-                  const SizedBox(height: 20),
-                  _buildFeature(
-                    icon: Icons.undo_rounded,
-                    title: 'Hoàn tác lượt vuốt',
-                    subtitle: 'Sửa lại lỗi không mong muốn',
-                  ),
-                  const SizedBox(height: 20),
-                  _buildFeature(
-                    icon: Icons.star_rounded,
-                    title: 'Super Like mỗi ngày',
-                    subtitle: 'Tăng cơ hội match x3',
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Hiển thị danh sách gói đăng ký từ Firestore
-                  if (provider.plans.isNotEmpty) ...[
-                    for (var plan in provider.plans)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildPlanCard(
-                          context,
-                          planType: plan['planType'],
-                          title: plan['title'],
-                          price: plan['priceText'],
-                          pricePerMonth: plan['pricePerMonth'],
-                          badge: plan['badge'],
-                          isSelected: provider.selectedPlan == plan['planType'],
-                        ),
-                      ),
-                    const SizedBox(height: 32),
-                  ] else ...[
-                    // Fallback hiển thị gói mặc định nếu chưa load được từ Firestore
-                    _buildPlanCard(
-                      context,
-                      planType: 'yearly',
-                      title: 'Gói 1 Năm',
-                      price: '507.000đ',
-                      pricePerMonth: '42.250đ/tháng',
-                      badge: 'Tiết kiệm 50%',
-                      isSelected: provider.selectedPlan == 'yearly',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildPlanCard(
-                      context,
-                      planType: 'monthly',
-                      title: 'Gói 1 Tháng',
-                      price: '84.500đ',
-                      pricePerMonth: null,
-                      badge: null,
-                      isSelected: provider.selectedPlan == 'monthly',
-                    ),
-                    const SizedBox(height: 32),
-                  ],
-
-                  // Nút đăng ký Premium
-                  SizedBox(
-                    width: double.infinity,
-                    height: 60,
-                    child: ElevatedButton(
-                      onPressed: provider.isLoading || provider.selectedPlan == null
-                          ? null
-                          : () async {
-                              try {
-                                // Tạo payment link từ backend
-                                final paymentData = await provider.purchasePlan(provider.selectedPlan!);
-                                if (paymentData == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Không thể tạo link thanh toán'), backgroundColor: Colors.red),
-                                  );
-                                  return;
-                                }
-
-                                final checkoutUrl = paymentData['checkoutUrl'] as String;
-                                final orderCode = paymentData['orderCode'] as int;
-
-                                // Bắt đầu polling kiểm tra trạng thái thanh toán mỗi 3 giây
-                                bool completed = false;
-                                Timer? timer;
-                                timer = Timer.periodic(const Duration(seconds: 3), (t) async {
-                                  final status = await provider.checkPaymentStatus(orderCode);
-                                  if (status == 'success') {
-                                    // Thanh toán thành công -> kích hoạt Premium
-                                    completed = true;
-                                    t.cancel();
-                                    final userId = FirebaseAuth.instance.currentUser?.uid;
-                                    if (userId != null) {
-                                      await provider.activatePremium(userId, provider.selectedPlan!, orderCode);
-                                    }
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Thanh toán thành công!'), backgroundColor: Colors.green),
-                                      );
-                                      Navigator.of(context).maybePop();
-                                    }
-                                  } else if (status == 'failed') {
-                                    // Thanh toán thất bại
-                                    completed = true;
-                                    t.cancel();
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Thanh toán thất bại'), backgroundColor: Colors.red),
-                                      );
-                                    }
-                                  }
-                                });
-
-                                // Mở trang thanh toán bằng trình duyệt ngoài để hỗ trợ deep link app ngân hàng tốt nhất
-                                final uri = Uri.parse(checkoutUrl);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(
-                                    uri,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Không thể mở trình duyệt. Vui lòng thử lại!'), backgroundColor: Colors.red),
-                                    );
-                                  }
-                                }
-
-                                // Người dùng đóng trình duyệt -> kiểm tra trạng thái lần cuối
-                                if (!completed) {
-                                  final status = await provider.checkPaymentStatus(orderCode);
-                                  if (status == 'success') {
-                                    final userId = FirebaseAuth.instance.currentUser?.uid;
-                                    if (userId != null) {
-                                      await provider.activatePremium(userId, provider.selectedPlan!, orderCode);
-                                    }
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Thanh toán thành công!'), backgroundColor: Colors.green),
-                                      );
-                                    }
-                                  } else if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Chưa xác nhận thanh toán. Vui lòng chờ vài giây hoặc thử lại.'),
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                    );
-                                  }
-                                }
-
-                                timer.cancel();
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-                                  );
-                                }
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: provider.selectedPlan == null
-                            ? Colors.grey.shade700
-                            : Colors.deepOrange,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 8,
-                        shadowColor: Colors.deepOrange.withValues(alpha: 0.5),
-                      ),
-                      child: provider.isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Text(
-                              provider.selectedPlan == null
-                                  ? 'Chọn gói để tiếp tục'
-                                  : 'Đăng ký ngay',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  
-                  const SizedBox(height: 8),
-
-                  // Điều khoản dịch vụ
-                  Text(
-                    'Bằng cách đăng ký, bạn đồng ý với Điều khoản dịch vụ',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
                 ],
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 28),
+
+            // ── Section label ─────────────────────────────────
+            _sectionLabel('Tính năng bao gồm', context),
+            const SizedBox(height: 14),
+
+            // ── Features ──────────────────────────────────────
+            _buildFeature(context,
+              icon: Icons.all_inclusive_rounded,
+              title: 'Đăng khoảnh khắc không giới hạn',
+              subtitle: 'Chia sẻ thoải mái mỗi ngày',
+            ),
+            const SizedBox(height: 10),
+            _buildFeature(context,
+              icon: Icons.favorite_rounded,
+              title: 'Xem ai đã thích bạn',
+              subtitle: 'Không cần đợi match',
+            ),
+            const SizedBox(height: 10),
+            _buildFeature(context,
+              icon: Icons.undo_rounded,
+              title: 'Hoàn tác lượt vuốt',
+              subtitle: 'Sửa lại lỗi không mong muốn',
+            ),
+            const SizedBox(height: 10),
+            _buildFeature(context,
+              icon: Icons.star_rounded,
+              title: 'Super Like mỗi ngày',
+              subtitle: 'Tăng cơ hội match x3',
+            ),
+
+            const SizedBox(height: 28),
+            _sectionLabel('Chọn gói đăng ký', context),
+            const SizedBox(height: 14),
+
+            // ── Plans ─────────────────────────────────────────
+            if (provider.plans.isNotEmpty) ...[
+              for (var plan in provider.plans)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildPlanCard(
+                    context,
+                    provider: provider,
+                    planType: plan['planType'],
+                    title: plan['title'],
+                    price: plan['priceText'],
+                    pricePerMonth: plan['pricePerMonth'],
+                    badge: plan['badge'],
+                    isSelected: provider.selectedPlan == plan['planType'],
+                  ),
+                ),
+            ] else ...[
+              _buildPlanCard(context,
+                provider: provider,
+                planType: 'yearly',
+                title: 'Gói 1 Năm',
+                price: '507.000đ',
+                pricePerMonth: '42.250đ/tháng',
+                badge: 'Tiết kiệm 50%',
+                isSelected: provider.selectedPlan == 'yearly',
+              ),
+              const SizedBox(height: 12),
+              _buildPlanCard(context,
+                provider: provider,
+                planType: 'monthly',
+                title: 'Gói 1 Tháng',
+                price: '84.500đ',
+                pricePerMonth: null,
+                badge: null,
+                isSelected: provider.selectedPlan == 'monthly',
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            // ── Subscribe button ──────────────────────────────
+            GestureDetector(
+              onTap: provider.isLoading || provider.selectedPlan == null
+                  ? null
+                  : () async {
+                      try {
+                        final paymentData = await provider.purchasePlan(provider.selectedPlan!);
+                        if (paymentData == null) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Không thể tạo link thanh toán'), backgroundColor: Colors.red),
+                            );
+                          }
+                          return;
+                        }
+
+                        final checkoutUrl = paymentData['checkoutUrl'] as String;
+                        final orderCode = paymentData['orderCode'] as int;
+
+                        bool completed = false;
+                        Timer? timer;
+                        timer = Timer.periodic(const Duration(seconds: 3), (t) async {
+                          final status = await provider.checkPaymentStatus(orderCode);
+                          if (status == 'success') {
+                            completed = true;
+                            t.cancel();
+                            final userId = FirebaseAuth.instance.currentUser?.uid;
+                            if (userId != null) {
+                              await provider.activatePremium(userId, provider.selectedPlan!, orderCode);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Thanh toán thành công!'), backgroundColor: Colors.green),
+                              );
+                              Navigator.of(context).maybePop();
+                            }
+                          } else if (status == 'failed') {
+                            completed = true;
+                            t.cancel();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Thanh toán thất bại'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        });
+
+                        final uri = Uri.parse(checkoutUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Không thể mở trình duyệt. Vui lòng thử lại!'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+
+                        if (!completed) {
+                          final status = await provider.checkPaymentStatus(orderCode);
+                          if (status == 'success') {
+                            final userId = FirebaseAuth.instance.currentUser?.uid;
+                            if (userId != null) {
+                              await provider.activatePremium(userId, provider.selectedPlan!, orderCode);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Thanh toán thành công!'), backgroundColor: Colors.green),
+                              );
+                            }
+                          } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Chưa xác nhận thanh toán. Vui lòng chờ vài giây hoặc thử lại.'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        }
+
+                        timer.cancel();
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: provider.selectedPlan == null ? context.dialogBgColor : context.textColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.textColor, width: 2.5),
+                  boxShadow: provider.selectedPlan == null
+                      ? []
+                      : [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(6, 6))],
+                ),
+                child: Center(
+                  child: provider.isLoading
+                      ? SizedBox(
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(
+                            color: context.scaffoldBackgroundColor,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Text(
+                          provider.selectedPlan == null ? 'Chọn gói để tiếp tục' : 'Đăng ký ngay',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: provider.selectedPlan == null
+                                ? context.textSecondaryColor
+                                : context.scaffoldBackgroundColor,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                'Bằng cách đăng ký, bạn đồng ý với Điều khoản dịch vụ',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.textTertiaryColor, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
 
-  // Widget hiển thị một tính năng Premium với icon và mô tả
-  Widget _buildFeature({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  Widget _sectionLabel(String text, BuildContext context) {
     return Row(
       children: [
-        // Icon container với gradient cam
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepOrange.withValues(alpha: 0.3), Colors.orange.withValues(alpha: 0.2)],
-            ),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: Colors.deepOrange, size: 28),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+        Container(width: 4, height: 18, color: const Color(0xFFFF6E40)),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.textColor),
         ),
       ],
     );
   }
 
-  // Widget card hiển thị một gói đăng ký
-  // Có thể chọn/bỏ chọn bằng cách tap vào
+  Widget _buildFeature(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: context.dialogBgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.textColor, width: 2.5),
+        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF6E40),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.textColor, width: 2),
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(color: context.textColor, fontSize: 14, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: TextStyle(color: context.textSecondaryColor, fontSize: 12)),
+              ],
+            ),
+          ),
+          const Icon(Icons.check_circle_rounded, color: Color(0xFFFF6E40), size: 20),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlanCard(
     BuildContext context, {
+    required SubscriptionProvider provider,
     required String planType,
     required String title,
     required String price,
@@ -398,113 +386,95 @@ class _SubscriptionScreenContent extends StatelessWidget {
     String? badge,
     required bool isSelected,
   }) {
-    final provider = Provider.of<SubscriptionProvider>(context, listen: false);
-
     return GestureDetector(
       onTap: () => provider.selectPlan(planType),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          // Gradient cam nếu được chọn, màu xám nếu không
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    Colors.deepOrange.withValues(alpha: 0.3),
-                    Colors.orange.withValues(alpha: 0.2),
-                  ],
-                )
-              : null,
-          color: isSelected ? null : Colors.grey.shade900,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Colors.deepOrange : Colors.grey.shade800,
-            width: isSelected ? 3 : 1.5,
-          ),
+          color: isSelected ? context.textColor : context.dialogBgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.textColor, width: 2.5),
+          boxShadow: isSelected
+              ? [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(6, 6))]
+              : [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
         ),
         child: Row(
           children: [
-            // Radio button indicator
+            // Checkbox Neo
             Container(
-              width: 24,
-              height: 24,
+              width: 24, height: 24,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                color: isSelected ? const Color(0xFFFF6E40) : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: isSelected ? Colors.deepOrange : Colors.grey.shade600,
+                  color: isSelected ? const Color(0xFFFF6E40) : context.textSecondaryColor,
                   width: 2,
                 ),
-                color: isSelected ? Colors.deepOrange : Colors.transparent,
               ),
               child: isSelected
                   ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : null,
             ),
-            const SizedBox(width: 16),
-
-            // Thông tin gói: tên và giá/tháng
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? context.scaffoldBackgroundColor : context.textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  if (pricePerMonth != null)
+                  if (pricePerMonth != null) ...[
+                    const SizedBox(height: 2),
                     Text(
                       pricePerMonth,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 14,
+                        color: isSelected
+                            ? context.scaffoldBackgroundColor.withValues(alpha: 0.65)
+                            : context.textSecondaryColor,
+                        fontSize: 13,
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
-
-            // Giá tổng và badge tiết kiệm
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   price,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
+                  style: TextStyle(
+                    color: isSelected ? context.scaffoldBackgroundColor : context.textColor,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                if (badge != null)
+                if (badge != null) ...[
+                  const SizedBox(height: 4),
                   Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.amber, Colors.orange.shade600],
+                      color: const Color(0xFFFF6E40),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isSelected ? context.scaffoldBackgroundColor : context.textColor,
+                        width: 1.5,
                       ),
-                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       badge,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                ],
               ],
             ),
           ],

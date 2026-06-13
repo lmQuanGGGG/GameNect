@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../../../core/widgets/game_tag_widget.dart';
 
 class GamingSection extends StatelessWidget {
   final String? rank;
@@ -49,31 +50,26 @@ class GamingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fieldFillColor = context.isDarkMode
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.85);
-    final fieldStyle = TextStyle(
-      color: context.textColor,
-      fontSize: 16,
-    );
-    final labelStyle = TextStyle(color: context.textSecondaryColor);
-    final hintStyle = TextStyle(color: context.textTertiaryColor);
+    final fieldFillColor = Colors.white;
+    final fieldStyle = const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold);
+    final labelStyle = const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold);
+    final hintStyle = const TextStyle(color: Colors.black54, fontWeight: FontWeight.w500);
     
     final enabledBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: context.isDarkMode ? Colors.white24 : Colors.grey.shade400),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.black, width: 2.5),
     );
     final focusedBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.deepOrange, width: 3),
     );
     final errorBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 2.5),
     );
     final focusedErrorBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 3),
     );
 
     return Column(
@@ -84,7 +80,7 @@ class GamingSection extends StatelessWidget {
           initialValue: rank,
           hint: Text('Chọn rank', style: hintStyle),
           style: fieldStyle,
-          dropdownColor: context.dialogBgColor,
+          dropdownColor: Colors.white,
           iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Hạng hiện tại (Rank)',
@@ -118,50 +114,107 @@ class GamingSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         
-        DropdownSearch<String>.multiSelection(
-          items: (filter, props) => onSearchGamesAsync(filter),
-          selectedItems: favoriteGames,
-          compareFn: (i, s) => i == s,
-          decoratorProps: DropDownDecoratorProps(
-            decoration: InputDecoration(
-              hintText: "Chọn game",
-              hintStyle: hintStyle,
-              enabledBorder: enabledBorder,
-              focusedBorder: focusedBorder,
-              errorBorder: errorBorder,
-              focusedErrorBorder: focusedErrorBorder,
-              filled: true,
-              fillColor: fieldFillColor,
-              prefixIcon: Icon(Icons.videogame_asset, color: Colors.deepOrange[400]),
-            ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black, width: 2.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black,
+                offset: Offset(4, 4),
+              )
+            ],
           ),
-          popupProps: PopupPropsMultiSelection.dialog(
-            showSearchBox: true,
-            searchFieldProps: TextFieldProps(
+          child: DropdownSearch<String>.multiSelection(
+            items: (filter, props) => onSearchGamesAsync(filter),
+            selectedItems: favoriteGames,
+            compareFn: (i, s) => i == s,
+            dropdownBuilder: (context, selectedItems) {
+              if (selectedItems.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text("Chọn game (tối đa 5)", style: TextStyle(color: Colors.black54, fontSize: 16, fontWeight: FontWeight.bold)),
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: selectedItems.map((game) => GameTagWidget(gameName: game)).toList(),
+                ),
+              );
+            },
+            decoratorProps: DropDownDecoratorProps(
               decoration: InputDecoration(
-                hintText: "Gõ tên game (ví dụ: gta...)",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(16),
+                prefixIcon: const Icon(Icons.videogame_asset, color: Colors.deepOrange, size: 28),
               ),
             ),
-            dialogProps: DialogProps(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            popupProps: PopupPropsMultiSelection.dialog(
+              showSearchBox: true,
+              itemBuilder: (context, item, isDisabled, isSelected) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.deepOrange.withValues(alpha: 0.1) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: isSelected ? Border.all(color: Colors.deepOrange, width: 2) : Border.all(color: Colors.transparent, width: 2),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    title: GameTagWidget(gameName: item),
+                    selected: isSelected,
+                  ),
+                );
+              },
+              searchFieldProps: TextFieldProps(
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                decoration: InputDecoration(
+                  hintText: "Gõ tên game (ví dụ: gta...)",
+                  prefixIcon: const Icon(Icons.search, color: Colors.black),
+                  filled: true,
+                  fillColor: Colors.grey.shade200,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black, width: 2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.deepOrange, width: 2.5),
+                  ),
+                ),
+              ),
+              dialogProps: DialogProps(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(color: Colors.black, width: 3),
+                ),
+                elevation: 0,
+              ),
             ),
+            onChanged: (results) {
+              if (results.length > 5) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Chỉ được chọn tối đa 5 game!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    backgroundColor: Colors.deepOrange,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.black, width: 2)),
+                  ),
+                );
+                results.removeLast();
+                onFavoriteGamesChanged(List.from(results));
+              } else {
+                onFavoriteGamesChanged(results);
+              }
+            },
+            validator: (values) =>
+                values == null || values.isEmpty ? "Chọn ít nhất 1 game" : null,
           ),
-          onChanged: (results) {
-            if (results.length > 5) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Chỉ được chọn tối đa 5 game!')),
-              );
-              // We remove the last added item to keep it <= 5.
-              results.removeLast();
-              onFavoriteGamesChanged(List.from(results));
-            } else {
-              onFavoriteGamesChanged(results);
-            }
-          },
-          validator: (values) =>
-              values == null || values.isEmpty ? "Chọn ít nhất 1 game" : null,
         ),
         const SizedBox(height: 16),
         
@@ -238,7 +291,7 @@ class GamingSection extends StatelessWidget {
           initialValue: lookingFor,
           hint: Text('Chọn mục đích', style: hintStyle),
           style: fieldStyle,
-          dropdownColor: context.dialogBgColor,
+          dropdownColor: Colors.white,
           iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Mục đích tìm kiếm',
@@ -266,7 +319,7 @@ class GamingSection extends StatelessWidget {
           initialValue: gameStyle,
           hint: Text('Chọn phong cách', style: hintStyle),
           style: fieldStyle,
-          dropdownColor: context.dialogBgColor,
+          dropdownColor: Colors.white,
           iconEnabledColor: Colors.deepOrange,
           decoration: InputDecoration(
             labelText: 'Phong cách chơi game',

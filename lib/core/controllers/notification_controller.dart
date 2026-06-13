@@ -8,6 +8,8 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/notification_service.dart';
+import '../providers/chat_provider.dart';
 import 'dart:math';
 
 // Lớp NotificationController quản lý toàn bộ logic thông báo của ứng dụng.
@@ -28,7 +30,9 @@ class NotificationController {
   static Future<void> initializeLocalNotifications({required bool debug}) async {
     if (kIsWeb) return;
     await AwesomeNotifications().initialize(
-      null,
+      defaultTargetPlatform == TargetPlatform.android
+          ? 'resource://mipmap/launcher_icon'
+          : null,
       [
         NotificationChannel(
           channelKey: 'gamenect_channel',
@@ -213,10 +217,12 @@ class NotificationController {
     final data = silentData.data ?? {};
     final type = data['type'];
 
-    // CALL: xử lý ở mọi trạng thái (foreground/background/killed)
-    // vì cần tạo notification có action buttons Nghe/Từ chối
+    // CALL: Xử lý khi app ở background/killed
+    // Nếu app đang ở foreground, Dialog trong chat_provider sẽ lo hiển thị
     if (type == 'call') {
-      await _createCallNotification(data);
+      if (silentData.createdLifeCycle != NotificationLifeCycle.Foreground) {
+        await _createCallNotification(data);
+      }
       return;
     }
 
@@ -231,6 +237,10 @@ class NotificationController {
     // Foreground: tạo in-app notification có style đẹp hơn
     try {
       if (type == 'chat') {
+        final matchId = data['matchId'] ?? '';
+        // Bỏ qua nếu user đang mở đúng màn hình chat đó
+        if (ChatProvider.currentActiveMatchId == matchId) return;
+
         await AwesomeNotifications().createNotification(
           content: NotificationContent(
             id: DateTime.now().millisecondsSinceEpoch.remainder(100000),

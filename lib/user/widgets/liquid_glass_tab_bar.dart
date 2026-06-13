@@ -59,61 +59,40 @@ class LiquidGlassTabBar extends StatelessWidget {
   }
 
   Widget _buildPill(BuildContext context) {
-    final isDark = context.isDarkMode;
     return Container(
       height: 72,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(40),
-        // ── Bóng đổ cực nhẹ để giữ độ trong suốt cao nhất ──
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.06 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.03 : 0.05),
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
-          BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: isDark ? 0.08 : 0.12),
-            blurRadius: 40,
-            spreadRadius: 2,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(40),
-        child: BackdropFilter(
-          // Giảm blur để thấy rõ nền bên dưới hơn
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(40),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.45, 1.0],
-                // Gradient cực mỏng, gần như trong suốt hoàn toàn
-                colors: isDark
-                    ? [
-                        Colors.white.withValues(alpha: 0.08),
-                        Colors.white.withValues(alpha: 0.02),
-                        Colors.white.withValues(alpha: 0.00),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.90),
-                        Colors.white.withValues(alpha: 0.70),
-                        Colors.white.withValues(alpha: 0.60),
-                      ],
-              ),
-              border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
-                width: 0.8,
+      // Wrap everything in a Stack to create a "Hollow Shadow" for Neo-Brutalism + Glass
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Hollow Shadow (just a border, no fill)
+          Positioned.fill(
+            top: 4,
+            left: 4,
+            bottom: -4,
+            right: -4,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(40),
+                border: Border.all(color: context.textColor, width: 3),
               ),
             ),
+          ),
+          // Actual Tab Bar
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(40),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(40),
+                    color: (context.isDarkMode ? Colors.black : Colors.white).withValues(alpha: context.isDarkMode ? 0.1 : 0.3),
+                    border: Border.all(
+                      color: context.textColor,
+                      width: 3,
+                    ),
+                  ),
             child: Material(
               type: MaterialType.transparency,
               child: Row(
@@ -132,7 +111,10 @@ class LiquidGlassTabBar extends StatelessWidget {
               ),
             ),
           ),
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -184,11 +166,11 @@ class _TabItemWidget extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 250),
                   style: TextStyle(
-                    fontSize: isActive ? 9.5 : 9,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: isActive ? 10 : 9,
+                    fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
                     color: isActive
-                        ? _activeColor
-                        : (context.isDarkMode ? _inactiveColor : const Color(0xFF7A8A99)).withValues(alpha: 0.85),
+                        ? context.textColor
+                        : context.textSecondaryColor,
                     letterSpacing: isActive ? 0.3 : 0.0,
                   ),
                   child: Text(
@@ -211,12 +193,12 @@ class _TabItemWidget extends StatelessWidget {
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          _buildActiveIcon(),
+          _buildActiveIcon(context),
           if (badge > 0)
             Positioned(
               right: -4,
               top: -4,
-              child: _buildBadge(badge),
+              child: _buildBadge(badge, context),
             ),
         ],
       );
@@ -225,85 +207,28 @@ class _TabItemWidget extends StatelessWidget {
     }
   }
 
-  Widget _buildActiveIcon() {
-    return AnimatedBuilder(
-      animation: glowAnim,
-      builder: (context, _) {
-        final glow = glowAnim.value;
-        return Container(
-          width: 44,
-          height: 36,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              stops: [0.0, 0.35, 1.0],
-              colors: [
-                Color(0xFFFFE0B2), // Cam nhạt tinh khiết
-                Color(0xFFFF6E40), // Cam rực (Deep Orange)
-                Color(0xFFBF360C), // Cam tối — độ sâu
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.55 * glow),
-                blurRadius: 20,
-                spreadRadius: 1,
-              ),
-              BoxShadow(
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.40 * glow),
-                blurRadius: 8,
-                spreadRadius: 0,
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.30 * glow),
-                blurRadius: 4,
-                offset: const Offset(0, -1),
-              ),
-            ],
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.45),
-              width: 1.2,
-            ),
+  Widget _buildActiveIcon(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 36,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF6E40),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.textColor, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: context.textColor,
+            offset: const Offset(2, 2),
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 3,
-                left: 5,
-                child: Container(
-                  width: 14,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withValues(alpha: 0.60),
-                        Colors.white.withValues(alpha: 0.0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Center(
-                child: Icon(
-                  item.icon,
-                  size: 20,
-                  color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0xFFBF360C), // Bóng cam đậm
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
+      child: Center(
+        child: Icon(
+          item.icon,
+          size: 20,
+          color: context.scaffoldBackgroundColor,
+        ),
+      ),
     );
   }
 
@@ -319,7 +244,7 @@ class _TabItemWidget extends StatelessWidget {
             child: Icon(
               item.icon,
               size: 22,
-              color: (context.isDarkMode ? _inactiveColor : const Color(0xFF7A8A99)).withValues(alpha: 0.80),
+              color: context.textSecondaryColor,
             ),
           ),
         ),
@@ -327,27 +252,24 @@ class _TabItemWidget extends StatelessWidget {
           Positioned(
             right: 0,
             top: -4,
-            child: _buildBadge(badge),
+            child: _buildBadge(badge, context),
           ),
       ],
     );
   }
 
-  Widget _buildBadge(int count) {
+  Widget _buildBadge(int count, BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF3D71), Color(0xFFCC0033)],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.2),
+        color: const Color(0xFFFF3D71),
+        border: Border.all(color: context.textColor, width: 2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF3D71).withValues(alpha: 0.50),
-            blurRadius: 6,
-            spreadRadius: 0,
+            color: context.textColor,
+            offset: const Offset(2, 2),
           ),
         ],
       ),
@@ -357,7 +279,7 @@ class _TabItemWidget extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontSize: 9,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             height: 1.0,
           ),
           textAlign: TextAlign.center,

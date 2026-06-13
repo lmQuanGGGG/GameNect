@@ -1521,4 +1521,126 @@ RefreshIndicator(
   - `lib/user/screens/mentor/all_mentor_media_screen.dart`
   - `lib/user/screens/moments/moment_feed_tab.dart`
   - `lib/user/screens/moments/my_moments_tab.dart`
-  - `lib/user/screens/moments/discover_mentor_posts_page.dart` (Nếu có tạo/sửa)
+  - `lib/user/screens/moments/discover_mentor_posts_page.dart`
+
+### [2026-06-12] — Tối ưu hóa Camera Locket Cam, Wallet UI, Discover Hub & Dynamic Status Bar
+- **Thay đổi:**
+  - **Tối ưu hóa Camera & Bộ lọc Locket Cam**:
+    * Chuyển đổi luồng chụp ảnh sang xem trước thành **tức thời (0ms delay)**, bỏ hộp thoại đè "Đang tối ưu ảnh" sau khi shutter click.
+    * Đưa luồng nén ảnh EXIF và áp bộ lọc màu CPU Isolate xuống bước tải lên (`_uploadAndPost`), lồng dưới vòng xoay tiến trình chính để không làm gián đoạn trải nghiệm chụp.
+    * Tích hợp bộ lọc màu **Locket Cam** mới (`R * 1.06 + 15, G * 1.02 + 8, B * 1.18 + 28`) giúp da trắng hồng hào rực rỡ, khử sạch hoàn toàn các sắc vàng ấm cũ.
+    * Đồng bộ hóa ma trận màu này trực tiếp lên widget `ColorFiltered` của màn hình xem trước (Preview) thông qua phần cứng (GPU).
+    * Loại bỏ hoàn toàn bộ lọc làm mờ da (Orton blur/Gaussian) để ảnh giữ nguyên độ sắc nét cao ("sáng trong") tự nhiên như Locket.
+    * Khắc phục triệt để lỗi lật ngang ảnh (mirror) bị ngược chiều trên camera trước bằng cách loại bỏ các thao tác lật ảnh thủ công trùng lặp.
+    * Dọn dẹp sạch toàn bộ cảnh báo tĩnh (static warnings/unused imports) trong các file camera.
+  - **Giao diện Ví & Lịch sử Nạp Coin**:
+    * Đồng bộ hóa thiết kế 4 thẻ gói Coin (100, 500, 1000, 5000) về chung một quy chuẩn giao diện B&W Neo-Brutalism.
+    * Tích hợp stream Firestore `getMyCoinOrders()` trong `WalletProvider` hiển thị lịch sử nạp coin realtime tại tab Nạp tiền.
+  - **Thiết kế Hub Khám phá (Discover Hub) & Sửa lỗi cuộn**:
+    * Nhập hai cột "Trending Games" và "Mentor Posts" hiển thị chung trên một màn hình `DiscoverHubPage` duy nhất.
+    * Khóa cử chỉ cuộn nội bộ bằng `NeverScrollableScrollPhysics` để tránh xung đột gesture, cho phép vuốt dọc bubbled thẳng lên PageView cha nhằm xem Moments kế tiếp tức thì.
+    * Hỗ trợ đổi nền sáng/tối tự động và áp dụng các nút viền lệch Neo-Brutalism B&W cho các nút hành động trên thẻ.
+  - **Giao diện bài viết Mentor (Mentor Media Feed)**:
+    * Thiết lập màu nền đệm chứa ảnh/video sang màu đen tuyền (`Colors.black`) thay vì xám để tôn ảnh đúng tỷ lệ contain.
+    * Nâng cấp các viền lệch và bóng đổ của avatar/tên/nút tim sang màu đen/trắng động theo độ sáng màn hình.
+  - **Nút bấm Neo-Brutalism Trang cá nhân (Profile)**:
+    * Nâng cấp toàn bộ các nút bấm tại card Mentor Dashboard, Location và nút **Quản lý** của ví Coin sang phong cách viền dày kèm bóng lệch (`Offset(3, 3)`) đen trắng động.
+  - **Thanh trạng thái hệ thống động (System Status Bar)**:
+    * Cấu hình `systemOverlayStyle` trong `AppBarTheme` của cả hai giao diện sáng/tối trong `app_theme.dart`.
+    * Bọc MaterialApp của `user_app.dart` bằng `AnnotatedRegion<SystemUiOverlayStyle>` động để ép hệ thống đổi đồng hồ/wifi/pin điện thoại sang màu đen khi nền sáng, và màu trắng khi nền tối một cách mượt mà và tự động trên mọi màn hình.
+- **File ảnh hưởng:**
+  - `lib/user/screens/camera/camera_capture_screen.dart`
+  - `lib/user/screens/camera/camera_preview_view.dart`
+  - `lib/user/screens/wallet/wallet_screen.dart`
+  - `lib/core/providers/wallet_provider.dart`
+  - `lib/user/screens/moments/discover_hub_page.dart`
+  - `lib/user/screens/moments/moment_feed_tab.dart`
+  - `lib/user/screens/mentor/mentor_media_feed_screen.dart`
+  - `lib/user/screens/profile/profile_screen.dart`
+  - `lib/core/theme/app_theme.dart`
+  - `lib/user/user_app.dart`
+
+### [2026-06-12 — Phiên 2] — Tối ưu UI Livestream Neo-Brutalism, Gift Animation & Sửa Màu Chữ Nút Admin
+
+- **Thay đổi:**
+  - **Refactor UI Livestream Neo-Brutalism & Sửa Lỗi Gift Animation**:
+    * Cập nhật giao diện phòng livestream (`live_stream_screen.dart`) và màn hình vuốt livestream TikTok-style (`live_swipe_feed_screen.dart`) sang phong cách Neo-Brutalism: viền đen dày, bóng đổ lệch đen/trắng, các nút tròn/badges có màu sắc tương phản cao (màu vàng hổ phách, xanh dương).
+    * Thiết kế lại Bottom Sheet tặng quà với tiêu đề in đậm thô ("TẶNG QUÀ"), tăng khoảng cách và tỷ lệ hiển thị lưới các ô quà để tránh lỗi tràn màn hình (overflow), hỗ trợ các hiệu ứng đổ bóng Neo.
+    * Tích hợp ShaderMask tạo dải màu (gradient) độc đáo cho từng loại icon quà tặng (Tim - đỏ hồng, Sao - hổ phách, Kim cương - xanh lục bảo, Vương miện - vàng kim).
+    * Sửa lỗi hiệu ứng tặng quà "bự chà bá" trên màn hình của mentor/host bằng cách liên kết state hiển thị animation quà tặng thông qua stream tin nhắn realtime từ Firestore. Giờ đây cả người xem và mentor đều thấy hiệu ứng hoạt ảnh quà tặng xuất hiện đồng bộ trên màn hình.
+    * Sửa lỗi tự động reload lại toàn bộ danh sách khi nhấn nút follow mentor trên màn hình khám phá livestream (`live_discover_screen.dart`).
+  - **Sửa Màu Chữ Nút Quản Trị Hệ Thống**:
+    * Khắc phục lỗi nút "Mở" của khu vực Admin Panel trên trang cá nhân (`profile_screen.dart`) bị ẩn chữ khi chuyển sang giao diện sáng (do màu nền đổi thành trắng nhưng màu chữ vẫn bị khoá cứng là `Colors.white`).
+    * Chuyển đổi màu chữ của nút sang `context.textColor` động để tự động chuyển sang màu đen thô (`#1C1C1E`) ở giao diện sáng và giữ màu trắng (`Colors.white`) ở giao diện tối.
+  - **Khóa vuốt dọc (Up/Down) của CardSwiper**:
+    * Khóa cử chỉ vuốt dọc (trên/dưới) trên màn hình tìm bạn (`match_screen.dart`) bằng cách cấu hình `allowedSwipeDirection: const AllowedSwipeDirection.only(left: true, right: true, up: false, down: false)`. Điều này giúp người dùng khi vuốt dọc xem thông tin chi tiết của profile sẽ không bị hệ thống hiểu nhầm thành cử chỉ quẹt thẻ (tránh bị nhảy sang người khác), chỉ giữ lại hai hướng quẹt trái/phải hợp lệ.
+  - **Tối ưu hóa Hiệu năng Web & Stream Caching**:
+    * **Khắc phục lỗi giật lag phòng chat (`chat_screen.dart`)**: Chuyển luồng lấy tin nhắn realtime và kiểm tra typing trạng thái của đối phương từ việc gọi trực tiếp `chatProvider.messagesStream` / `chatProvider.peerTypingStream` trong phương thức `build` sang lưu trữ tĩnh dưới dạng biến trạng thái (`_messagesStream`, `_peerTypingStream`) khởi tạo duy nhất một lần tại `initState`. Điều này loại bỏ hoàn toàn việc tạo mới kết nối/lắng nghe lặp đi lặp lại hàng nghìn lần trên mỗi frame/khi gõ chữ, tăng tốc độ phản hồi đáng kể.
+    * **Loại bỏ scroll giật cục**: Loại bỏ callback `WidgetsBinding.instance.addPostFrameCallback` tự động scroll cưỡng bức `animateTo(0.0)` mỗi khi stream có cập nhật mới trong builder, giúp người dùng cuộn xem lịch sử tin nhắn mượt mà, không bị giật lùi màn hình.
+    * **Tối ưu hóa tải ảnh và bộ nhớ đệm (Web Cache)**: Tạo widget dùng chung mới `GamenectNetworkImage` (`network_image.dart`) tự động phân biệt nền tảng: trên Web sử dụng `Image.network` tận dụng tối đa cơ chế lưu trữ đệm (disk cache) phần cứng của trình duyệt (không bị mất cache khi reset app) và tối ưu hóa giải nén; trên Mobile tiếp tục dùng `CachedNetworkImage` của `flutter_cache_manager` cho luồng offline. Tích hợp widget này vào danh sách tương hợp (`match_list_screen.dart`) để tối ưu hóa đáng kể tốc độ load ảnh đại diện của Web.
+- **File ảnh hưởng:**
+  - `lib/user/screens/profile/profile_screen.dart`
+  - `lib/user/screens/live/live_stream_screen.dart`
+  - `lib/user/screens/live/live_swipe_feed_screen.dart`
+  - `lib/user/screens/live/live_discover_screen.dart`
+  - `lib/user/screens/matching/match_screen.dart`
+  - `lib/user/screens/chat/chat_screen.dart`
+  - `lib/core/widgets/network_image.dart`
+  - `lib/user/screens/matching/match_list_screen.dart`
+
+### [2026-06-12 — Phiên 3] — Tối ưu hóa Hiệu năng Web & Đồng bộ Stream Caching Toàn bộ Ứng dụng
+
+- **Thay đổi:**
+  - **Tải ảnh Web Cache & Mượt mà UI**:
+    * Mở rộng việc sử dụng `GamenectNetworkImage` cho tất cả các màn hình còn lại sử dụng ảnh mạng, đảm bảo ảnh được lưu đệm (disk cache) tự nhiên bởi trình duyệt Web và mượt mà hơn khi tải.
+    * Thay thế `CachedNetworkImage` bằng `GamenectNetworkImage` tại các màn hình:
+      * Trang danh sách thích tôi (`liked_me_screen.dart`)
+      * Danh sách game hot (`game_trending_screen.dart`) và Chi tiết game (`game_detail_screen.dart`)
+      * Feed bài viết Mentor (`mentor_media_feed_screen.dart`)
+      * Chọn ảnh đại diện trong Cài đặt cá nhân (`avatar_picker_section.dart`)
+      * Bong bóng tin nhắn chat (`message_bubble.dart`)
+      * Trình xem media toàn màn hình (`full_screen_media_viewer.dart`)
+      * Vật phẩm bài viết moments (`moment_grid_item.dart` và `moment_card.dart`).
+    * Chuyển đổi `MomentGridItem` và `MomentCard` sang lưu trữ Future thông tin người dùng (`_userInfoFuture`) trong State để tránh query liên tục khi danh sách cuộn dọc.
+  - **Khắc phục Rebuild Storms & Firestore Connection Leak**:
+    * Chuyển đổi các màn hình từ `StatelessWidget` sang `StatefulWidget` và lưu cache các Stream/Future của Firestore trong `initState` thay vì khởi tạo trực tiếp trong hàm `build`:
+      * `all_mentor_media_screen.dart`: Chuyển sang `StatefulWidget` và cache Stream danh sách bài viết Mentor.
+      * `mentor_media_screen.dart`: Cache Stream media của Mentor.
+      * `mentor_requests_screen.dart`: Chuyển sang `StatefulWidget` và cache Stream danh sách đơn đăng ký Mentor.
+      * `wallet_screen.dart`: Cache Stream lịch sử đơn nạp tiền trong `_TopupTabState` và Stream đơn rút tiền trong `_WithdrawTabState`.
+      * `mentor_profile_screen.dart`: Cache ratings và media Stream trong profile Mentor. Đồng thời chuyển đổi `_MentorFollowerSheet` thành `StatefulWidget` và tích hợp `Map<String, Future<DocumentSnapshot>>` để lưu đệm thông tin của followers, tránh query Firestore khi cuộn danh sách người theo dõi.
+      * `video_call_screen.dart`: Cache Stream trạng thái cuộc gọi để tránh việc timer đếm giây (1s/tick) trigger build làm tạo mới kết nối Firestore liên tục gây nghẽn mạng trên Web.
+- **File ảnh hưởng:**
+  - `lib/user/screens/matching/liked_me_screen.dart`
+  - `lib/user/screens/games/game_trending_screen.dart`
+  - `lib/user/screens/games/game_detail_screen.dart`
+  - `lib/user/screens/mentor/mentor_media_feed_screen.dart`
+  - `lib/user/screens/profile/avatar_picker_section.dart`
+  - `lib/user/screens/chat/message_bubble.dart`
+  - `lib/user/screens/chat/full_screen_media_viewer.dart`
+  - `lib/user/screens/moments/moment_grid_item.dart`
+  - `lib/user/screens/moments/moment_card.dart`
+  - `lib/user/screens/mentor/all_mentor_media_screen.dart`
+  - `lib/user/screens/mentor/mentor_media_screen.dart`
+  - `lib/user/screens/mentor/mentor_requests_screen.dart`
+  - `lib/user/screens/wallet/wallet_screen.dart`
+  - `lib/user/screens/mentor/mentor_profile_screen.dart`
+  - `lib/user/screens/call/video_call_screen.dart`
+
+### [2026-06-12 — Phiên 4] — Sửa lỗi Camera Preview Web, Thêm Nút Lật Ảnh & Nâng Cao Chất Lượng Ảnh Đăng Moment
+
+- **Thay đổi:**
+  - **Sửa lỗi Preview trống trên Web**:
+    * Chuyển đổi `CameraPreviewView` để phát hiện nền tảng Web (`kIsWeb`), load ảnh bằng `Image.network` thay vì `Image.file` (gây lỗi crash trên Web do `dart:io` không hỗ trợ).
+  - **Thêm tính năng Lật ảnh (Mirror Toggle) & Tự động bật mặc định**:
+    * Thêm nút **LẬT ẢNH** thiết kế Neo-Brutalism ở góc trên bên phải khung preview ảnh moment.
+    * Khi chọn/chụp ảnh trên Web, hệ thống tự động tải bytes thông qua `_webImageBytes` và mặc định bật lật ảnh gương (`_isMirrored = true`) để tiện lợi nhất khi chụp selfie. Người dùng vẫn có thể click nút để tắt đi nếu chụp bằng camera sau.
+    * Khi người dùng nhấn đăng ảnh, nếu trạng thái lật ảnh được kích hoạt, hệ thống sẽ chạy tác vụ isolate `_applyMirrorIsolate` để lật pixel hình ảnh thực tế trước khi tải lên.
+  - **Nâng cao chất lượng ảnh (HD & 90% Quality)**:
+    * Cấu hình nâng cao chất lượng chọn ảnh từ gallery và camera trên Web từ chất lượng 80% lên **90%** (`imageQuality: 90`).
+    * Tăng kích thước ảnh tối đa từ 800px lên **1080px** (`maxWidth: 1080`) để ảnh đạt độ sắc nét chuẩn Full HD.
+- **File ảnh hưởng:**
+  - `lib/user/screens/camera/camera_preview_view.dart`
+  - `lib/user/screens/camera/camera_capture_screen.dart`
+  - `lib/user/screens/main/main_screen.dart`
+

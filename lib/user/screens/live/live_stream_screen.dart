@@ -15,15 +15,13 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveBadge = Color(0xFFFF3B30);
-const _kGlassBg = Color(0x14FFFFFF);
-const _kGlassBorder = Color(0x1FFFFFFF);
 
 // Gift definitions
 const _kGifts = [
-  {'type': 'heart', 'emoji': '❤️', 'name': 'Tim', 'coins': 1},
-  {'type': 'star', 'emoji': '⭐', 'name': 'Ngôi sao', 'coins': 5},
-  {'type': 'diamond', 'emoji': '💎', 'name': 'Hồng ngọc', 'coins': 20},
-  {'type': 'crown', 'emoji': '👑', 'name': 'Kim cương', 'coins': 50},
+  {'type': 'heart', 'name': 'Tim', 'coins': 1},
+  {'type': 'star', 'name': 'Sao', 'coins': 5},
+  {'type': 'diamond', 'name': 'Kim cương', 'coins': 20},
+  {'type': 'crown', 'name': 'Vương miện', 'coins': 50},
 ];
 
 /// Màn hình xem / phát Livestream — Task 6.3
@@ -90,6 +88,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   Timer? _giftTimer;
 
   StreamSubscription? _streamInfoSub;
+  StreamSubscription? _giftSub;
 
   @override
   void initState() {
@@ -116,6 +115,32 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         // Viewer join stream
         await context.read<LivestreamProvider>().joinStream(widget.streamId);
       }
+
+      // Listen gifts for animation — hiện cho TẤT CẢ (kể cả mentor)
+      // KHÔNG dùng timestamp filter vì server timestamp != client Timestamp.now()
+      // Thay vào đó: bỏ qua snapshot đầu tiên (chứa docs cũ), chỉ trigger từ snapshot thứ 2 trở đi
+      bool _giftSubReady = false;
+      _giftSub = FirebaseFirestore.instance
+          .collection('livestreams')
+          .doc(widget.streamId)
+          .collection('messages')
+          .where('type', isEqualTo: 'gift')
+          .orderBy('timestamp', descending: false)
+          .snapshots()
+          .listen((snap) {
+        if (!mounted) return;
+        if (!_giftSubReady) {
+          // Bỏ qua snapshot đầu tiên (load lại toàn bộ docs cũ)
+          _giftSubReady = true;
+          return;
+        }
+        for (var change in snap.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final data = change.doc.data()!;
+            _triggerGiftAnimation(data['giftType'] ?? 'heart', data['username'] ?? 'User');
+          }
+        }
+      });
 
       // Listen stream info
       _streamInfoSub = FirebaseFirestore.instance
@@ -153,6 +178,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     _scrollCtrl.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _streamInfoSub?.cancel();
+    _giftSub?.cancel();
     _giftTimer?.cancel();
     if (!widget.isMentor) {
       context.read<LivestreamProvider>().leaveStream(widget.streamId);
@@ -187,15 +213,45 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     );
   }
 
-  void _triggerGiftAnimation(String emoji, String username) {
+  void _triggerGiftAnimation(String type, String username) {
     setState(() {
-      _giftAnimEmoji = emoji;
+      _giftAnimEmoji = type;
       _giftAnimUsername = username;
     });
     _giftTimer?.cancel();
     _giftTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) setState(() { _giftAnimEmoji = null; _giftAnimUsername = null; });
     });
+  }
+
+  Widget _getGiftIcon(String type, double size) {
+    switch (type) {
+      case 'heart':
+        return ShaderMask(
+          shaderCallback: (b) => const LinearGradient(colors: [Colors.pinkAccent, Colors.red]).createShader(b),
+          child: Icon(Icons.favorite, size: size, color: Colors.white),
+        );
+      case 'star':
+        return ShaderMask(
+          shaderCallback: (b) => const LinearGradient(colors: [Colors.amberAccent, Colors.orange]).createShader(b),
+          child: Icon(Icons.star_rounded, size: size, color: Colors.white),
+        );
+      case 'diamond':
+        return ShaderMask(
+          shaderCallback: (b) => const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]).createShader(b),
+          child: Icon(Icons.diamond, size: size, color: Colors.white),
+        );
+      case 'crown':
+        return ShaderMask(
+          shaderCallback: (b) => const LinearGradient(colors: [Colors.yellowAccent, Colors.orangeAccent]).createShader(b),
+          child: Icon(Icons.workspace_premium, size: size, color: Colors.white),
+        );
+      default:
+        return ShaderMask(
+          shaderCallback: (b) => const LinearGradient(colors: [Colors.purpleAccent, Colors.deepPurple]).createShader(b),
+          child: Icon(Icons.card_giftcard, size: size, color: Colors.white),
+        );
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -220,40 +276,45 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   void _showGiftSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1A1E),
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: Colors.black, width: 4),
       ),
       builder: (ctx) {
         return Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Tặng quà', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  const Text('TẶNG QUÀ', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: 2.0)),
                   Consumer<LivestreamProvider>(
-                    builder: (_, p, child) => Row(
-                      children: [
-                        const Text('💰', style: TextStyle(fontSize: 16)),
-                        const SizedBox(width: 4),
-                        Text('${p.myCoins} coins', style: const TextStyle(color: _kAccent, fontWeight: FontWeight.bold)),
-                      ],
+                    builder: (_, p, _w) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD54F),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.black, width: 2),
+                        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                      ),
+                      child: Text('💰 ${p.myCoins} COIN', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 13)),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               GridView.count(
                 shrinkWrap: true,
                 crossAxisCount: 4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.75,
                 children: _kGifts.map((gift) => _buildGiftItem(gift, ctx)).toList(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
             ],
           ),
         );
@@ -278,11 +339,18 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
             .data()?['mentorId'] ?? '';
 
         final provider = context.read<LivestreamProvider>();
-        final coinBalance = provider.myCoins;
-
-        if (coinBalance < (gift['coins'] as int)) {
+        if (provider.myCoins < (gift['coins'] as int)) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không đủ coin! Hãy nạp thêm.'), backgroundColor: Colors.red),
+            SnackBar(
+              content: const Text('KHÔNG ĐỦ COIN! HÃY NẠP THÊM.', style: TextStyle(fontWeight: FontWeight.w900)),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: Colors.black, width: 2),
+              ),
+            ),
           );
           return;
         }
@@ -300,27 +368,40 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         if (!mounted) return;
         if (!ok) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không đủ coin!'), backgroundColor: Colors.red),
+            SnackBar(
+              content: const Text('KHÔNG ĐỦ COIN!', style: TextStyle(fontWeight: FontWeight.w900)),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: Colors.black, width: 2),
+              ),
+            ),
           );
         } else {
-          // Sync with ProfileProvider as well, so both are updated
           profileProvider.deductCoins(gift['coins'] as int);
-          _triggerGiftAnimation(gift['emoji'], username);
+          _triggerGiftAnimation(gift['type'] as String, username);
         }
       },
       child: Container(
         decoration: BoxDecoration(
-          color: _kGlassBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kGlassBorder),
+          color: const Color(0xFFFFD54F),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black, width: 2),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(gift['emoji'], style: const TextStyle(fontSize: 28)),
+            _getGiftIcon(gift['type'] as String, 40),
+            const SizedBox(height: 8),
+            Text(gift['name'] as String, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text(gift['name'], style: const TextStyle(color: Colors.white70, fontSize: 10)),
-            Text('${gift['coins']} coin', style: const TextStyle(color: _kAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(4)),
+              child: Text('${gift['coins']} COIN', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
+            ),
           ],
         ),
       ),
@@ -478,75 +559,65 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                       
                       return Row(
                         children: [
-                          // Sleek unified Broadcaster Pill (TikTok-style)
+                          // Neo-Brutalism mentor pill
                           Container(
-                            padding: const EdgeInsets.fromLTRB(5, 5, 10, 5),
+                            padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.black, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (_mentorAvatarUrl != null)
-                                  CircleAvatar(
-                                    radius: 13,
-                                    backgroundImage: NetworkImage(_mentorAvatarUrl!),
-                                  )
-                                else
-                                  const CircleAvatar(
-                                    radius: 13,
-                                    backgroundColor: Colors.white12,
-                                    child: Icon(Icons.person, size: 13, color: Colors.white70),
+                                Container(
+                                  width: 28, height: 28,
+                                  decoration: BoxDecoration(
+                                    color: _kAccent,
+                                    border: Border.all(color: Colors.black, width: 2),
+                                    image: _mentorAvatarUrl != null
+                                        ? DecorationImage(image: NetworkImage(_mentorAvatarUrl!), fit: BoxFit.cover)
+                                        : null,
                                   ),
-                                const SizedBox(width: 6),
+                                  alignment: Alignment.center,
+                                  child: _mentorAvatarUrl == null
+                                      ? const Icon(Icons.person, size: 16, color: Colors.white)
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
                                 ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 80),
+                                  constraints: const BoxConstraints(maxWidth: 100),
                                   child: Text(
                                     _mentorUsername ?? 'Mentor',
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 1,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
+                                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14),
                                   ),
                                 ),
-                                if (!widget.isMentor) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                      color: _kAccent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.add, color: Colors.white, size: 8),
-                                  ),
-                                ],
                               ],
                             ),
                           ),
                           const Spacer(),
-                          // Overlapping Viewer Avatars + Viewer count (TikTok style)
+                          // LIVE badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                              color: _kLiveBadge,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.black, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.circle, color: _kLiveBadge, size: 6),
+                                const Icon(Icons.sensors_rounded, color: Colors.white, size: 14),
                                 const SizedBox(width: 4),
-                                const Text('LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.remove_red_eye, color: Colors.white70, size: 11),
-                                const SizedBox(width: 3),
-                                Text('$_viewerCount', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                const Text('LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10)),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.remove_red_eye, color: Colors.white, size: 14),
+                                const SizedBox(width: 4),
+                                Text('$_viewerCount', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
                               ],
                             ),
                           ),
@@ -555,60 +626,23 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                           GestureDetector(
                             onTap: widget.isMentor ? _endStream : () => Navigator.pop(context),
                             child: Container(
-                              width: 32, height: 32,
+                              width: 36, height: 36,
                               decoration: BoxDecoration(
-                                color: widget.isMentor ? Colors.red.withValues(alpha: 0.85) : Colors.black.withValues(alpha: 0.4),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                color: widget.isMentor ? Colors.red : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.black, width: 2),
+                                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
                               ),
                               child: Icon(
                                 widget.isMentor ? Icons.stop : Icons.close,
                                 color: Colors.white,
-                                size: 16,
+                                size: 18,
                               ),
                             ),
                           ),
                         ],
                       );
                     },
-                  ),
-                ),
-              ),
-            ),
-
-          // ── Gift animation overlay ─────────────────────────────────────────
-          if (_giftAnimEmoji != null)
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.25,
-              left: 0, right: 0,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 400),
-                builder: (_, v, child) => Opacity(
-                  opacity: v,
-                  child: Transform.scale(scale: 0.8 + 0.2 * v, child: child),
-                ),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_giftAnimEmoji!, style: const TextStyle(fontSize: 36)),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_giftAnimUsername ?? '', style: const TextStyle(color: _kAccent, fontWeight: FontWeight.bold, fontSize: 14)),
-                            const Text('đã tặng quà!', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                          ],
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -681,7 +715,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Chat messages
+                    // Chat messages — Neo-Brutalism style
                     SizedBox(
                       height: isMini ? 80 : (keyboardIsOpen ? 120 : 200),
                       child: ListView.builder(
@@ -692,60 +726,40 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                           final msg = provider.messages[i];
                           final isGift = msg['type'] == 'gift';
                           return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 3),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                if (msg['avatarUrl'] != null && (msg['avatarUrl'] as String).isNotEmpty)
+                                if ((msg['avatarUrl'] as String? ?? '').isNotEmpty)
                                   Container(
                                     width: isMini ? 16 : 20, height: isMini ? 16 : 20,
                                     margin: const EdgeInsets.only(right: 6),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      image: DecorationImage(
-                                        image: NetworkImage(msg['avatarUrl']),
-                                        fit: BoxFit.cover,
-                                      ),
+                                      image: DecorationImage(image: NetworkImage(msg['avatarUrl']), fit: BoxFit.cover),
                                     ),
                                   ),
                                 Flexible(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: isMini ? 3 : 5),
-                                        decoration: BoxDecoration(
-                                          color: isGift
-                                              ? _kAccent.withValues(alpha: 0.25)
-                                              : Colors.black.withValues(alpha: 0.55),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: isGift ? Border.all(color: _kAccent.withValues(alpha: 0.4)) : null,
-                                        ),
-                                        child: RichText(
-                                          text: TextSpan(
-                                            children: [
-                                              TextSpan(
-                                                text: '${msg['username'] ?? 'User'} ',
-                                                style: TextStyle(
-                                                  color: isGift ? _kAccent : Colors.white70,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: isMini ? 10 : 12,
-                                                ),
-                                              ),
-                                              if (isGift)
-                                                TextSpan(
-                                                  text: 'tặng ${_giftEmoji(msg['giftType'])} ${msg['giftType']}!',
-                                                  style: TextStyle(color: Colors.white, fontSize: isMini ? 10 : 12),
-                                                )
-                                              else
-                                                TextSpan(
-                                                  text: msg['text'] ?? '',
-                                                  style: TextStyle(color: Colors.white, fontSize: isMini ? 10 : 12),
-                                                ),
-                                            ],
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: isMini ? 3 : 6),
+                                    decoration: BoxDecoration(
+                                      color: isGift ? const Color(0xFFFFD54F) : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.black, width: 2),
+                                      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                                    ),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '${msg['username'] ?? 'User'} ',
+                                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 13),
                                           ),
-                                        ),
+                                          TextSpan(
+                                            text: isGift ? 'TẶNG ${msg['giftType']}!' : msg['text'] ?? '',
+                                            style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: isGift ? FontWeight.w900 : FontWeight.w600),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -776,6 +790,56 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                   ),
                 ),
               ),
+
+              // ── Gift animation overlay — NGOÀI AnimatedSlide, luôn hiện ──
+              if (_giftAnimEmoji != null)
+                Positioned(
+                  top: MediaQuery.of(context).size.height * 0.2,
+                  left: 0, right: 0,
+                  child: IgnorePointer(
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey(_giftAnimEmoji! + (_giftAnimUsername ?? '')),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.elasticOut,
+                      builder: (_, v, child) => Opacity(
+                        opacity: v.clamp(0.0, 1.0),
+                        child: Transform.scale(scale: 0.5 + 0.5 * v, child: child),
+                      ),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD54F),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.black, width: 4),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _getGiftIcon(_giftAnimEmoji!, 100),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${_giftAnimUsername ?? ''} TẶNG QUÀ!',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -968,168 +1032,172 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     return Row(
       children: [
         Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: TextField(
-                controller: _msgCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.black.withValues(alpha: 0.5),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  border: InputBorder.none,
-                ),
-                onSubmitted: (_) => _sendMessage(),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Send
-        GestureDetector(
-          onTap: _sendMessage,
           child: Container(
-            width: 40, height: 40,
-            decoration: const BoxDecoration(
-              color: _kAccent,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Gift
-        GestureDetector(
-          onTap: _showGiftSheet,
-          child: Container(
-            width: 40, height: 40,
             decoration: BoxDecoration(
-              color: Colors.amber.shade700,
-              shape: BoxShape.circle,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.black, width: 2),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
             ),
-            child: const Text('🎁', style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
+            child: TextField(
+              controller: _msgCtrl,
+              style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+              decoration: const InputDecoration(
+                hintText: 'BÌNH LUẬN...',
+                hintStyle: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                filled: true,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                border: InputBorder.none,
+              ),
+              onSubmitted: (_) => _sendMessage(),
+            ),
           ),
         ),
         const SizedBox(width: 8),
-        // Heart Like button (TikTok Tap-to-like)
-        GestureDetector(
-          onTap: _addLike,
-          child: Container(
-            width: 40, height: 40,
-            decoration: const BoxDecoration(
-              color: Colors.pink,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.favorite, color: Colors.white, size: 18),
-          ),
-        ),
+        _LiveNeoBtn(icon: Icons.send_rounded, color: _kAccent, onTap: _sendMessage),
+        const SizedBox(width: 8),
+        _LiveNeoBtn(emoji: '🎁', color: Colors.amber.shade700, onTap: _showGiftSheet),
+        const SizedBox(width: 8),
+        _LiveNeoBtn(icon: Icons.favorite, color: Colors.pink, onTap: _addLike),
       ],
     );
   }
 
   Widget _buildMentorStats() {
     return Consumer<LivestreamProvider>(
-      builder: (context, provider, _) => ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatBadge('👁️', '$_viewerCount', 'Viewers'),
-                _buildStatBadge('💬', '${provider.messages.where((m) => m['type'] == 'text').length}', 'Chats'),
-                _buildStatBadge('🎁', '${provider.messages.where((m) => m['type'] == 'gift').length}', 'Gifts'),
-                // Switch Camera Control
-                GestureDetector(
-                  onTap: () {
-                    provider.engine?.switchCamera();
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.cameraswitch_rounded, color: Colors.white70, size: 18),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Đổi Cam',
-                        style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
+      builder: (context, provider, _) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black, width: 2),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Stat chips — Neo
+            _buildStatBadge('👁️', '$_viewerCount', 'VIEW'),
+            _buildStatBadge('💬', '${provider.messages.where((m) => m['type'] == 'text').length}', 'CHAT'),
+            _buildStatBadge('🎁', '${provider.messages.where((m) => m['type'] == 'gift').length}', 'GIFT'),
+            // Divider
+            Container(width: 2, height: 36, color: Colors.black),
+            // Đổi Cam button
+            GestureDetector(
+              onTap: () => provider.engine?.switchCamera(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2979FF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.black, width: 2),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
                 ),
-                // Screen Sharing Control
-                GestureDetector(
-                  onTap: () async {
-                    if (provider.isScreenSharing) {
-                      await provider.stopScreenShare();
-                    } else {
-                      if (Theme.of(context).platform == TargetPlatform.iOS) {
-                        try {
-                          await ReplayKitLauncher.launchReplayKitBroadcast('GamenectScreenShare');
-                        } catch (e) {
-                          debugPrint('Error launching ReplayKit: $e');
-                        }
-                      }
-                      await provider.startScreenShare();
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.cameraswitch_rounded, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text('ĐỔI CAM', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            // Chia sẻ MH button
+            GestureDetector(
+              onTap: () async {
+                if (provider.isScreenSharing) {
+                  await provider.stopScreenShare();
+                } else {
+                  if (Theme.of(context).platform == TargetPlatform.iOS) {
+                    try {
+                      await ReplayKitLauncher.launchReplayKitBroadcast('GamenectScreenShare');
+                    } catch (e) {
+                      debugPrint('ReplayKit error: $e');
                     }
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        provider.isScreenSharing ? Icons.stop_screen_share_rounded : Icons.screen_share_rounded,
-                        color: provider.isScreenSharing ? _kAccent : Colors.white70,
-                        size: 18,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        provider.isScreenSharing ? 'Dừng Share' : 'Chia sẻ MH',
-                        style: TextStyle(
-                          color: provider.isScreenSharing ? _kAccent : Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                  }
+                  await provider.startScreenShare();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: provider.isScreenSharing ? Colors.red : Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.black, width: 2),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      provider.isScreenSharing ? Icons.stop_screen_share_rounded : Icons.screen_share_rounded,
+                      color: Colors.white, size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      provider.isScreenSharing ? 'DỮNG' : 'SHARE',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildStatBadge(String emoji, String value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 16)),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFD54F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.black, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          Text(value, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 13)),
+          Text(label, style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w700)),
+        ],
+      ),
     );
   }
 
-  String _giftEmoji(String? type) {
-    switch (type) {
-      case 'heart': return '❤️';
-      case 'star': return '⭐';
-      case 'diamond': return '💎';
-      case 'crown': return '👑';
-      default: return '🎁';
-    }
+}
+
+// ── Neo-Brutalism action button (reusable in this file) ─────────────────────
+class _LiveNeoBtn extends StatelessWidget {
+  final IconData? icon;
+  final String? emoji;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _LiveNeoBtn({this.icon, this.emoji, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.black, width: 2),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+        ),
+        child: icon != null
+            ? Icon(icon, color: Colors.white, size: 18)
+            : Center(child: Text(emoji!, style: const TextStyle(fontSize: 18))),
+      ),
+    );
   }
 }
 

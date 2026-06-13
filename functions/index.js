@@ -196,10 +196,78 @@ exports.payosWebhook = onRequest(
       }
     });
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+exports.backfillAuthDates = onRequest(async (req, res) => {
+  try {
+    console.log("=== START BACKFILL ===");
+    let nextPageToken;
+    let count = 0;
+    let placeholderCount = 0;
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+    do {
+      const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+      for (const userRecord of listUsersResult.users) {
+        const uid = userRecord.uid;
+        const createdAtStr = userRecord.metadata.creationTime;
+        const createdAtDate = new Date(createdAtStr);
+        const createdAtIso = createdAtDate.toISOString();
+
+        const userRef = admin.firestore().collection('users').doc(uid);
+        const doc = await userRef.get();
+
+        if (doc.exists) {
+          const data = doc.data();
+          if (!data.createdAt) {
+            await userRef.update({
+              createdAt: createdAtIso
+            });
+            console.log(`[Cập nhật] User: ${uid} (${userRecord.email || userRecord.phoneNumber || 'Không rõ'}) -> Đăng ký: ${createdAtIso}`);
+            count++;
+          }
+        } else {
+          const email = userRecord.email || '';
+          await userRef.set({
+            id: uid,
+            email: userRecord.email || null,
+            phoneNumber: userRecord.phoneNumber || null,
+            createdAt: createdAtIso,
+            isTestAccount: email.endsWith('@gamenect.com'),
+            username: '',
+            favoriteGames: [],
+            rank: 'Gà Mờ',
+            location: 'Không xác định',
+            playTime: 0,
+            winRate: 0,
+            points: 0,
+            avatarUrl: null,
+            additionalPhotos: [],
+            gender: 'Khác',
+            age: 18,
+            height: 160,
+            bio: '',
+            interests: [],
+            lookingFor: 'Bạn chơi game',
+            gameStyle: 'Casual',
+            dateOfBirth: new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString()
+          });
+          console.log(`[Tạo mới placeholder] User: ${uid} (${userRecord.email || userRecord.phoneNumber || 'Không rõ'}) -> Đăng ký: ${createdAtIso}`);
+          placeholderCount++;
+        }
+      }
+      nextPageToken = listUsersResult.pageToken;
+    } while (nextPageToken);
+
+    console.log("=== BACKFILL COMPLETED ===");
+    return res.status(200).json({
+      success: true,
+      updatedCount: count,
+      placeholderCount: placeholderCount,
+      message: "Sync completed successfully!"
+    });
+  } catch (error) {
+    console.error("Backfill error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.toString()
+    });
+  }
+});

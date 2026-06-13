@@ -15,53 +15,13 @@ class TrendingGamesPage extends StatelessWidget {
       color: context.scaffoldBackgroundColor,
       child: Stack(
         children: [
-          // Hiệu ứng ánh sáng nền (Orbs)
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.1,
-            left: -50,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
-                boxShadow: [
-                  BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.2 * context.bgOrbOpacityMultiplier), blurRadius: kIsWeb ? 40 : 100),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: MediaQuery.of(context).size.height * 0.2,
-            right: -50,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFF8A65).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                boxShadow: [
-                  BoxShadow(color: const Color(0xFFFF8A65).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier), blurRadius: kIsWeb ? 40 : 120),
-                ],
-              ),
-            ),
-          ),
+
 
           // Content
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(40),
-                // Fix: Web (CanvasKit deploy) không render BackdropFilter đúng trên nền trong suốt → xám
-                // Giải pháp: dùng Container màu đặc trên Web, BackdropFilter chỉ trên Mobile
-                child: kIsWeb
-                    ? _buildCardContent(isWeb: true)
-                    : BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                        child: _buildCardContent(isWeb: false),
-                      ),
-              ),
+              child: _buildCardContent(isWeb: kIsWeb),
             ),
           ),
         ],
@@ -74,14 +34,13 @@ class TrendingGamesPage extends StatelessWidget {
       builder: (context) => Container(
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(color: context.cardBorderColor, width: 1.5),
-          boxShadow: [
+          color: const Color(0xFFF4F4F4), // Light background for high contrast
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black, width: 4),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
+              color: Colors.black,
+              offset: Offset(8, 8),
             ),
           ],
         ),
@@ -89,49 +48,58 @@ class TrendingGamesPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Game icon với glow effect
+            // Game icon với glow effect -> Neo-Brutalism
             Container(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black.withValues(alpha: 0.4),
-                border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 2),
-                boxShadow: [
+                color: Colors.white, // White
+                shape: BoxShape.rectangle,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black, width: 3),
+                boxShadow: const [
                   BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                    blurRadius: 40,
-                    spreadRadius: 5,
+                    color: Colors.black,
+                    offset: Offset(4, 4),
                   ),
                 ],
               ),
               child: const Icon(
                 Icons.sports_esports_rounded,
-                size: 70,
-                color: Colors.white,
+                size: 64,
+                color: Colors.black,
               ),
             ),
 
             const SizedBox(height: 32),
 
-            Text(
-              'Trending Games',
+            const Text(
+              'TRENDING GAMES',
               style: TextStyle(
-                color: context.textColor,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
+                color: Colors.black,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2.0,
               ),
+              textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 16),
 
-            Text(
-              'Khám phá những trò chơi hot nhất\nvà tìm bạn chơi cùng ngay',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: context.textSecondaryColor,
-                fontSize: 16,
-                height: 1.5,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 2),
+              ),
+              child: const Text(
+                'KHÁM PHÁ NHỮNG TRÒ CHƠI HOT NHẤT\nVÀ TÌM BẠN CHƠI CÙNG NGAY',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.5,
+                ),
               ),
             ),
 
@@ -144,29 +112,24 @@ class TrendingGamesPage extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
               ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6E40), Color(0xFFE64A19)],
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
+                  color: const Color(0xFF00E676), // Bright green
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black, width: 3),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black, offset: Offset(4, 4)),
                   ],
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Khám phá ngay',
+                    Text('KHÁM PHÁ NGAY',
                         style: TextStyle(
-                            color: Colors.white, fontSize: 16,
-                            fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                            color: Colors.black, fontSize: 16,
+                            fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                     SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                    Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 24),
                   ],
                 ),
               ),
@@ -175,16 +138,26 @@ class TrendingGamesPage extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Swipe hint
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.keyboard_double_arrow_up_rounded,
-                    color: context.textTertiaryColor, size: 24),
-                const SizedBox(width: 8),
-                Text('Vuốt lên để xem Moments',
-                    style: TextStyle(
-                        color: context.textTertiaryColor, fontSize: 14, fontWeight: FontWeight.w500)),
-              ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 242, 227, 230), // Pinkish
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.keyboard_double_arrow_up_rounded,
+                      color: Colors.black, size: 20),
+                  SizedBox(width: 8),
+                  Text('VUỐT LÊN ĐỂ XEM MOMENTS',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900)),
+                ],
+              ),
             ),
           ],
         ),
@@ -204,32 +177,22 @@ class TrendingGamesButton extends StatelessWidget {
         context,
         MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        // Fix: trên Web dùng màu đặc thay BackdropFilter để tránh bug xám CanvasKit
-        child: kIsWeb
-            ? _buildButtonContent(isWeb: true)
-            : BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: _buildButtonContent(isWeb: false),
-              ),
-      ),
+      child: _buildButtonContent(isWeb: kIsWeb),
     );
   }
 
   Widget _buildButtonContent({required bool isWeb}) {
     return Builder(
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: context.cardBgColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: context.cardBorderColor, width: 1.5),
-          boxShadow: [
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black, width: 3),
+          boxShadow: const [
             BoxShadow(
-              color: const Color(0xFFFF6E40).withValues(alpha: 0.05),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: Colors.black,
+              offset: Offset(4, 4),
             ),
           ],
         ),
@@ -238,40 +201,54 @@ class TrendingGamesButton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
-                  blurRadius: 12,
-                ),
-              ],
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black, width: 2),
             ),
-            child: const Icon(Icons.sports_esports_rounded, color: Colors.white, size: 28),
+            child: const Icon(
+              Icons.sports_esports_rounded,
+              color: Colors.black,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Trending Games',
-                    style: TextStyle(
-                        color: context.textColor, fontSize: 18,
-                        fontWeight: FontWeight.bold, letterSpacing: 0.3)),
-                const SizedBox(height: 4),
-                Text('Khám phá game đang hot nhất',
-                    style: TextStyle(color: context.textSecondaryColor, fontSize: 13)),
+                Text(
+                  'TRENDING GAMES',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Khám phá game đang hot nhất',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: context.cardBgColor,
+              color: Colors.white,
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.black, width: 2),
             ),
-            child: Icon(Icons.arrow_forward_ios_rounded, color: context.textColor, size: 16),
+            child: const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.black,
+              size: 16,
+            ),
           ),
         ],
       ),

@@ -1,5 +1,7 @@
 // lib/user/user_app.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'screens/matching/home_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
@@ -60,6 +62,27 @@ class UserApp extends StatelessWidget {
             themeMode: themeProvider.themeMode,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
+            scrollBehavior: const MaterialScrollBehavior().copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              },
+            ),
+            builder: (context, child) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                  statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+                  systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+                  systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
             initialRoute: initialRoute ?? '/main',
             routes: {
           '/main': (context) => MainScreen(initialIndex: initialIndex ?? 0), // Thêm route cho MainScreen
@@ -143,36 +166,48 @@ void showIncomingCallDialog(BuildContext context, String matchId, String peerUse
     context: context,
     barrierDismissible: false,
     builder: (_) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Colors.black, width: 4),
+      ),
+      backgroundColor: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Avatar người gọi: nếu có avatarUrl thì hiển thị NetworkImage, nếu không thì hiển thị icon mặc định
-            CircleAvatar(
-              radius: 36,
-              backgroundImage: peerAvatarUrl.isNotEmpty
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.black, width: 3),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+              ),
+              child: CircleAvatar(
+                radius: 36,
+                backgroundColor: Colors.white,
+                backgroundImage: peerAvatarUrl.isNotEmpty
                   ? NetworkImage(peerAvatarUrl)
                   : null,
               child: peerAvatarUrl.isEmpty
-                  ? Icon(Icons.person, size: 36)
+                  ? const Icon(Icons.person, size: 36, color: Colors.black)
                   : null,
+              ),
             ),
             const SizedBox(height: 16),
             // Tiêu đề nhỏ mô tả đây là cuộc gọi đến
             Text(
               'Cuộc gọi đến từ',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: const TextStyle(fontSize: 16, color: Colors.black, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             // Tên người gọi được hiển thị lớn hơn và nổi bật màu chủ đạo
             Text(
               peerUsername,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepOrange,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 24),
@@ -181,15 +216,27 @@ void showIncomingCallDialog(BuildContext context, String matchId, String peerUse
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 // Nút "Nghe"
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.greenAccent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black, width: 3),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                    ],
                   ),
-                  icon: const Icon(Icons.call),
-                  label: const Text('Nghe'),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.greenAccent,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.call, color: Colors.black),
+                    label: const Text('Nghe', style: TextStyle(fontWeight: FontWeight.w900)),
                   onPressed: () async {
                     // Khi chấp nhận cuộc gọi:
                     // Gọi phương thức answerCall trên ChatProvider để xử lý logic nhận cuộc gọi
@@ -210,20 +257,34 @@ void showIncomingCallDialog(BuildContext context, String matchId, String peerUse
                     Navigator.pop(context);
                   },
                 ),
+                ),
                 // Nút "Từ chối"
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black, width: 3),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                    ],
                   ),
-                  icon: const Icon(Icons.call_end),
-                  label: const Text('Từ chối'),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.call_end, color: Colors.black),
+                    label: const Text('Từ chối', style: TextStyle(fontWeight: FontWeight.w900)),
                   onPressed: () {
                     // Đóng dialog, không thực hiện hành động nào thêm
                     Navigator.pop(context);
                   },
+                ),
                 ),
               ],
             ),

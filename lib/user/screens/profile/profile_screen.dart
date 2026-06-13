@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:gamenect_new/core/widgets/profile_card.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/location_provider.dart';
@@ -11,7 +10,6 @@ import 'edit_profile_screen.dart';
 import '../settings/location_settings_screen.dart';
 import '../../../admin/admin_app.dart';
 import 'package:logging/logging.dart';
-import 'dart:ui';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
 import '../shared/peer_profile_screen.dart';
@@ -20,10 +18,10 @@ import '../../../core/providers/theme_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../../core/controllers/notification_controller.dart';
 import '../../../core/providers/mentor_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import '../../../core/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../wallet/wallet_screen.dart';
+import '../../../core/utils/cdn_helper.dart';
 
 // Màn hình hồ sơ cá nhân của user
 // Hiển thị avatar, thông tin cá nhân, game yêu thích, thống kê
@@ -45,23 +43,10 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.all(18),
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFF6E40).withValues(alpha: 0.15),
-            const Color(0xFFFF8A65).withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.3), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
+        color: context.isDarkMode ? const Color(0xFF111111) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.textColor, width: 2.5),
+        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,19 +66,20 @@ class _ProfilePageState extends State<ProfilePage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // Mở màn hình đăng ký Premium
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6E40),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: context.textColor,
+                foregroundColor: context.scaffoldBackgroundColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text('Nâng cấp ngay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              child: Text('Nâng cấp ngay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.scaffoldBackgroundColor)),
             ),
           ),
         ],
@@ -122,20 +108,10 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Container(
         height: 100,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A1060), Color(0xFF3D1A78), Color(0xFFFF6E40)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF3D1A78).withValues(alpha: 0.45),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: 0,
-            ),
-          ],
+          color: const Color(0xFF9B51E0), // Solid bold purple
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.textColor, width: 2.5),
+          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
         ),
         child: Stack(
           children: [
@@ -211,18 +187,28 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        width: 1,
+                        color: context.textColor,
+                        width: 2,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.textColor,
+                          offset: const Offset(3, 3),
+                        ),
+                      ],
                     ),
-                    child: const Text(
+                    child: Text(
                       'Quản lý',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        fontWeight: FontWeight.w900,
                         fontSize: 13,
                       ),
                     ),
@@ -342,17 +328,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        width: 1,
-                      ),
+                      color: context.dialogBgColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.textColor, width: 2.5),
+                      boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                     ),
-                    child: const Text(
+                    child: Text(
                       'Mở',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: context.textColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -384,25 +368,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
         if (status == 'approved') {
           // Đã là Mentor → Dashboard card
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
+          return Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFFFF6E40).withValues(alpha: 0.18),
-                      const Color(0xFFFF8A65).withValues(alpha: 0.06),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.4),
-                    width: 1.5,
-                  ),
+                  color: context.dialogBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.textColor, width: 2.5),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                 ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -427,16 +398,19 @@ class _ProfilePageState extends State<ProfilePage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF6E40).withValues(alpha: 0.12),
+                              color: context.dialogBgColor,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4)),
+                              border: Border.all(color: context.textColor, width: 2),
+                              boxShadow: [
+                                BoxShadow(color: context.textColor, offset: const Offset(2, 2)),
+                              ],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(CupertinoIcons.person_crop_circle, color: Color(0xFFFF6E40), size: 13),
                                 const SizedBox(width: 4),
-                                Text('Xem profile', style: TextStyle(color: const Color(0xFFFF6E40), fontSize: 11, fontWeight: FontWeight.w600)),
+                                const Text('Xem profile', style: TextStyle(color: Color(0xFFFF6E40), fontSize: 11, fontWeight: FontWeight.w900)),
                               ],
                             ),
                           ),
@@ -457,57 +431,43 @@ class _ProfilePageState extends State<ProfilePage> {
                         _mentorStat(Icons.card_giftcard_rounded, '${mentor.totalGiftsReceived}', 'Gifts', onTap: null),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.pushNamed(context, '/mentor-requests'),
-                            icon: const Icon(Icons.sports_esports, size: 16),
-                            label: const Text('Match Requests', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFFF6E40),
-                              side: const BorderSide(color: Color(0xFFFF6E40)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
+                          child: _buildNeoButton(
+                            onTap: () => Navigator.pushNamed(context, '/mentor-requests'),
+                            icon: const Icon(Icons.sports_esports, size: 16, color: Color(0xFFFF6E40)),
+                            label: 'Match Requests',
+                            backgroundColor: context.dialogBgColor,
+                            foregroundColor: const Color(0xFFFF6E40),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => Navigator.pushNamed(context, '/go-live'),
-                            icon: const Icon(Icons.live_tv_rounded, size: 16),
-                            label: const Text('Go Live', style: TextStyle(fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF3B30),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              elevation: 0,
-                            ),
+                          child: _buildNeoButton(
+                            onTap: () => Navigator.pushNamed(context, '/go-live'),
+                            icon: const Icon(Icons.live_tv_rounded, size: 16, color: Colors.white),
+                            label: 'Go Live',
+                            backgroundColor: const Color(0xFFFF3B30),
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
-            ),
-          );
+              );
         }
 
         if (status == 'pending') {
           // Đang chờ duyệt
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
+          return Container(
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.4), width: 1.2),
+                  color: context.dialogBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.textColor, width: 2.5),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                 ),
                 padding: const EdgeInsets.all(14),
                 child: Row(
@@ -526,21 +486,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ],
                 ),
-              ),
-            ),
-          );
+              );
         }
 
         // none hoặc rejected → card mời đăng ký
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: Container(
+        return Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                color: context.dialogBgColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.textColor, width: 2.5),
+                boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
               ),
               padding: const EdgeInsets.all(14),
               child: Row(
@@ -564,23 +519,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/mentor-apply'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6E40),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      elevation: 0,
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/mentor-apply'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6E40),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.textColor, width: 2),
+                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
+                      ),
+                      child: const Text(
+                        'Đăng ký',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
+                      ),
                     ),
-                    child: const Text('Đăng ký'),
                   ),
                 ],
               ),
-            ),
-          ),
-        );
+            );
       },
     );
   }
@@ -602,6 +559,48 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNeoButton({
+    required Widget icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? backgroundColor,
+    Color? foregroundColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = backgroundColor ?? (isDark ? Colors.black : Colors.white);
+    final fgColor = foregroundColor ?? (isDark ? Colors.white : Colors.black);
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: context.textColor, width: 2.5),
+          boxShadow: [
+            BoxShadow(color: context.textColor, offset: const Offset(3, 3)),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: fgColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -726,73 +725,87 @@ class _ProfilePageState extends State<ProfilePage> {
           extendBodyBehindAppBar: true,
           backgroundColor: context.scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            toolbarHeight: 60,
-            titleSpacing: 0,
-            flexibleSpace: ClipRRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  color: context.appBarBgColor,
-                ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 60,
+        titleSpacing: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            color: context.scaffoldBackgroundColor,
+            border: Border(
+              bottom: BorderSide(
+                color: context.isDarkMode ? Colors.white24 : Colors.black12,
+                width: 1,
               ),
             ),
-            // Logo và tên app ở góc trên
-            title: Row(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 12.0),
-                  child: Icon(
-                    Icons.sports_esports,
-                    color: Color(0xFFFF6E40),
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(width: 8), 
-                Text(
-                  'gamenect',
-                  style: TextStyle(
-                    color: context.textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    shadows: [Shadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), blurRadius: 12)],
-                  ),
-                ),
-              ],
+          ),
+        ),
+        title: Row(
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 12.0),
+              child: Icon(
+                Icons.sports_esports,
+                color: Color(0xFFFF6E40),
+                size: 26,
+              ),
             ),
-            actions: [
-              // Hiển thị badge Premium hoặc nút Nâng cấp
-              if (isPremium)
-                // Badge Premium với gradient vàng cam
-                Padding(
+            const SizedBox(width: 8),
+            Text(
+              'gamenect',
+              style: TextStyle(
+                color: context.textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                shadows: [
+                  Shadow(
+                    color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
+                    blurRadius: 12,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Hiển thị badge Premium hoặc nút Nâng cấp
+          Consumer<ProfileProvider>(
+            builder: (context, provider, _) {
+              final isPremium = provider.userData?.isPremium == true;
+              if (isPremium) {
+                return Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.amber, Colors.orange.shade600],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
+                        color: context.textColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.textColor, width: 3),
                         boxShadow: [
-                          BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1),
+                          BoxShadow(
+                            color: context.textColor,
+                            offset: const Offset(4, 4),
+                          ),
                         ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
+                        children: [
+                          const Icon(
                             Icons.workspace_premium_rounded,
-                            color: Colors.white,
+                            color: Color(0xFFFF6E40),
                             size: 18,
                           ),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
                             'Premium',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: context.scaffoldBackgroundColor,
+                              fontWeight: FontWeight.w900,
                               fontSize: 13,
                             ),
                           ),
@@ -800,13 +813,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                )
-              else
-                // Nút Nâng cấp cho user Free
-                TextButton.icon(
+                );
+              } else {
+                return TextButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const SubscriptionScreen(),
+                      ),
                     );
                   },
                   icon: const Icon(
@@ -814,53 +828,27 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Color(0xFFFF6E40),
                     size: 20,
                   ),
-                  label: const Text(
+                  label: Text(
                     'Nâng cấp',
                     style: TextStyle(
-                      color: Color(0xFFFF6E40),
-                      fontWeight: FontWeight.w600,
+                      color: context.textColor,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                ),
-            ],
+                );
+              }
+            },
           ),
+        ],
+      ),
 
           // Body hiển thị loading, empty state hoặc profile content
           body: Stack(
             children: [
-              // Background Orbs
-              Positioned(
-                top: 50, right: -50,
-                child: Container(
-                  width: 300, height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
-                    boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: 100, spreadRadius: 40)],
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -80, left: -80,
-                child: Container(
-                  width: 350, height: 350,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFBF360C).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
-                    boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: 120, spreadRadius: 50)],
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-              
+
               SafeArea(
                 child: provider.isLoading
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40)))
@@ -882,120 +870,104 @@ class _ProfilePageState extends State<ProfilePage> {
                               builder: (context, constraints) {
                                 // Trên web rộng, căn giữa và giới hạn chiều rộng tối đa
                                 final isWide = kIsWeb && constraints.maxWidth > 700;
-                                final avatarSize = isWide
-                                    ? 220.0 // Cố định 220px trên web
-                                    : constraints.maxWidth * 0.8; // 80% trên mobile
+
                                 Widget content = SingleChildScrollView(
                                   child: Column(
                                     children: [
-                      Stack(
-                        children: [
-                          // Avatar lớn ở giữa màn hình, tap để xem ProfileCard
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PeerProfileScreen(
-                                    peerUser: provider.userData!,
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Avatar
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PeerProfileScreen(peerUser: provider.userData!),
                                   ),
-                                ),
-                              );
-                            },
-                            child: Container(
-                                height: avatarSize,
-                                width: avatarSize,
-                                margin: EdgeInsets.all(isWide ? 24 : constraints.maxWidth * 0.1),
+                                );
+                              },
+                              child: Container(
+                                height: 100,
+                                width: 100,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.5), width: 3),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                                      blurRadius: 30,
-                                      spreadRadius: 5,
-                                    ),
-                                  ],
+                                  border: Border.all(color: context.textColor, width: 3),
+                                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                                   image: DecorationImage(
-                                    image: NetworkImage(
-                                      provider.userData!.avatarUrl ?? 'https://via.placeholder.com/400',
-                                    ),
+                                    image: cdnImageProvider(provider.userData!.avatarUrl, fallback: 'https://via.placeholder.com/400'),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
-                          ),
-                          // Nút Edit ở góc dưới bên phải avatar
-                          Positioned(
-                            bottom: 16,
-                            right: 16,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(30),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                child: FloatingActionButton(
-                                  onPressed: () {
-                                    // Mở màn hình chỉnh sửa profile
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const ProfileScreen(),
+                            ),
+                            const SizedBox(width: 20),
+                            // Thông tin và nút Edit
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          provider.userData!.username,
+                                          style: TextStyle(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w900,
+                                            color: context.textColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    );
-                                  },
-                                  backgroundColor: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                    side: BorderSide(color: context.isDarkMode ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.1), width: 1),
+                                    ],
                                   ),
-                                  child: Icon(
-                                    CupertinoIcons.pencil,
-                                    color: context.textColor,
+                                  const SizedBox(height: 12),
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+                                    },
+                                    icon: const Icon(CupertinoIcons.pencil, size: 16),
+                                    label: const Text('Chỉnh sửa', style: TextStyle(fontWeight: FontWeight.w900)),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: context.textColor,
+                                      side: BorderSide(color: context.textColor, width: 2),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Tên và tuổi
-                            Row(
-                              children: [
-                                Text(
-                                  provider.userData!.username,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: context.textColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${provider.userData!.age}',
-                                  style: TextStyle(fontSize: 22, color: context.textSecondaryColor),
-                                ),
-                              ],
-                            ),
+                            const SizedBox(height: 16),
+                            // ─── Wallet Card ───────────────────────────────
+                            if (provider.userData != null)
+                              _buildWalletCard(provider.userData!),
+                            const SizedBox(height: 16),
+                            // ─── Mentor Section ────────────────────────────
+                            _buildMentorSection(),
                             const SizedBox(height: 16),
                             
                             // Card hiển thị vị trí và cài đặt matching
                             Consumer<LocationProvider>(
                               builder: (context, locationProvider, child) {
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                                    child: Container(
+                                return Container(
                                       decoration: BoxDecoration(
-                                        color: context.cardBgColor,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: context.cardBorderColor, width: 1),
+                                        color: context.dialogBgColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: context.textColor, width: 2.5),
+                                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                                       ),
                                       padding: const EdgeInsets.all(16),
                                       child: Column(
@@ -1086,8 +1058,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                           Row(
                                             children: [
                                               Expanded(
-                                                child: OutlinedButton.icon(
-                                                  onPressed: _testLocationPermission,
+                                                child: _buildNeoButton(
+                                                  onTap: _testLocationPermission,
                                                   icon: locationProvider.isLoading
                                                       ? const SizedBox(
                                                           width: 16,
@@ -1100,30 +1072,19 @@ class _ProfilePageState extends State<ProfilePage> {
                                                       : const Icon(
                                                           CupertinoIcons.refresh,
                                                           size: 18,
+                                                          color: Color(0xFFFF6E40),
                                                         ),
-                                                  label: Text(
-                                                    locationProvider.isLoading
-                                                        ? 'Đang lấy...'
-                                                        : 'Lấy vị trí',
-                                                    style: const TextStyle(fontSize: 13),
-                                                  ),
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor: const Color(0xFFFF6E40),
-                                                    side: BorderSide(
-                                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
-                                                    ),
-                                                    padding: const EdgeInsets.symmetric(
-                                                      vertical: 10,
-                                                    ),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                                  ),
+                                                  label: locationProvider.isLoading
+                                                      ? 'Đang lấy...'
+                                                      : 'Lấy vị trí',
+                                                  backgroundColor: context.dialogBgColor,
+                                                  foregroundColor: const Color(0xFFFF6E40),
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: 12),
                                               Expanded(
-                                                child: ElevatedButton.icon(
-                                                  onPressed: () {
-                                                    // Mở màn hình cài đặt matching
+                                                child: _buildNeoButton(
+                                                  onTap: () {
                                                     Navigator.push(
                                                       context,
                                                       MaterialPageRoute(
@@ -1135,45 +1096,23 @@ class _ProfilePageState extends State<ProfilePage> {
                                                   icon: const Icon(
                                                     CupertinoIcons.settings,
                                                     size: 18,
+                                                    color: Colors.white,
                                                   ),
-                                                  label: const Text(
-                                                    'Cài đặt match',
-                                                    style: TextStyle(fontSize: 13),
-                                                  ),
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: const Color(0xFFFF6E40),
-                                                    foregroundColor: Colors.white,
-                                                    padding: const EdgeInsets.symmetric(
-                                                      vertical: 10,
-                                                    ),
-                                                    elevation: 0,
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                                  ),
+                                                  label: 'Cài đặt match',
+                                                  backgroundColor: const Color(0xFFFF6E40),
+                                                  foregroundColor: Colors.white,
                                                 ),
                                               ),
                                             ],
                                           ),
                                       ],
                                     ),
-                                  ),
-                                  )
-                                );
+                                  );
                               },
                             ),
                             
                             const SizedBox(height: 16),
                             
-                            // Hiển thị card quảng cáo Premium nếu chưa Premium
-                            if (!isPremium) _buildPremiumPromoCard(),
-
-                            const SizedBox(height: 16),
-
-                            // ─── Wallet Card ───────────────────────────────
-                            if (provider.userData != null)
-                              _buildWalletCard(provider.userData!),
-
-                            const SizedBox(height: 16),
-
                             // ─── Admin Section ────────────────────────────
                             if (provider.userData != null)
                               _buildAdminSection(provider.userData!),
@@ -1181,88 +1120,93 @@ class _ProfilePageState extends State<ProfilePage> {
                             if (provider.userData?.isAdmin ?? false)
                               const SizedBox(height: 16),
 
-                            // ─── Mentor Section ───────────────────────────
-                            _buildMentorSection(),
 
-                            const SizedBox(height: 16),
 
                             // Card cài đặt giao diện
                             Consumer<ThemeProvider>(
                               builder: (context, themeProvider, child) {
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: context.cardBgColor,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: context.cardBorderColor, width: 1),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            themeProvider.isDarkMode
-                                                ? CupertinoIcons.moon_stars_fill
-                                                : CupertinoIcons.sun_max_fill,
-                                            color: const Color(0xFFFF6E40),
-                                            size: 22,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Giao diện tối',
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: context.textColor,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  themeProvider.isDarkMode
-                                                      ? 'Đang bật chế độ tối'
-                                                      : 'Đang bật chế độ sáng',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: context.textTertiaryColor,
-                                                  ),
-                                                ),
-                                              ],
+                                return GestureDetector(
+                                      onTap: () => themeProvider.toggleTheme(),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: context.dialogBgColor,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: context.textColor, width: 2.5),
+                                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
+                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              themeProvider.isSystemMode
+                                                  ? Icons.brightness_auto_rounded
+                                                  : themeProvider.isDarkMode
+                                                      ? CupertinoIcons.moon_stars_fill
+                                                      : CupertinoIcons.sun_max_fill,
+                                              color: const Color(0xFFFF6E40),
+                                              size: 22,
                                             ),
-                                          ),
-                                          CupertinoSwitch(
-                                            value: themeProvider.isDarkMode,
-                                            activeTrackColor: const Color(0xFFFF6E40),
-                                            onChanged: (value) {
-                                              themeProvider.toggleTheme();
-                                            },
-                                          ),
-                                        ],
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Giao diện',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: context.textColor,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    themeProvider.isSystemMode
+                                                        ? 'Theo hệ thống → nhấn để đổi'
+                                                        : themeProvider.isDarkMode
+                                                            ? 'Giao diện tối → nhấn để đổi'
+                                                            : 'Giao diện sáng → nhấn để đổi',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: context.textTertiaryColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Hiện badge trạng thái
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFF6E40),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: context.textColor, width: 1.5),
+                                              ),
+                                              child: Text(
+                                                themeProvider.isSystemMode ? 'Auto' : themeProvider.isDarkMode ? 'Tối' : 'Sáng',
+                                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                );
+                                    );
                               },
                             ),
+
+                            // Hiển thị card quảng cáo Premium nếu chưa Premium
+                            if (!isPremium) ...[const SizedBox(height: 8), _buildPremiumPromoCard(), const SizedBox(height: 16)],
 
                             // Nút Bật thông báo Web
                             if (kIsWeb)
                               Padding(
                                 padding: const EdgeInsets.only(top: 16),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                                    child: Container(
+                                child: Container(
                                       decoration: BoxDecoration(
-                                        color: context.cardBgColor,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: context.cardBorderColor, width: 1),
+                                        color: context.dialogBgColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: context.textColor, width: 2.5),
+                                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
                                       ),
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                       child: Row(
@@ -1345,69 +1289,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ],
                                       ),
                                     ),
-                                  ),
-                                ),
                               ),
 
-                            const SizedBox(height: 16),
-                            
-                            // Section Game yêu thích
-                            _buildSection(
-                              'Game yêu thích',
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: provider.userData!.favoriteGames
-                                    .map(
-                                      (game) => Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: context.cardBgColor,
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4), width: 1),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFFFF6E40).withValues(alpha: 0.15),
-                                              blurRadius: 8,
-                                              spreadRadius: 1,
-                                            ),
-                                          ],
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(CupertinoIcons.game_controller_solid, size: 14, color: Color(0xFFFF6E40)),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              game, 
-                                              style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600, fontSize: 13),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            // Section Thống kê game
-                            _buildSection(
-                              'Thống kê',
-                              Column(
-                                children: [
-                                  _buildStatRow('Rank', provider.userData!.rank),
-                                  _buildStatRow(
-                                    'Thời gian chơi',
-                                    '${provider.userData!.playTime} phút/ngày',
-                                  ),
-                                  _buildStatRow(
-                                    'Tỷ lệ thắng',
-                                    '${provider.userData!.winRate}%',
-                                  ),
-                                ],
-                              ),
-                            ),
+
                           ],
                         ),
                       ),
@@ -1417,15 +1301,31 @@ class _ProfilePageState extends State<ProfilePage> {
                       
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: OutlinedButton.icon(
-                          onPressed: _handleLogout,
-                          icon: const Icon(CupertinoIcons.square_arrow_right, color: Color(0xFFFF3B30)),
-                          label: const Text('Đăng xuất', style: TextStyle(color: Color(0xFFFF3B30))),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFFF3B30)),
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        child: GestureDetector(
+                          onTap: _handleLogout,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF3B30),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: context.textColor, width: 2.5),
+                              boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(5, 5))],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(CupertinoIcons.square_arrow_right, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Đăng xuất',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -1494,46 +1394,33 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Widget helper để tạo một section với title và content
-  Widget _buildSection(String title, Widget content) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textColor),
-        ),
-        const SizedBox(height: 8),
-        content,
-      ],
-    );
-  }
+
 
   // Widget helper để hiển thị một dòng thống kê (label - value)
-  Widget _buildStatRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 16, color: context.textSecondaryColor)),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFFF6E40),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 }
 
 // ── Follower List Bottom Sheet ──────────────────────────────────────────────
-class _FollowerListSheet extends StatelessWidget {
+class _FollowerListSheet extends StatefulWidget {
   final String mentorId;
   const _FollowerListSheet({required this.mentorId});
+
+  @override
+  State<_FollowerListSheet> createState() => _FollowerListSheetState();
+}
+
+class _FollowerListSheetState extends State<_FollowerListSheet> {
+  late final Stream<QuerySnapshot> _followersStream;
+  final Map<String, Future<DocumentSnapshot>> _userFutures = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _followersStream = FirebaseFirestore.instance
+        .collection('mentor_followers')
+        .where('mentorId', isEqualTo: widget.mentorId)
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1580,10 +1467,7 @@ class _FollowerListSheet extends StatelessWidget {
               // Follower list from Firestore
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('mentor_followers')
-                      .where('mentorId', isEqualTo: mentorId)
-                      .snapshots(),
+                  stream: _followersStream,
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
                       return const Center(
@@ -1622,11 +1506,12 @@ class _FollowerListSheet extends StatelessWidget {
                       itemBuilder: (context, i) {
                         final d = sorted[i].data() as Map<String, dynamic>;
                         final followerId = d['followerId'] as String? ?? '';
+                        final future = _userFutures.putIfAbsent(
+                          followerId,
+                          () => FirebaseFirestore.instance.collection('users').doc(followerId).get(),
+                        );
                         return FutureBuilder<DocumentSnapshot>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(followerId)
-                              .get(),
+                          future: future,
                           builder: (ctx, userSnap) {
                             final userData = userSnap.data?.data() as Map<String, dynamic>?;
                             final name = userData?['username'] as String? ?? userData?['displayName'] as String? ?? 'Người dùng';
@@ -1635,7 +1520,7 @@ class _FollowerListSheet extends StatelessWidget {
                               leading: CircleAvatar(
                                 radius: 22,
                                 backgroundColor: const Color(0xFFFF6E40).withValues(alpha: 0.15),
-                                backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                                backgroundImage: avatar.isNotEmpty ? cdnImageProvider(avatar) : null,
                                 child: avatar.isEmpty
                                     ? const Icon(CupertinoIcons.person_solid, color: Color(0xFFFF6E40), size: 22)
                                     : null,

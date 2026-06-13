@@ -2,35 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 // Widget biểu đồ đường hiển thị doanh thu từng tháng trong năm.
-// Nhận vào danh sách dữ liệu yearly gồm tháng, doanh thu, số gói bán ra.
-
+// Thiết kế Neo-Brutalism: Nền trắng, viền đen dày, shadow cứng.
 class MonthlyRevenueLineChart extends StatelessWidget {
   final List<dynamic> yearly;
   final Color color;
-  const MonthlyRevenueLineChart({super.key, required this.yearly, this.color = Colors.deepOrangeAccent});
+  const MonthlyRevenueLineChart({super.key, required this.yearly, this.color = Colors.black});
 
   @override
   Widget build(BuildContext context) {
     if (yearly.isEmpty) return const SizedBox();
 
-    yearly.map((m) => m['revenue'] as int).reduce((a, b) => a > b ? a : b);
     return Container(
-      height: 220,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      height: 240,
+      padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 2.5),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black,
+            offset: Offset(4, 4),
+          ),
+        ],
       ),
       child: LineChart(
         LineChartData(
-          gridData: FlGridData(show: false),
+          gridData: const FlGridData(show: false),
           titlesData: FlTitlesData(
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) => Text(
                   '${value.toInt()}K',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 reservedSize: 38,
               ),
@@ -45,22 +54,25 @@ class MonthlyRevenueLineChart extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      month.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      '$month',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   );
                 },
               ),
             ),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(
             show: true,
-            border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
-              right: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
-              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+            border: const Border(
+              bottom: BorderSide(color: Colors.black, width: 2),
+              left: BorderSide(color: Colors.black, width: 2),
             ),
           ),
           lineBarsData: [
@@ -71,7 +83,8 @@ class MonthlyRevenueLineChart extends StatelessWidget {
               }),
               isCurved: true,
               color: color,
-              dotData: FlDotData(show: false),
+              barWidth: 3.5,
+              dotData: const FlDotData(show: true),
               belowBarData: BarAreaData(show: false),
             ),
           ],

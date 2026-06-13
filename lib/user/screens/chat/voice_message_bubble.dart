@@ -69,26 +69,20 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
           ),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            gradient: widget.isMe
-                ? LinearGradient(
-                    colors: [
-                      const Color(0xFFFF6E40).withValues(alpha: 0.8),
-                      const Color(0xFFFF8A65).withValues(alpha: 0.8),
-                    ],
-                  )
-                : LinearGradient(
-                    colors: [
-                      context.isDarkMode ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05),
-                      context.isDarkMode ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
-                    ],
-                  ),
+            color: widget.isMe ? Colors.black : Colors.white,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(20),
               topRight: const Radius.circular(20),
               bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
               bottomRight: Radius.circular(widget.isMe ? 4 : 20),
             ),
-            border: Border.all(color: widget.isMe ? Colors.transparent : context.cardBorderColor, width: 1),
+            border: Border.all(color: Colors.black, width: 3),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black,
+                offset: Offset(4, 4),
+              ),
+            ],
           ),
           child: GestureDetector(
             onTap: () async {
@@ -107,7 +101,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               children: [
                 Icon(
                   _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: widget.isMe ? Colors.white : context.textColor,
+                  color: widget.isMe ? Colors.white : Colors.black,
                   size: 24,
                 ),
                 const SizedBox(width: 8),
@@ -126,7 +120,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                           width: 100,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: widget.isMe ? Colors.white.withValues(alpha: 0.2) : context.textColor.withValues(alpha: 0.2),
+                            color: widget.isMe ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(2),
                           ),
                           child: TweenAnimationBuilder<double>(
@@ -141,11 +135,11 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                                 widthFactor: value,
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: widget.isMe ? Colors.white : context.textColor,
+                                    color: widget.isMe ? Colors.white : Colors.black,
                                     borderRadius: BorderRadius.circular(2),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: widget.isMe ? Colors.white : context.textColor,
+                                        color: widget.isMe ? Colors.white : Colors.black,
                                         blurRadius: 4,
                                         spreadRadius: 0,
                                       ),
@@ -161,7 +155,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                           posSecs > 0 || _isPlaying
                               ? '${posSecs ~/ 60}:${(posSecs % 60).toString().padLeft(2, '0')}'
                               : '${widget.duration ~/ 60}:${(widget.duration % 60).toString().padLeft(2, '0')}',
-                          style: TextStyle(color: widget.isMe ? Colors.white : context.textColor, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: widget.isMe ? Colors.white : Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ],
                     );

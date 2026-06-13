@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import '../../core/models/user_model.dart';
 import '../theme/theme_helper.dart';
+import '../services/rawg_service.dart';
+import '../utils/icon_helper.dart';
+import 'game_tag_widget.dart';
+import 'network_image.dart';
 
 // Custom ScrollBehavior cho phép kéo bằng chuột trên Web
 class _WebDragScrollBehavior extends MaterialScrollBehavior {
@@ -90,13 +94,15 @@ class _ProfileCardState extends State<ProfileCard> {
                     controller: _pageController,
                     itemCount: allPhotos.length,
                     itemBuilder: (context, index) {
-                      return Image.network(
-                        allPhotos[index],
-                        fit: BoxFit.cover,
-                        width: cardWidth,
-                        height: cardHeight,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Center(child: Icon(Icons.error_outline, size: 50)),
+                      return _KeepAliveWrapper(
+                        child: GamenectNetworkImage(
+                          imageUrl: allPhotos[index],
+                          fit: BoxFit.cover,
+                          width: cardWidth,
+                          height: cardHeight,
+                          errorWidget: (context, url, error) =>
+                              const Center(child: Icon(Icons.error_outline, size: 50)),
+                        ),
                       );
                     },
                     onPageChanged: (index) {
@@ -177,38 +183,54 @@ class _ProfileCardState extends State<ProfileCard> {
 
   // Xây dựng card hiển thị số liệu game như play time và win rate
   Widget _buildStatCard(String title, String value, String unit, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cardBgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cardBorderColor, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF6E40).withValues(alpha: context.isDarkMode ? 0.08 : 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          top: 3,
+          left: 3,
+          bottom: -3,
+          right: -3,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.black, width: 2.5),
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: const Color(0xFFFF6E40)),
-          const SizedBox(height: 8),
-          Text(title, style: TextStyle(color: context.textSecondaryColor, fontSize: 14)),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(value,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: context.textColor)),
-              const SizedBox(width: 4),
-              Text(unit, style: TextStyle(fontSize: 14, color: context.textSecondaryColor)),
-            ],
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black, width: 2.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: const Color(0xFFFF6E40)),
+                  const SizedBox(height: 8),
+                  Text(title, style: TextStyle(color: Colors.black.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(value,
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black)),
+                      const SizedBox(width: 4),
+                      Text(unit, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black.withValues(alpha: 0.8))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -219,29 +241,64 @@ class _ProfileCardState extends State<ProfileCard> {
         Text(
           title,
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
             color: context.textColor,
           ),
         ),
         const SizedBox(height: 12),
-        ...children,
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              top: 3,
+              left: 3,
+              bottom: -3,
+              right: -3,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.black, width: 2.5),
+                ),
+              ),
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.black, width: 2.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFFFF6E40)),
+          Icon(icon, size: 22, color: Colors.black),
           const SizedBox(width: 12),
           Text(
             label,
             style: TextStyle(
               fontSize: 16,
-              color: context.textSecondaryColor,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
             ),
           ),
           const Spacer(),
@@ -249,8 +306,8 @@ class _ProfileCardState extends State<ProfileCard> {
             value,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: context.textColor,
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
             ),
           ),
         ],
@@ -260,50 +317,73 @@ class _ProfileCardState extends State<ProfileCard> {
 
   // Hiển thị danh sách game yêu thích dưới dạng tags màu cam
   Widget _buildGameTags(List<String> games) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: games.map((game) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: context.cardBgColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFF6E40).withValues(alpha: 0.4), width: 1.5),
-          ),
-          child: Text(
-            game,
-            style: TextStyle(
-              color: context.textColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          top: 3,
+          left: 3,
+          bottom: -3,
+          right: -3,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.black, width: 2.5),
             ),
           ),
-        );
-      }).toList(),
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black, width: 2.5),
+              ),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: games.map((g) => GameTagWidget(gameName: g)).toList(),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  // Hiển thị danh sách sở thích khác dưới dạng tags màu xanh
+  // Hiển thị danh sách sở thích khác dưới dạng tags
   Widget _buildInterestTags(List<String> interests) {
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 12,
+      runSpacing: 12,
       children: interests.map((interest) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: context.cardBgColor,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withValues(alpha: 0.4), width: 1.5),
+            border: Border.all(color: Colors.black, width: 2.5),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
           ),
-          child: Text(
-            interest,
-            style: TextStyle(
-              color: context.textColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(IconHelper.getInterestIcon(interest), size: 20, color: Colors.deepOrange),
+              const SizedBox(width: 8),
+              Text(
+                interest,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
+            ],
           ),
         );
       }).toList(),
@@ -313,25 +393,45 @@ class _ProfileCardState extends State<ProfileCard> {
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        children: [
-          // Nền blur để tạo hiệu ứng frosted glass
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              decoration: BoxDecoration(
-                color: context.isDarkMode 
-                    ? const Color(0xFF101012).withValues(alpha: 0.65)
-                    : Colors.white.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(30),
-              ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          top: 4,
+          left: 4,
+          bottom: -4,
+          right: -4,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: context.textColor, width: 3),
             ),
           ),
-          // Nội dung card cuộn được
-          SingleChildScrollView(
-            child: Column(
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: context.textColor, width: 3),
+            ),
+            child: Stack(
+              children: [
+                // Nền blur để tạo hiệu ứng frosted glass
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: context.isDarkMode 
+                          ? const Color(0xFF101012).withValues(alpha: 0.65)
+                          : Colors.white.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+                // Nội dung card cuộn được
+                SingleChildScrollView(
+                  child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPhotoGallery(),
@@ -404,18 +504,26 @@ class _ProfileCardState extends State<ProfileCard> {
                       const SizedBox(height: 24),
                       // Hiển thị bio nếu có
                       if (user.bio.isNotEmpty) ...[
-                        _buildInfoSection('Giới thiệu', [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Text(
-                              user.bio,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: context.textSecondaryColor,
-                              ),
+                        Text(
+                          'Giới thiệu',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: context.textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            user.bio,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: context.textColor,
                             ),
                           ),
-                        ]),
+                        ),
                         const SizedBox(height: 24),
                       ],
                       // Thông tin về game như phong cách và mục đích
@@ -429,8 +537,8 @@ class _ProfileCardState extends State<ProfileCard> {
                       Text(
                         'Game yêu thích',
                         style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
                           color: context.textColor,
                         ),
                       ),
@@ -442,8 +550,8 @@ class _ProfileCardState extends State<ProfileCard> {
                         Text(
                           'Sở thích khác',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
                             color: context.textColor,
                           ),
                         ),
@@ -456,7 +564,7 @@ class _ProfileCardState extends State<ProfileCard> {
                         leading: const Icon(Icons.location_on, color: Color(0xFFFF6E40)),
                         title: Text(
                           user.location,
-                          style: TextStyle(fontSize: 16, color: context.textColor),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.textColor),
                         ),
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -466,8 +574,34 @@ class _ProfileCardState extends State<ProfileCard> {
               ],
             ),
           ),
+                ],
+              ),
+            ),
+          ),
         ],
-      ),
-    );
+      );
   }
 }
+
+// Helper widget để giữ trạng thái cho các ảnh trong PageView, tránh bị dispose và re-render lại khi lướt qua lướt lại
+class _KeepAliveWrapper extends StatefulWidget {
+  final Widget child;
+  const _KeepAliveWrapper({required this.child});
+
+  @override
+  State<_KeepAliveWrapper> createState() => _KeepAliveWrapperState();
+}
+
+class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
+

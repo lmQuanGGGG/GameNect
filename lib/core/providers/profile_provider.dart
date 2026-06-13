@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
@@ -39,6 +40,19 @@ class ProfileProvider extends ChangeNotifier {
     try {
       // Lấy dữ liệu người dùng hiện tại
       _userData = await _firestoreService.getCurrentUser();
+
+      // Cập nhật createdAt từ Firebase Auth Metadata cho các người dùng cũ bị thiếu
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (_userData != null && _userData!.createdAt == null && authUser != null) {
+        final creationTime = authUser.metadata.creationTime;
+        if (creationTime != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_userData!.id)
+              .update({'createdAt': creationTime.toIso8601String()});
+          _userData = _userData!.copyWith(createdAt: creationTime);
+        }
+      }
 
       // Kiểm tra nếu tài khoản đang là premium thì kiểm tra ngày hết hạn
       if (_userData != null && _userData!.isPremium) {

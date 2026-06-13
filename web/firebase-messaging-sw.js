@@ -64,7 +64,13 @@ self.addEventListener('notificationclick', (event) => {
     await savePendingNotification(payload);
 
     const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const appClient = clientList.find((c) => c.url.startsWith(self.registration.scope));
+    
+    const normalizeUrl = (url) => {
+      const cleanUrl = url.split('?')[0].split('#')[0];
+      return cleanUrl.endsWith('/') ? cleanUrl : cleanUrl + '/';
+    };
+    const scope = normalizeUrl(self.registration.scope);
+    const appClient = clientList.find((c) => normalizeUrl(c.url).startsWith(scope));
 
     if (appClient) {
       await appClient.focus();

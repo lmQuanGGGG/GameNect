@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:just_audio/just_audio.dart';
 import 'dart:io';
 import 'dart:ui';
@@ -7,12 +8,12 @@ import 'dart:ui';
 // Cho phép user nghe lại audio, xem thời lượng và quyết định gửi hoặc hủy
 // Sử dụng just_audio package để phát audio
 class VoicePreviewScreen extends StatefulWidget {
-  final File audioFile; // File audio đã ghi
+  final String audioPath; // Đường dẫn/URL file audio đã ghi
   final int duration; // Thời lượng audio tính bằng giây
 
   const VoicePreviewScreen({
     super.key,
-    required this.audioFile,
+    required this.audioPath,
     required this.duration,
   });
 
@@ -30,7 +31,11 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
     super.initState();
     // Khởi tạo audio player và load file audio
     _player = AudioPlayer();
-    _player.setFilePath(widget.audioFile.path);
+    if (kIsWeb) {
+      _player.setUrl(widget.audioPath);
+    } else {
+      _player.setFilePath(widget.audioPath);
+    }
     
     // Lắng nghe trạng thái phát/dừng của player
     _player.playerStateStream.listen((state) {
@@ -54,24 +59,9 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background gradient màu đen chuyển sang đỏ nhạt
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black,
-                    const Color(0xFFFF453A).withValues(alpha: 0.2),
-                  ],
-                ),
-              ),
-            ),
-          ),
 
           // Content chính ở giữa màn hình
           Center(
@@ -93,8 +83,8 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                         width: 4,
                         height: _isPlaying ? height : 20, // Thanh cao hơn khi đang phát
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(2),
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(0),
                         ),
                       );
                     }),
@@ -117,20 +107,18 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                     height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF453A), Color(0xFFFF6961)],
-                      ),
-                      boxShadow: [
+                      color: Colors.white,
+                      border: Border.all(color: Colors.black, width: 4),
+                      boxShadow: const [
                         BoxShadow(
-                          color: const Color(0xFFFF453A).withValues(alpha: 0.5),
-                          blurRadius: 20,
-                          spreadRadius: 5,
+                          color: Colors.black,
+                          offset: Offset(4, 4),
                         ),
                       ],
                     ),
                     child: Icon(
                       _isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: Colors.white,
+                      color: Colors.black,
                       size: 40,
                     ),
                   ),
@@ -142,9 +130,9 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                 Text(
                   '${_position.inSeconds}s / ${widget.duration}s',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
@@ -161,29 +149,36 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                 padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
-                    // Nút hủy với viền trắng, pop false khi nhấn
+                    // Nút hủy
                     Expanded(
                       child: Container(
                         height: 56,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 2,
+                            color: Colors.black,
+                            width: 3,
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(4, 4),
+                            ),
+                          ],
                         ),
                         child: TextButton.icon(
-                          onPressed: () => Navigator.pop(context, false), // Trả về false để không gửi
+                          onPressed: () => Navigator.pop(context, false),
                           icon: const Icon(
                             Icons.delete_outline,
-                            color: Colors.white,
+                            color: Colors.black,
                           ),
                           label: const Text(
                             'Hủy',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.black,
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
@@ -192,18 +187,26 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
 
                     const SizedBox(width: 16),
 
-                    // Nút gửi với gradient đỏ, pop true khi nhấn
+                    // Nút gửi
                     Expanded(
                       child: Container(
                         height: 56,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF453A), Color(0xFFFF6961)],
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.black,
+                            width: 3,
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(4, 4),
+                            ),
+                          ],
                         ),
                         child: TextButton.icon(
-                          onPressed: () => Navigator.pop(context, true), // Trả về true để gửi tin
+                          onPressed: () => Navigator.pop(context, true),
                           icon: const Icon(
                             Icons.send,
                             color: Colors.white,
@@ -213,7 +216,7 @@ class _VoicePreviewScreenState extends State<VoicePreviewScreen> {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),

@@ -11,6 +11,9 @@ import '../../user/screens/call/video_call_screen.dart';
 
 // ChatProvider quản lý trạng thái và logic liên quan đến chat, sử dụng ChangeNotifier để cập nhật UI khi dữ liệu thay đổi.
 class ChatProvider with ChangeNotifier {
+  // Tracker để biết user đang ở trong màn hình chat nào
+  static String? currentActiveMatchId;
+
   // Danh sách các tin nhắn trong cuộc trò chuyện
   List<Map<String, dynamic>> _messages = [];
   // Biến kiểm tra trạng thái đang tải dữ liệu
@@ -80,14 +83,6 @@ class ChatProvider with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
 
-    // Gửi thông báo push cho đối phương nếu có
-    if (peerUser != null) {
-      await handleMessageNotification(
-        matchId,
-        'Đã gửi 1 tin nhắn thoại',
-        peerUser,
-      );
-    }
   }
 
   // Hàm gửi cảm xúc (emoji) cho một tin nhắn, gọi FirestoreService để xử lý
@@ -150,13 +145,6 @@ Future<void> sendMediaWithNotify(
     _isLoading = false;
     notifyListeners();
 
-    if (peerUser != null) {
-      await handleMessageNotification(
-        matchId,
-        'Đã chia sẻ một trò chơi',
-        peerUser,
-      );
-    }
   }
 
   // Hàm trả về stream danh sách tin nhắn, đồng thời kiểm tra nếu có tin nhắn mới từ đối phương thì gửi thông báo, tránh gửi lặp lại bằng cách kiểm tra id/timestamp
@@ -197,7 +185,7 @@ Future<void> sendMediaWithNotify(
             } else {
               notifyText = lastMsg['text'] ?? '';
             }
-            handleMessageNotification(matchId, notifyText, peerUser);
+            // handleMessageNotification(matchId, notifyText, peerUser); // Đã bị xóa để tránh lặp thông báo
             _lastNotifiedMessageId[matchId] = msgId;
         }
       }
@@ -237,7 +225,8 @@ Future<void> sendMediaWithNotify(
       if (data != null &&
           data['callerId'] != currentUserId &&
           data['status'] == 'active' &&
-          (data['answered'] != true)) {
+          (data['answered'] != true) &&
+          !VideoCallScreen.isCallActive) {
         
         // Bỏ qua các cuộc gọi cũ (quá 60 giây) để tránh spam thông báo khi mở lại app
         final startedAtData = data['startedAt'];
@@ -262,12 +251,14 @@ Future<void> sendMediaWithNotify(
           return;
         }
 
-        // Hiển thị thông báo cuộc gọi (OS Level)
-        showCallNotification(
-          peerUsername: peerUser.username,
-          matchId: matchId,
-          peerUserId: peerUser.id,
-        );
+        // Hiển thị thông báo cuộc gọi (OS Level) nếu app đang ở background
+        if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+          showCallNotification(
+            peerUsername: peerUser.username,
+            matchId: matchId,
+            peerUserId: peerUser.id,
+          );
+        }
 
         // Hiển thị dialog trong app nếu app đang ở foreground
         if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
@@ -312,7 +303,11 @@ Future<void> sendMediaWithNotify(
                                       if (_incomingCallDialogCtxs.containsKey(matchId)) {
                                          _incomingCallDialogCtxs.remove(matchId);
                                          Navigator.pop(ctx);
-                                      }
+                                       }
+                                       FirebaseFirestore.instance
+                                           .collection('calls')
+                                           .doc(matchId)
+                                           .set({'answered': true, 'status': 'accepted'}, SetOptions(merge: true));
                                       navigatorKey.currentState?.push(
                                         MaterialPageRoute(
                                           builder: (_) => VideoCallScreen(
@@ -406,7 +401,11 @@ Future<void> sendMediaWithNotify(
                                       if (_incomingCallDialogCtxs.containsKey(matchId)) {
                                          _incomingCallDialogCtxs.remove(matchId);
                                          Navigator.pop(ctx);
-                                      }
+                                       }
+                                       FirebaseFirestore.instance
+                                           .collection('calls')
+                                           .doc(matchId)
+                                           .set({'answered': true, 'status': 'accepted'}, SetOptions(merge: true));
                                       navigatorKey.currentState?.push(
                                         MaterialPageRoute(
                                           builder: (_) => VideoCallScreen(

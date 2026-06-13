@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,6 +23,7 @@ import 'message_bubble.dart';
 import '../shared/peer_profile_screen.dart';
 import 'chat_input_bar.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../../../core/utils/cdn_helper.dart';
 
 /// Màn hình chat giữa 2 user đã match
 /// Sử dụng các sub-components trong thư mục `chat/` cho UI.
@@ -45,9 +47,20 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isRecording = false; 
   String? _recordingPath; 
 
+  // Realtime streams initialized once to prevent rebuild lag
+  late Stream<List<Map<String, dynamic>>> _messagesStream;
+  late Stream<bool> _peerTypingStream;
+
   @override
   void initState() {
     super.initState();
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    _messagesStream = chatProvider.messagesStream(widget.matchId, widget.peerUser);
+    _peerTypingStream = chatProvider.peerTypingStream(widget.matchId, widget.peerUser.id);
+
+    // Lưu lại matchId hiện tại đang chat để tránh hiện notification trùng lặp
+    ChatProvider.currentActiveMatchId = widget.matchId;
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
@@ -82,7 +95,7 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context) => BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: AlertDialog(
-            backgroundColor: const Color(0xFF1C1C1E),
+            backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Text('Cần cấp quyền', style: TextStyle(color: Colors.white)),
             content: const Text(
@@ -96,11 +109,11 @@ class _ChatScreenState extends State<ChatScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+                child: const Text('Hủy', style: TextStyle(color: Colors.black)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Mở Cài đặt', style: TextStyle(color: Color(0xFFFF6E40))),
+                child: const Text('Mở Cài đặt', style: TextStyle(color: Colors.black)),
               ),
             ],
           ),
@@ -116,7 +129,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Bạn cần cho phép quyền Camera và Microphone để gọi video'),
-          backgroundColor: const Color(0xFF1C1C1E),
+          backgroundColor: Colors.white,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -128,21 +141,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _startRecording() async {
-    if (kIsWeb) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Web hiện chưa hỗ trợ ghi âm'),
-            backgroundColor: Colors.black87,
-          ),
-        );
-      }
-      return;
-    }
     try {
       if (await _audioRecorder.hasPermission()) {
-        final directory = await getTemporaryDirectory();
-        final path = '${directory.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        final String path;
+        if (kIsWeb) {
+          path = '';
+        } else {
+          final directory = await getTemporaryDirectory();
+          path = '${directory.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        }
 
         await _audioRecorder.start(
           const RecordConfig(
@@ -153,7 +160,9 @@ class _ChatScreenState extends State<ChatScreen> {
           path: path,
         );
 
-        HapticFeedback.lightImpact(); // Hiệu ứng rung nhẹ khi bắt đầu ghi âm
+        if (!kIsWeb) {
+          HapticFeedback.lightImpact(); // Hiệu ứng rung nhẹ khi bắt đầu ghi âm
+        }
         
         setState(() {
           _isRecording = true;
@@ -163,21 +172,24 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi ghi âm: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Lỗi ghi âm: $e'), backgroundColor: Colors.black),
         );
       }
     }
   }
 
   Future<void> _stopAndSendRecording() async {
-    if (kIsWeb) return;
     try {
       final path = await _audioRecorder.stop();
       setState(() => _isRecording = false);
 
       if (path != null) {
         final audioPlayer = AudioPlayer();
-        await audioPlayer.setFilePath(path);
+        if (kIsWeb) {
+          await audioPlayer.setUrl(path);
+        } else {
+          await audioPlayer.setFilePath(path);
+        }
         final duration = audioPlayer.duration?.inSeconds ?? 0;
         await audioPlayer.dispose();
 
@@ -185,7 +197,7 @@ class _ChatScreenState extends State<ChatScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => VoicePreviewScreen(
-              audioFile: File(path),
+              audioPath: path,
               duration: duration,
             ),
           ),
@@ -210,13 +222,32 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           );
 
-          final file = File(path);
           final storageRef = FirebaseStorage.instance
               .ref()
               .child('voice_messages')
               .child('${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}.m4a');
 
-          await storageRef.putFile(file);
+          if (kIsWeb) {
+            final response = await http.get(Uri.parse(path));
+            final bytes = response.bodyBytes;
+            await storageRef.putData(
+              bytes,
+              SettableMetadata(
+                contentType: 'audio/mp4',
+                cacheControl: 'public, max-age=31536000',
+              ),
+            );
+          } else {
+            final file = File(path);
+            await storageRef.putFile(
+              file,
+              SettableMetadata(
+                contentType: 'audio/mp4',
+                cacheControl: 'public, max-age=31536000',
+              ),
+            );
+            await file.delete();
+          }
           final downloadUrl = await storageRef.getDownloadURL();
 
           if (!mounted) return;
@@ -226,9 +257,13 @@ class _ChatScreenState extends State<ChatScreen> {
             downloadUrl,
             duration: duration,
           );
-          await file.delete();
         } else {
-          await File(path).delete();
+          if (!kIsWeb) {
+            final file = File(path);
+            if (await file.exists()) {
+              await file.delete();
+            }
+          }
         }
       }
     } catch (e) {
@@ -237,12 +272,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _cancelRecording() async {
-    if (kIsWeb) return;
     try {
       await _audioRecorder.stop();
       setState(() => _isRecording = false);
 
-      if (_recordingPath != null) {
+      if (!kIsWeb && _recordingPath != null) {
         final file = File(_recordingPath!);
         if (await file.exists()) {
           await file.delete();
@@ -276,7 +310,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFFFF6E40), strokeWidth: 3),
+                  CircularProgressIndicator(color: Colors.black, strokeWidth: 3),
                   SizedBox(height: 8),
                   Text('Đang gửi...', style: TextStyle(color: Colors.white, fontSize: 10)),
                 ],
@@ -295,7 +329,13 @@ class _ChatScreenState extends State<ChatScreen> {
           .child(isVideo ? 'chat_videos' : 'chat_images')
           .child(fileName);
 
-      await storageRef.putFile(file);
+      await storageRef.putFile(
+        file,
+        SettableMetadata(
+          contentType: isVideo ? 'video/mp4' : 'image/jpeg',
+          cacheControl: 'public, max-age=31536000',
+        ),
+      );
       final downloadUrl = await storageRef.getDownloadURL();
 
       if (mounted) {
@@ -314,7 +354,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lỗi gửi ${isVideo ? 'video' : 'ảnh'}: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.black,
           ),
         );
       }
@@ -329,12 +369,12 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Container(
           width: 36, height: 36,
           decoration: BoxDecoration(
-            color: context.cardBgColor,
+            color: Colors.white,
             shape: BoxShape.circle,
-            border: Border.all(color: context.cardBorderColor, width: 1),
+            border: Border.all(color: Colors.black, width: 1),
           ),
           child: IconButton(
-            icon: Icon(icon, color: const Color(0xFFFF6E40), size: 18),
+            icon: Icon(icon, color: Colors.black, size: 18),
             padding: EdgeInsets.zero,
             onPressed: onPressed,
           ),
@@ -360,7 +400,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final peerAvatarUrl = widget.peerUser.avatarUrl ?? '';
 
     return Scaffold(
-      backgroundColor: context.scaffoldBackgroundColor,
+      backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: true,
       
@@ -376,13 +416,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   end: Alignment.bottomCenter,
                   stops: const [0.0, 0.6, 1.0],
                   colors: [
-                    context.scaffoldBackgroundColor.withValues(alpha: 0.6),
-                    context.scaffoldBackgroundColor.withValues(alpha: 0.2),
-                    context.scaffoldBackgroundColor.withValues(alpha: 0.0),
+                    Colors.white.withValues(alpha: 0.6),
+                    Colors.white.withValues(alpha: 0.2),
+                    Colors.white.withValues(alpha: 0.0),
                   ],
                 ),
                 border: Border(
-                  bottom: BorderSide(color: context.cardBorderColor, width: 0.8),
+                  bottom: BorderSide(color: Colors.black, width: 0.8),
                 ),
               ),
               child: SafeArea(
@@ -396,12 +436,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: context.cardBgColor,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: context.cardBorderColor, width: 0.8),
+                              border: Border.all(color: Colors.black, width: 0.8),
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.chevron_left, color: Color(0xFFFF6E40), size: 28),
+                              icon: const Icon(Icons.chevron_left, color: Colors.black, size: 28),
                               onPressed: () => Navigator.pop(context),
                             ),
                           ),
@@ -429,18 +469,18 @@ class _ChatScreenState extends State<ChatScreen> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                      color: Colors.black.withValues(alpha: 0.3),
                                       blurRadius: 8, spreadRadius: 2,
                                     ),
                                   ],
-                                  border: Border.all(color: context.cardBorderColor, width: 2),
+                                  border: Border.all(color: Colors.black, width: 2),
                                 ),
                                 child: CircleAvatar(
                                   radius: 20,
                                   backgroundImage: widget.peerUser.avatarUrl?.isNotEmpty == true
-                                      ? NetworkImage(widget.peerUser.avatarUrl!)
+                                      ? cdnImageProvider(widget.peerUser.avatarUrl!)
                                       : null,
-                                  backgroundColor: const Color(0xFFFF6E40).withValues(alpha: 0.3),
+                                  backgroundColor: Colors.black.withValues(alpha: 0.3),
                                   child: widget.peerUser.avatarUrl == null
                                       ? const Icon(Icons.person, size: 20, color: Colors.white)
                                       : null,
@@ -455,7 +495,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     Text(
                                       widget.peerUser.username,
                                       style: TextStyle(
-                                        color: context.textColor, fontWeight: FontWeight.w600, fontSize: 17,
+                                        color: Colors.black, fontWeight: FontWeight.w600, fontSize: 17,
                                         shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -474,9 +514,15 @@ class _ChatScreenState extends State<ChatScreen> {
                         children: [
                           _buildGlassButton(
                             icon: Icons.phone_rounded,
-                            onPressed: () async {
-                              final granted = await Permission.microphone.request();
-                              if (granted.isGranted) {
+                             onPressed: () async {
+                              final bool granted;
+                              if (kIsWeb) {
+                                granted = true;
+                              } else {
+                                final status = await Permission.microphone.request();
+                                granted = status.isGranted;
+                              }
+                              if (granted) {
                                 await FirebaseFirestore.instance.collection('calls').doc(widget.matchId).set({
                                   'status': 'active',
                                   'callerId': currentUserId,
@@ -505,8 +551,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           const SizedBox(width: 8),
                           _buildGlassButton(
                             icon: Icons.videocam_rounded,
-                            onPressed: () async {
-                              final granted = await _requestCameraAndMicPermissions();
+                             onPressed: () async {
+                              final bool granted;
+                              if (kIsWeb) {
+                                granted = true;
+                              } else {
+                                granted = await _requestCameraAndMicPermissions();
+                              }
                               if (granted) {
                                 await FirebaseFirestore.instance.collection('calls').doc(widget.matchId).set({
                                   'status': 'active',
@@ -547,7 +598,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // ── Nền tối chủ đạo ──
           Positioned.fill(
-            child: Container(color: context.scaffoldBackgroundColor),
+            child: Container(color: Colors.white),
           ),
           
           // ── Orb Phát Sáng Cam trên cùng bên trái ──
@@ -557,10 +608,10 @@ class _ChatScreenState extends State<ChatScreen> {
               width: 300, height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
+                color: Colors.black.withValues(alpha: 0.05),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 100,
                     spreadRadius: 40,
                   ),
@@ -576,10 +627,10 @@ class _ChatScreenState extends State<ChatScreen> {
               width: 350, height: 350,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.2 * context.bgOrbOpacityMultiplier),
+                color: Colors.black.withValues(alpha: 0.05),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFBF360C).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 120,
                     spreadRadius: 50,
                   ),
@@ -597,9 +648,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     end: Alignment.bottomCenter,
                     stops: const [0.0, 0.4, 1.0],
                     colors: [
-                      context.scaffoldBackgroundColor.withValues(alpha: 0.2),
-                      context.scaffoldBackgroundColor.withValues(alpha: 0.6),
-                      context.scaffoldBackgroundColor.withValues(alpha: 0.8),
+                      Colors.white.withValues(alpha: 0.2),
+                      Colors.white.withValues(alpha: 0.6),
+                      Colors.white.withValues(alpha: 0.8),
                     ],
                   ),
                 ),
@@ -611,25 +662,15 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Expanded(
                 child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: chatProvider.messagesStream(widget.matchId, widget.peerUser),
+                  stream: _messagesStream,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40)));
+                      return const Center(child: CircularProgressIndicator(color: Colors.black));
                     }
                     
                     final messages = snapshot.data ?? [];
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (_scrollController.hasClients) {
-                              _scrollController.animateTo(
-                                0.0,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOut,
-                              );
-                            }
-                          });
                           
-                          return ListView.builder(
+                    return ListView.builder(
                             controller: _scrollController,
                             reverse: true,
                             padding: const EdgeInsets.only(top: 110, bottom: 100, left: 8, right: 8),
@@ -686,7 +727,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
 
               StreamBuilder<bool>(
-                stream: chatProvider.peerTypingStream(widget.matchId, widget.peerUser.id),
+                stream: _peerTypingStream,
                 builder: (context, snapshot) {
                   final isPeerTyping = snapshot.data ?? false;
                   if (!isPeerTyping) return const SizedBox.shrink();
@@ -741,6 +782,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
+    ChatProvider.currentActiveMatchId = null; // Clear khi thoát màn hình chat
     super.dispose();
   }
 }

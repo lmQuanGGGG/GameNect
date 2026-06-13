@@ -4,48 +4,72 @@ import 'mentor_media_feed_screen.dart';
 
 const _kAccent = Color(0xFFE040FB);
 
-class AllMentorMediaScreen extends StatelessWidget {
+class AllMentorMediaScreen extends StatefulWidget {
   const AllMentorMediaScreen({super.key});
+
+  @override
+  State<AllMentorMediaScreen> createState() => _AllMentorMediaScreenState();
+}
+
+class _AllMentorMediaScreenState extends State<AllMentorMediaScreen> {
+  late final Stream<QuerySnapshot> _mediaStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _mediaStream = FirebaseFirestore.instance
+        .collection('mentor_media')
+        .orderBy('createdAt', descending: true)
+        .limit(100)
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('mentor_media')
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .snapshots(),
+      stream: _mediaStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: _kAccent)),
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
           );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Scaffold(
-            backgroundColor: Colors.black,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
             body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.photo_library_outlined, size: 64, color: Colors.white.withValues(alpha: 0.25)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Chưa có bài viết nào từ Mentor',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 15),
-                  ),
-                ],
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white, width: 3),
+                  boxShadow: [BoxShadow(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white, offset: const Offset(4, 4))],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.photo_library_outlined, size: 64, color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white),
+                    const SizedBox(height: 12),
+                    Text(
+                      'CHƯA CÓ BÀI VIẾT',
+                      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                    ),
+                  ],
+                ),
               ),
             ),
+
           );
         }
 

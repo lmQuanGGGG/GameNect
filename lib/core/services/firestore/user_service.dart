@@ -8,7 +8,13 @@ extension UserServiceExtension on FirestoreService {
   Future<String?> uploadImage(dynamic image, String userId, String path) async {
     try {
       final ref = _storage.ref().child('users/$userId/$path');
-      await ref.putFile(image);
+      await ref.putFile(
+        image,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          cacheControl: 'public, max-age=31536000',
+        ),
+      );
       return await ref.getDownloadURL();
     } catch (e) {
       throw Exception('Không thể tải ảnh lên: $e');
@@ -19,7 +25,10 @@ extension UserServiceExtension on FirestoreService {
   Future<String?> uploadImageBytes(Uint8List bytes, String userId, String path) async {
     try {
       final ref = _storage.ref().child('users/$userId/$path');
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000',
+      );
       await ref.putData(bytes, metadata);
       return await ref.getDownloadURL();
     } catch (e) {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
+import '../../../core/utils/cdn_helper.dart';
 import 'dart:ui';
 import '../chat/video_player_bubble.dart';
 import '../../../core/services/firestore_service.dart';
@@ -61,19 +62,19 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: isGridMode ? context.scaffoldBackgroundColor : Colors.black,
+      backgroundColor: context.scaffoldBackgroundColor,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: isGridMode ? context.appBarBgColor : Colors.transparent,
+        backgroundColor: context.appBarBgColor,
         elevation: 0,
-        title: isGridMode ? Text('Bài viết Mentor', style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)) : null,
+        title: Text('BÀI VIẾT MENTOR', style: TextStyle(color: context.textColor, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
         iconTheme: IconThemeData(
-          color: isGridMode ? context.textColor : Colors.white,
-          shadows: isGridMode ? null : const [Shadow(color: Colors.black45, blurRadius: 10)],
+          color: context.textColor,
         ),
+        bottom: PreferredSize(preferredSize: const Size.fromHeight(3), child: Container(color: context.textColor, height: 3)),
         actions: [
           IconButton(
-            icon: Icon(isGridMode ? Icons.view_agenda_rounded : Icons.grid_view_rounded, color: isGridMode ? context.textColor : Colors.white),
+            icon: Icon(isGridMode ? Icons.view_agenda_rounded : Icons.grid_view_rounded, color: context.textColor),
             onPressed: () {
               setState(() {
                 isGridMode = !isGridMode;
@@ -132,36 +133,36 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                   },
                 ),
 
-          // Transparent Search Bar
+          // Transparent Neo-Brutalism Search Bar
           if (isGridMode)
             Positioned(
               bottom: MediaQuery.of(context).padding.bottom + 20 + MediaQuery.of(context).viewInsets.bottom,
               left: 20,
               right: 20,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(16),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: context.cardBorderColor),
+                      color: Theme.of(context).cardColor.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: context.textColor, width: 3),
                     ),
                     child: TextField(
                       controller: _searchController,
-                      style: TextStyle(color: context.textColor, fontSize: 14),
+                      style: TextStyle(color: context.textColor, fontSize: 14, fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
                         filled: false,
-                        hintText: 'Tìm kiếm Mentor, bài viết...',
-                        hintStyle: TextStyle(color: context.textSecondaryColor),
-                        prefixIcon: Icon(Icons.search, color: context.textSecondaryColor),
+                        hintText: 'TÌM KIẾM MENTOR...',
+                        hintStyle: TextStyle(color: context.textSecondaryColor, fontWeight: FontWeight.w900),
+                        prefixIcon: Icon(Icons.search, color: context.textColor),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.clear, color: context.textSecondaryColor, size: 18),
+                                icon: Icon(Icons.clear, color: context.textColor, size: 20),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() {
@@ -233,31 +234,33 @@ class _MentorGridItemState extends State<MentorGridItem> {
       onTap: widget.onTap,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.textColor, width: 3),
+          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(13),
           child: Stack(
             fit: StackFit.expand,
             children: [
               if (url.isNotEmpty)
-                CachedNetworkImage(
-                  imageUrl: isVideo ? (widget.data['thumbnailUrl'] ?? url) : url,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.white10),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.white10,
-                    child: const Icon(Icons.broken_image, color: Colors.white38),
-                  ),
-                )
+                (isVideo && (widget.data['thumbnailUrl'] == null || widget.data['thumbnailUrl'].toString().isEmpty))
+                    ? Container(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        child: const Center(
+                          child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 40),
+                        ),
+                      )
+                    : GamenectNetworkImage(
+                        imageUrl: isVideo ? widget.data['thumbnailUrl']! : url,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(color: Colors.white10),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.white10,
+                          child: const Icon(Icons.broken_image, color: Colors.white38),
+                        ),
+                      )
               else
                 Container(color: Colors.white10, child: const Icon(Icons.image, color: Colors.white24)),
                 
@@ -281,20 +284,14 @@ class _MentorGridItemState extends State<MentorGridItem> {
               if (isVideo)
                 Positioned(
                   top: 8, right: 8,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                        ),
-                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
-                      ),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
+                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
                   ),
                 ),
                 
@@ -316,13 +313,22 @@ class _MentorGridItemState extends State<MentorGridItem> {
                       ),
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: Colors.grey[800],
-                          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                        Container(
+                          width: 20, height: 20,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6E40),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            image: avatarUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(toCdnUrl(avatarUrl) ?? avatarUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          alignment: Alignment.center,
                           child: avatarUrl == null
                               ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))
                               : null,
                         ),
                         const SizedBox(width: 6),
@@ -401,124 +407,186 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
     final avatar = mentorData?['avatarUrl'] as String? ?? '';
     final username = mentorData?['username'] as String? ?? 'Mentor';
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Background Media
-        if (url.isNotEmpty)
-          isVideo
-              ? Center(child: VideoPlayerBubble(videoUrl: url))
-              : CachedNetworkImage(
-                  imageUrl: url,
-                  fit: BoxFit.contain,
-                  placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Color(0xFFE040FB))),
-                  errorWidget: (context, url, error) => Container(color: Colors.grey[900]),
-                )
-        else
-          Container(color: Colors.grey[900]),
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background Media Frame
+          Positioned(
+            top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+            bottom: MediaQuery.of(context).padding.bottom + 80,
+            left: 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black,
+                border: Border.all(color: context.textColor, width: 3),
+                boxShadow: [
+                  BoxShadow(color: context.textColor, offset: const Offset(6, 6))
+                ],
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (url.isNotEmpty)
+                    isVideo
+                        ? Center(child: VideoPlayerBubble(videoUrl: url))
+                        : GamenectNetworkImage(
+                            imageUrl: url,
+                            fit: BoxFit.contain,
+                            placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
+                            errorWidget: (context, url, error) => Container(color: Colors.black),
+                          )
+                  else
+                    Container(color: Colors.black),
 
-        // Dark Gradient Overlay at Bottom
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 300,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                  // Dark Gradient Overlay at Bottom (Inside the frame)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 250,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
 
-        // Bottom Left Info (Avatar, Name, Caption)
-        Positioned(
-          bottom: 100,
-          left: 16,
-          right: 80, // leave space for right action buttons
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Mentor Info
-              GestureDetector(
-                onTap: () {
-                  final mentorId = (widget.doc.data() as Map<String, dynamic>)['mentorId'] as String? ?? '';
-                  if (mentorId.isNotEmpty) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MentorProfileScreen(mentorId: mentorId),
+          // Bottom Left Info (Avatar, Name, Caption)
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 50,
+            left: 32,
+            right: 96, // leave space for right action buttons
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Mentor Info
+                GestureDetector(
+                  onTap: () {
+                    final mentorId = (widget.doc.data() as Map<String, dynamic>)['mentorId'] as String? ?? '';
+                    if (mentorId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MentorProfileScreen(mentorId: mentorId),
+                        ),
+                      );
+                    }
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6E40),
+                          border: Border.all(color: context.textColor, width: 3),
+                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                          image: avatar.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(toCdnUrl(avatar) ?? avatar),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: avatar.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
                       ),
-                    );
-                  }
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
-                      backgroundColor: Colors.deepOrange.withValues(alpha: 0.2),
-                      child: avatar.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      username,
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.verified, color: Colors.blue, size: 16),
-                  ],
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2979FF), // Changed from red to blue
+                          border: Border.all(color: context.textColor, width: 2),
+                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(2, 2))],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              username.toUpperCase(),
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.verified, color: Colors.white, size: 16),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              // Caption
-              if (caption.isNotEmpty)
-                Text(
-                  caption,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-            ],
+                const SizedBox(height: 12),
+                // Caption
+                if (caption.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A32),
+                      border: Border.all(color: context.textColor, width: 3),
+                      boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                    ),
+                    child: Text(
+                      caption,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
 
-        // Bottom Right Actions (Like Button)
-        Positioned(
-          bottom: 100,
-          right: 16,
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  if (currentUserId.isNotEmpty) {
-                    FirestoreService().toggleLikeMentorMedia(widget.doc.id, currentUserId);
-                  }
-                },
-                child: Column(
-                  children: [
-                    Icon(
-                      isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: isLiked ? Colors.red : Colors.white,
-                      size: 38,
-                      shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      likeCount > 0 ? likeCount.toString() : 'Thích',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
-                    ),
-                  ],
+          // Bottom Right Actions (Like Button)
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 50,
+            right: 32,
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    if (currentUserId.isNotEmpty) {
+                      FirestoreService().toggleLikeMentorMedia(widget.doc.id, currentUserId);
+                    }
+                  },
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isLiked ? const Color(0xFFFF2D55) : const Color(0xFF2A2A32),
+                          border: Border.all(color: context.textColor, width: 3),
+                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                        ),
+                        child: Icon(
+                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        likeCount > 0 ? likeCount.toString() : 'THÍCH',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, shadows: [Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1,1))]),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -69,7 +69,9 @@ class AppNotificationHandler {
         developer.log('Decline call', name: 'Notification');
         await _handleDeclineCall(matchId);
       } else {
-        _showIncomingCallDialog(matchId, peerUserId);
+        if (!VideoCallScreen.isCallActive) {
+          showIncomingCallDialog(matchId, peerUserId);
+        }
       }
     } else if (payload['type'] == 'chat') {
       final matchId = payload['matchId'] ?? '';
@@ -192,7 +194,7 @@ class AppNotificationHandler {
     );
   }
 
-  static void _showIncomingCallDialog(String matchId, String peerUserId) async {
+  static void showIncomingCallDialog(String matchId, String peerUserId) async {
     final context = navigatorKey.currentContext;
     if (context == null) {
       developer.log('Cannot show dialog: context is null', name: 'Notification');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/theme_helper.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../auth/login_screen.dart';
@@ -118,16 +119,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: Stack(
         children: [
-          // Background tĩnh
+          // Solid background
           Positioned.fill(
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0F0C29), Color(0xFF302B63), Color(0xFF24243E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
+              color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4), // Responsive neo background
             ),
           ),
           
@@ -177,13 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             );
           }),
 
-          // Lớp kính mờ (Glassmorphism)
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(color: Colors.transparent),
-            ),
-          ),
+
 
           // Nội dung chính
           SafeArea(
@@ -197,39 +186,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Container(
                         width: 48,
                         height: 48,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6E40),
                           shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [Colors.orange, Colors.deepOrangeAccent],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          border: Border.all(color: Colors.black, width: 3),
+                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
                         ),
                         child: const Center(
                           child: Icon(
                             Icons.sports_esports_rounded,
-                            color: Colors.white,
+                            color: Colors.black,
                             size: 28,
                           ),
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'GameNect',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: context.textColor,
                               fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                              shadows: [Shadow(color: Colors.black, offset: Offset(2, 2))],
                             ),
                           ),
                           Text(
                             'Kết nối đam mê',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: context.textSecondaryColor,
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                             ),
@@ -262,14 +250,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 child: Container(
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: (data['color'] as Color).withValues(alpha: 0.2),
+                                    color: data['color'] as Color,
                                     shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: (data['color'] as Color).withValues(alpha: 0.5), 
-                                      width: 2,
-                                    ),
+                                    border: Border.all(color: Colors.black, width: 4),
+                                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
                                   ),
-                                  child: Icon(data['icon'] as IconData, size: 48, color: data['color'] as Color),
+                                  child: Icon(data['icon'] as IconData, size: 48, color: Colors.black),
                                 ),
                               ),
                             ),
@@ -291,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   child: Text(
                                     data['title'] as String,
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: context.textColor,
                                       fontSize: 40,
                                       fontWeight: FontWeight.w900,
                                       height: 1.15,
@@ -316,8 +302,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 position: _slideAnimation,
                                 child: Text(
                                   data['slogan'] as String,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
+                                  style: TextStyle(
+                                    color: context.textSecondaryColor,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w500,
                                     height: 1.5,
@@ -381,35 +367,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(32),
-                            gradient: LinearGradient(
-                              colors: _currentPage == _onboardingData.length - 1
-                                  ? [Colors.orange, Colors.deepOrangeAccent, Colors.pinkAccent]
-                                  : [Colors.white24, Colors.white12],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            boxShadow: _currentPage == _onboardingData.length - 1
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.orange.withValues(alpha: 0.4),
-                                      blurRadius: 24,
-                                      spreadRadius: 2,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ]
-                                : [],
-                            border: _currentPage != _onboardingData.length - 1
-                                ? Border.all(color: Colors.white30, width: 1)
-                                : null,
+                            color: _currentPage == _onboardingData.length - 1 ? const Color(0xFF00E676) : const Color(0xFFF4F4F4),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.black, width: 3),
+                            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
                           ),
                           child: Center(
                             child: Text(
                               _currentPage == _onboardingData.length - 1 ? 'BẮT ĐẦU NGAY' : 'TIẾP TỤC',
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: Colors.black,
                                 fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                                 letterSpacing: 1.5,
                               ),
                             ),

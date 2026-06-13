@@ -70,24 +70,23 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
     super.dispose();
   }
 
-  Widget _buildGlassContainer({required Widget child, double radius = 24}) {
-    final isDark = context.isDarkMode;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
-              width: 1.5,
-            ),
-          ),
-          child: child,
+  Widget _buildNeoContainer({required Widget child, double radius = 12}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.dialogBgColor,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: context.textColor,
+          width: 2.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: context.textColor,
+            offset: const Offset(6, 6),
+          ),
+        ],
       ),
+      child: child,
     );
   }
 
@@ -187,33 +186,13 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             flexibleSpace: ClipRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.7)),
+                child: Container(color: context.scaffoldBackgroundColor),
               ),
             ),
           ),
           body: Stack(
             children: [
-              // Background orbs
-              Positioned(
-                top: -60, right: -60,
-                child: Container(
-                  width: 280, height: 280,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _kAccent.withValues(alpha: isDark ? 0.08 : 0.04),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -80, left: -80,
-                child: Container(
-                  width: 320, height: 320,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFBF360C).withValues(alpha: isDark ? 0.1 : 0.05),
-                  ),
-                ),
-              ),
+
               // Content
               SafeArea(
                 child: _buildContent(mentor, provider),
@@ -256,7 +235,7 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            _buildGlassContainer(
+            _buildNeoContainer(
               radius: 20,
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -314,9 +293,9 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             const SizedBox(height: 20),
 
             // Game selection
-            _buildSectionLabel('🎮 Game chuyên môn'),
+            _buildSectionLabel('Game chuyên môn', Icons.sports_esports_rounded),
             const SizedBox(height: 8),
-            _buildGlassContainer(
+            _buildNeoContainer(
               radius: 16,
               child: Theme(
                 data: Theme.of(context).copyWith(
@@ -346,27 +325,37 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                         hintStyle: TextStyle(color: context.textTertiaryColor),
                         prefixIcon: const Icon(Icons.search, color: _kAccent),
                         filled: true,
-                        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                        fillColor: context.dialogBgColor,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: context.cardBorderColor),
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: context.textColor, width: 2),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: context.cardBorderColor),
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: context.textColor, width: 2),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: _kAccent, width: 1.5),
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: _kAccent, width: 2.5),
                         ),
                       ),
                     ),
                     dialogProps: DialogProps(
-                      backgroundColor: context.cardBgColor,
+                      backgroundColor: context.scaffoldBackgroundColor,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(color: context.cardBorderColor, width: 1.5),
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: context.textColor, width: 2.5),
                       ),
+                    ),
+                    containerBuilder: (ctx, widget) => DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: context.scaffoldBackgroundColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.textColor, width: 2.5),
+                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(8, 8))],
+                      ),
+                      child: widget,
                     ),
                     itemBuilder: (context, item, isSelected, isDisabled) {
                       return Container(
@@ -402,9 +391,9 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             const SizedBox(height: 20),
 
             // Bio
-            _buildSectionLabel('📝 Giới thiệu bản thân'),
+            _buildSectionLabel('Giới thiệu bản thân', Icons.person_outline_rounded),
             const SizedBox(height: 8),
-            _buildGlassContainer(
+            _buildNeoContainer(
               radius: 16,
               child: TextFormField(
                 controller: _bioCtrl,
@@ -428,9 +417,9 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             const SizedBox(height: 20),
 
             // Achievements
-            _buildSectionLabel('🏆 Thành tích / Kinh nghiệm'),
+            _buildSectionLabel('Thành tích / Kinh nghiệm', Icons.emoji_events_rounded),
             const SizedBox(height: 8),
-            _buildGlassContainer(
+            _buildNeoContainer(
               radius: 16,
               child: TextFormField(
                 controller: _achCtrl,
@@ -462,7 +451,10 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kAccent,
                   foregroundColor: Colors.white, // Cố định chữ trắng trên nền màu chủ đạo
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: context.textColor, width: 2.5),
+                  ),
                   elevation: 0,
                 ),
                 child: _isSubmitting
@@ -483,14 +475,20 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
-    return Text(
-      label,
-      style: TextStyle(
-        color: context.textColor,
-        fontWeight: FontWeight.w600,
-        fontSize: 15,
-      ),
+  Widget _buildSectionLabel(String label, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: _kAccent),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: context.textColor,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
+        ),
+      ],
     );
   }
 
@@ -503,7 +501,7 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: _buildGlassContainer(
+        child: _buildNeoContainer(
           radius: 24,
           child: Padding(
             padding: const EdgeInsets.all(32),

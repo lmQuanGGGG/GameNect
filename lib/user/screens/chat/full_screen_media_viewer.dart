@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
 import 'video_player_bubble.dart';
 
 class FullScreenMediaViewer extends StatelessWidget {
@@ -29,7 +29,7 @@ class FullScreenMediaViewer extends StatelessWidget {
                 panEnabled: true,
                 minScale: 0.5,
                 maxScale: 4,
-                child: CachedNetworkImage(
+                child: GamenectNetworkImage(
                   imageUrl: mediaUrl,
                   fit: BoxFit.contain,
                   width: double.infinity,

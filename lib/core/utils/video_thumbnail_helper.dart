@@ -60,7 +60,13 @@ class VideoThumbnailHelper {
           .child('thumbnails/$userId/thumb_$timestamp.jpg');
       
       /// Upload file thumbnail lên Firebase Storage
-      await storageRef.putFile(file);
+      await storageRef.putFile(
+        file,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          cacheControl: 'public, max-age=31536000',
+        ),
+      );
       /// Lấy URL công khai để truy cập thumbnail sau khi upload thành công
       /// URL này sẽ được lưu vào Firestore để hiển thị trên ứng dụng
       final downloadUrl = await storageRef.getDownloadURL();

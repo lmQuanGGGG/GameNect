@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
@@ -15,6 +16,13 @@ class AppTheme {
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark, // black icons for Android
+          statusBarBrightness: Brightness.light,    // black text for iOS
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
       ),
       cardTheme: CardThemeData(
         elevation: 2,
@@ -54,6 +62,13 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light, // white icons for Android
+          statusBarBrightness: Brightness.dark,     // white text for iOS
+          systemNavigationBarColor: Colors.black,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
       ),
       cardTheme: CardThemeData(
         elevation: 2,

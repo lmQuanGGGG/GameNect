@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:provider/provider.dart';
@@ -7,18 +8,20 @@ import '../../../core/providers/moment_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 import 'dart:async';
-import 'dart:ui';
 import 'package:logger/logger.dart';
 import '../../../core/utils/video_thumbnail_helper.dart';
 import 'dart:developer' as developer;
 import '../../../core/services/firestore_service.dart';
-import '../../widgets/glass_button.dart';
 import 'camera_preview_view.dart';
 import 'package:camerawesome/camerawesome_plugin.dart';
 import 'package:camerawesome/pigeon.dart' show PreviewSize, VideoOptions;
 import 'camera_dialogs.dart';
+
+const _kNeoAccent = Color(0xFFFF6E40);
+const _kNeoRed = Color(0xFFFF2D55);
+const _kNeoYellow = Color(0xFFFFD54F);
 
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
@@ -34,6 +37,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   bool _isVideo = false;
   String? _localThumbnailPath;
   bool _isGeneratingThumbnail = false;
+  bool _isMirrored = false;
+  Uint8List? _webImageBytes;
 
   // ── Camera UI state ──────────────────────────────────────────────────────────
   bool _isRecording = false;
@@ -132,37 +137,51 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   }
 
   Future<void> _startRecording(CameraState state) async {
-    await state.when(
-      onVideoMode: (videoState) async {
-        await videoState.startRecording();
-        if (mounted) {
-          setState(() {
-            _isRecording = true;
-            _recordingSeconds = 0;
-          });
-          _recordingTimer =
-              Timer.periodic(const Duration(seconds: 1), (timer) {
-            setState(() => _recordingSeconds++);
-            if (_recordingSeconds >= 15) _stopRecording(state);
-          });
-        }
-      },
-    );
+    try {
+      await state.when(
+        onVideoMode: (videoState) async {
+          await videoState.startRecording();
+          if (mounted) {
+            setState(() {
+              _isRecording = true;
+              _recordingSeconds = 0;
+            });
+            _recordingTimer =
+                Timer.periodic(const Duration(seconds: 1), (timer) {
+              setState(() => _recordingSeconds++);
+              if (_recordingSeconds >= 15) _stopRecording(state);
+            });
+          }
+        },
+      );
+    } catch (e) {
+      _logger.e('Start recording error: $e');
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _recordingSeconds = 0;
+        });
+      }
+    }
   }
 
   Future<void> _stopRecording(CameraState state) async {
     _recordingTimer?.cancel();
-    await state.when(
-      onVideoRecordingMode: (recState) async {
-        await recState.stopRecording();
-        if (mounted) {
-          setState(() {
-            _isRecording = false;
-            _recordingSeconds = 0;
-          });
-        }
-      },
-    );
+    try {
+      await state.when(
+        onVideoRecordingMode: (recState) async {
+          await recState.stopRecording();
+        },
+      );
+    } catch (e) {
+      _logger.w('Stop recording error: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _recordingSeconds = 0;
+      });
+    }
   }
 
   Future<void> _focusOnPreviewTap(
@@ -261,49 +280,79 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   // ── Gallery picker ─────────────────────────────────────────────────────────────
   Future<void> _pickFromGallery() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.black : Colors.white;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final shadowColor = isDark ? Colors.white : Colors.black;
+
     try {
       final choice = await showDialog<String>(
         context: context,
-        builder: (ctx) => BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 1.5),
-                  ),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Chọn loại file',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 20),
-                      GlassButton(
-                          icon: Icons.photo_rounded,
-                          label: 'Ảnh',
-                          onTap: () => Navigator.pop(ctx, 'image')),
-                      const SizedBox(height: 12),
-                      GlassButton(
-                          icon: Icons.videocam_rounded,
-                          label: 'Video (≤ 15s)',
-                          onTap: () => Navigator.pop(ctx, 'video')),
-                    ],
+        barrierColor: Colors.black87,
+        builder: (ctx) => Dialog(
+          backgroundColor: bgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: borderColor, width: 3),
+          ),
+          elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: shadowColor, offset: const Offset(4, 4)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'CHỌN LOẠI FILE',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
                   ),
                 ),
-              ),
+                const SizedBox(height: 24),
+                _NeoDialogButton(
+                  icon: Icons.photo_rounded,
+                  label: 'Ảnh',
+                  bgColor: _kNeoYellow,
+                  borderColor: borderColor,
+                  textColor: Colors.black,
+                  shadowColor: shadowColor,
+                  onTap: () => Navigator.pop(ctx, 'image'),
+                ),
+                const SizedBox(height: 16),
+                _NeoDialogButton(
+                  icon: Icons.videocam_rounded,
+                  label: 'Video (≤ 15s)',
+                  bgColor: _kNeoAccent,
+                  borderColor: borderColor,
+                  textColor: Colors.black,
+                  shadowColor: shadowColor,
+                  onTap: () => Navigator.pop(ctx, 'video'),
+                ),
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: () => Navigator.pop(ctx),
+                  child: Text(
+                    'HỦY BỎ',
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      decoration: TextDecoration.underline,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -314,14 +363,22 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       if (choice == 'image') {
         pickedFile = await _picker.pickImage(
           source: ImageSource.gallery,
-          imageQuality: 80,
-          maxWidth: 800,
+          imageQuality: 90,
+          maxWidth: 1080,
         );
         if (pickedFile != null) {
+          Uint8List? bytes;
+          if (kIsWeb) {
+            bytes = await pickedFile.readAsBytes();
+          }
           setState(() {
             _capturedMedia = pickedFile;
+            _webImageBytes = bytes;
             _isVideo = false;
             _localThumbnailPath = null;
+            if (kIsWeb) {
+              _isMirrored = true;
+            }
           });
         }
       } else {
@@ -384,22 +441,38 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
       if (kIsWeb) {
         // === WEB: dùng putData(bytes) thay vì putFile(File) ===
-        final bytes = await _capturedMedia!.readAsBytes();
+        var bytes = await _capturedMedia!.readAsBytes();
         if (_isVideo) {
           final ref = FirebaseStorage.instance
               .ref()
               .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
-          await ref.putData(bytes, SettableMetadata(contentType: 'video/mp4'));
+          await ref.putData(
+            bytes,
+            SettableMetadata(
+              contentType: 'video/mp4',
+              cacheControl: 'public, max-age=31536000',
+            ),
+          );
           mediaUrl = await ref.getDownloadURL();
-          // Thumbnail cho video web: dùng placeholder vì video_thumbnail không chạy trên web
           thumbnailUrl = null;
         } else {
           final imageRef = FirebaseStorage.instance
               .ref()
               .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
-          await imageRef.putData(bytes, SettableMetadata(
+          if (_isFrontCamera) {
+            bytes = await compute(_applyBeautyFilterIsolate, bytes);
+          }
+          if (_isMirrored) {
+            bytes = await compute(_applyMirrorIsolate, bytes);
+          }
+          await imageRef.putData(
+            bytes,
+            SettableMetadata(
               contentType: 'image/jpeg',
-              customMetadata: {'quality': 'high'}));
+              cacheControl: 'public, max-age=31536000',
+              customMetadata: {'quality': 'high'},
+            ),
+          );
           mediaUrl = await imageRef.getDownloadURL();
         }
       } else {
@@ -408,14 +481,26 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           final ref = FirebaseStorage.instance
               .ref()
               .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
-          await ref.putFile(File(_capturedMedia!.path));
+          await ref.putFile(
+            File(_capturedMedia!.path),
+            SettableMetadata(
+              contentType: 'video/mp4',
+              cacheControl: 'public, max-age=31536000',
+            ),
+          );
           mediaUrl = await ref.getDownloadURL();
 
           if (_localThumbnailPath != null) {
             final thumbRef = FirebaseStorage.instance
                 .ref()
                 .child('moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg');
-            await thumbRef.putFile(File(_localThumbnailPath!));
+            await thumbRef.putFile(
+              File(_localThumbnailPath!),
+              SettableMetadata(
+                contentType: 'image/jpeg',
+                cacheControl: 'public, max-age=31536000',
+              ),
+            );
             thumbnailUrl = await thumbRef.getDownloadURL();
           }
         } else {
@@ -423,8 +508,23 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               .ref()
               .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
           final metadata = SettableMetadata(
-              contentType: 'image/jpeg',
-              customMetadata: {'quality': 'high'});
+            contentType: 'image/jpeg',
+            cacheControl: 'public, max-age=31536000',
+            customMetadata: {'quality': 'high'},
+          );
+
+          if (_isFrontCamera || _isMirrored) {
+            final file = File(_capturedMedia!.path);
+            var bytes = await file.readAsBytes();
+            if (_isFrontCamera) {
+              bytes = await compute(_applyBeautyFilterIsolate, bytes);
+            }
+            if (_isMirrored) {
+              bytes = await compute(_applyMirrorIsolate, bytes);
+            }
+            await file.writeAsBytes(bytes);
+          }
+
           await imageRef.putFile(File(_capturedMedia!.path), metadata);
           mediaUrl = await imageRef.getDownloadURL();
         }
@@ -446,8 +546,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       Navigator.of(context, rootNavigator: true).pop();
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Đã đăng khoảnh khắc!'),
-          backgroundColor: Colors.green));
+          content: Text('ĐÃ ĐĂNG LÊN FEED!', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)), backgroundColor: Colors.green));
     } catch (e) {
       developer.log('Upload error: $e', name: 'Camera', error: e);
       if (!mounted) return;
@@ -457,18 +556,33 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         await showCameraPremiumUpsellDialog();
       } else {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+            .showSnackBar(SnackBar(content: Text('LỖI: $e', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)), backgroundColor: _kNeoRed));
       }
     }
   }
-
 
   // ── Custom Camera UI builder ──────────────────────────────────────────────────
   Widget _buildCameraOverlay(CameraState state) {
     // Load sensors once
     if (_sensorDeviceData == null) {
       state.getSensors().then((data) {
-        if (mounted) setState(() => _sensorDeviceData = data);
+        if (mounted) {
+          setState(() => _sensorDeviceData = data);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              // Set correct aspect ratio on launch
+              state.sensorConfig.setAspectRatio(
+                _isVideoMode ? CameraAspectRatios.ratio_16_9 : CameraAspectRatios.ratio_4_3,
+              );
+              // Fix orientation and set default sensor to wideAngle immediately on launch
+              if (!_isFrontCamera && data.wideAngle != null) {
+                state.setSensorType(0, SensorType.wideAngle, data.wideAngle!.uid);
+              }
+              state.sensorConfig.setZoom(0.0);
+              state.sensorConfig.setBrightness(_brightnessValue);
+            }
+          });
+        }
       });
     }
 
@@ -481,12 +595,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             _isFrontCamera = isFront;
             _currentZoomLabel = 1.0; // reset zoom label on switch
           });
-          // Set zoom 0.0 và giữ nguyên độ sáng tự nhiên cho cả 2 cam
-          if (isFront) {
-            state.sensorConfig.setZoom(0.0);
-          } else {
-            state.sensorConfig.setZoom(0.0);
-          }
+          state.sensorConfig.setAspectRatio(
+            _isVideoMode ? CameraAspectRatios.ratio_16_9 : CameraAspectRatios.ratio_4_3,
+          );
+          state.sensorConfig.setZoom(0.0);
           state.sensorConfig.setBrightness(_brightnessValue);
         }
       });
@@ -498,49 +610,77 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       });
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final shadowColor = isDark ? Colors.white : Colors.black;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        // ── Top bar ────────────────────────────────────────────────────────────
+        // ── TOP BAR CONSOLE CARD ──
         Positioned(
-          top: 0,
+          top: -8,
           left: 0,
           right: 0,
           child: Container(
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 16,
-              right: 16,
-              bottom: 16,
-            ),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.65),
-                  Colors.transparent,
-                ],
-              ),
+              color: Colors.black,
+              border: Border.all(color: borderColor, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 28,
+              bottom: 12,
+              left: 20,
+              right: 20,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Close
-                _GlassCircleBtn(
-                  icon: Icons.close_rounded,
-                  onTap: () => Navigator.pop(context),
+                _NeoCircleBtn(
+                  icon: CupertinoIcons.xmark,
+                  bgColor: Colors.white,
+                  onTap: () {
+                    if (_localThumbnailPath != null) {
+                      try { File(_localThumbnailPath!).deleteSync(); } catch (_) {}
+                    }
+                    Navigator.pop(context);
+                  },
                 ),
-                // Recording timer (center)
-                if (_isRecording) _buildRecordingBadge(),
-
-                // Flash button
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildExposureSlider(state),
+                  ),
+                ),
                 StreamBuilder<FlashMode>(
                   stream: state.sensorConfig.flashMode$,
-                  builder: (_, snap) {
-                    final flash = snap.data ?? FlashMode.none;
-                    return _GlassCircleBtn(
-                      icon: _flashIcon(flash),
+                  initialData: state.sensorConfig.flashMode,
+                  builder: (context, snapshot) {
+                    final flashMode = snapshot.data ?? FlashMode.none;
+                    IconData icon;
+                    switch (flashMode) {
+                      case FlashMode.none:
+                        icon = Icons.flash_off_rounded;
+                        break;
+                      case FlashMode.on:
+                        icon = Icons.flash_on_rounded;
+                        break;
+                      case FlashMode.auto:
+                        icon = Icons.flash_auto_rounded;
+                        break;
+                      case FlashMode.always:
+                        icon = Icons.flash_on_rounded;
+                        break;
+                    }
+                    return _NeoCircleBtn(
+                      icon: icon,
+                      bgColor: _kNeoYellow,
                       onTap: () => state.sensorConfig.switchCameraFlash(),
                     );
                   },
@@ -550,72 +690,136 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           ),
         ),
 
-        // ── Bottom bar ─────────────────────────────────────────────────────────
+        // ── BOTTOM CONSOLE PANEL (Full-width Neo bottom sheet contains Controls and Mode Toggle, Zoom presets float above it) ──
         Positioned(
-          bottom: 0,
+          bottom: -28,
           left: 0,
           right: 0,
-          child: Container(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom + 24,
-              left: 20,
-              right: 20,
-              top: 20,
-            ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.70),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Zoom presets ───────────────────────────────────────────────
-                _buildZoomPresets(state),
-                const SizedBox(height: 14),
-                _buildExposureSlider(state),
-                const SizedBox(height: 24),
-
-                // ── Main action row ────────────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Gallery
-                    _GlassCircleBtn(
-                      icon: Icons.photo_library_rounded,
-                      size: 50,
-                      onTap: _pickFromGallery,
-                    ),
-
-                    // Capture button
-                    _buildCaptureButton(state),
-
-                    // Flip camera
-                    _GlassCircleBtn(
-                      icon: Icons.flip_camera_ios_rounded,
-                      size: 50,
-                      onTap: () {
-                        state.switchCameraSensor();
-                        setState(() {
-                          _currentZoomLabel = 1.0;
-                        });
-                      },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Zoom presets (Floats above the card, outside of it!)
+              _buildZoomPresets(state),
+              const SizedBox(height: 4),
+              
+              // The Floating Neo Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border.all(color: borderColor, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: shadowColor,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                padding: EdgeInsets.only(
+                  top: 8,
+                  bottom: MediaQuery.of(context).padding.bottom + 8,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Capture controls row
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Gallery
+                          _NeoCircleBtn(
+                            icon: CupertinoIcons.photo,
+                            bgColor: Colors.white,
+                            onTap: _pickFromGallery,
+                          ),
+                          
+                          // Shutter
+                          _buildCaptureButton(state),
 
-                // ── Photo / Video mode toggle ──────────────────────────────────
-                _buildModeToggle(state),
-              ],
-            ),
+                          // Flip Camera
+                          _NeoCircleBtn(
+                            icon: CupertinoIcons.arrow_2_circlepath,
+                            bgColor: Colors.white,
+                            onTap: () {
+                              state.switchCameraSensor();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Mode Toggle (Ảnh / Video)
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        border: Border.all(color: borderColor, width: 3),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              if (_isVideoMode) {
+                                await state.sensorConfig.setAspectRatio(CameraAspectRatios.ratio_4_3);
+                                state.when(
+                                  onVideoMode: (vs) => vs.setState(CaptureMode.photo),
+                                  onVideoRecordingMode: (_) {},
+                                );
+                                setState(() => _isVideoMode = false);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !_isVideoMode ? _kNeoAccent : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text('ẢNH', style: TextStyle(color: !_isVideoMode ? Colors.black : Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1)),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () async {
+                              if (!_isVideoMode) {
+                                await state.sensorConfig.setAspectRatio(CameraAspectRatios.ratio_16_9);
+                                state.when(
+                                  onPhotoMode: (ps) => ps.setState(CaptureMode.video),
+                                );
+                                setState(() => _isVideoMode = true);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _isVideoMode ? _kNeoAccent : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text('VIDEO', style: TextStyle(color: _isVideoMode ? Colors.black : Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
+
+        // Recording timer
+        if (_isRecording)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 110,
+            left: 0,
+            right: 0,
+            child: Center(child: _buildRecordingBadge()),
+          ),
       ],
     );
   }
@@ -626,144 +830,93 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         ? [1.0, 2.0]
         : [0.5, 1.0, 2.0, 5.0];
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12), width: 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: labels.map((label) {
-              final isActive = _currentZoomLabel == label;
-              final labelStr =
-                  label == 1.0 ? '1×' : label == 0.5 ? '0.5×' : '${label.toInt()}×';
-              return GestureDetector(
-                onTap: () => _setZoomPreset(label, state),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.all(3),
-                  width: isActive ? 48 : 36,
-                  height: isActive ? 36 : 28,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                    child: Text(
-                      labelStr,
-                      style: TextStyle(
-                        color: isActive
-                            ? Colors.black
-                            : Colors.white.withValues(alpha: 0.9),
-                        fontSize: isActive ? 12 : 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: labels.map((label) {
+          final isActive = _currentZoomLabel == label;
+          final labelStr =
+              label == 1.0 ? '1×' : label == 0.5 ? '0.5×' : '${label.toInt()}×';
+          return GestureDetector(
+            onTap: () => _setZoomPreset(label, state),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: BoxDecoration(
+                color: isActive ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                labelStr,
+                style: TextStyle(
+                  color: isActive ? Colors.black : Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  shadows: isActive
+                      ? null
+                      : const [
+                          Shadow(
+                            color: Colors.black,
+                            offset: Offset(1, 1),
+                            blurRadius: 3,
+                          ),
+                        ],
                 ),
-              );
-            }).toList(),
-          ),
-        ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildModeToggle(CameraState state) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _ModeBtn(
-          label: 'Ảnh',
-          isActive: !_isVideoMode,
-          onTap: () {
-            if (_isVideoMode) {
-              state.when(
-                onVideoMode: (vs) => vs.setState(CaptureMode.photo),
-                onVideoRecordingMode: (_) {},
-              );
-              setState(() => _isVideoMode = false);
-            }
-          },
-        ),
-        const SizedBox(width: 6),
-        _ModeBtn(
-          label: 'Video',
-          isActive: _isVideoMode,
-          onTap: () {
-            if (!_isVideoMode) {
-              state.when(
-                onPhotoMode: (ps) => ps.setState(CaptureMode.video),
-              );
-              setState(() => _isVideoMode = true);
-            }
-          },
-        ),
-      ],
-    );
-  }
-
   Widget _buildExposureSlider(CameraState state) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          width: 220,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 1,
+    return Container(
+      width: 260,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 3),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            CupertinoIcons.sun_max_fill,
+            color: Colors.black,
+            size: 22,
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 8,
+                thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 10,
+                ),
+                overlayShape: const RoundSliderOverlayShape(
+                  overlayRadius: 18,
+                ),
+                activeTrackColor: _kNeoAccent,
+                inactiveTrackColor: Colors.black12,
+                thumbColor: _kNeoAccent,
+              ),
+              child: Slider(
+                value: _brightnessValue,
+                min: 0,
+                max: 1,
+                onChanged: (value) {
+                  setState(() => _brightnessValue = value);
+                  state.sensorConfig.setBrightness(value);
+                },
+              ),
             ),
           ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.wb_sunny_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2.5,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 7,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 12,
-                    ),
-                    activeTrackColor: Colors.white,
-                    inactiveTrackColor: Colors.white24,
-                    thumbColor: Colors.white,
-                  ),
-                  child: Slider(
-                    value: _brightnessValue,
-                    min: 0,
-                    max: 1,
-                    onChanged: (value) {
-                      setState(() => _brightnessValue = value);
-                      state.sensorConfig.setBrightness(value);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -776,27 +929,21 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         builder: (_, __) => GestureDetector(
           onTap: () => _stopRecording(state),
           child: Container(
-            width: 72,
-            height: 72,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red
-                      .withValues(alpha: 0.5 + 0.3 * _pulseController.value),
-                  blurRadius: 20 + 10 * _pulseController.value,
-                  spreadRadius: 4,
-                ),
-              ],
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.black, width: 4),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
             ),
             child: Center(
               child: Container(
-                width: 28,
-                height: 28,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(6),
+                  color: _kNeoRed,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
@@ -820,29 +967,24 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       child: AnimatedBuilder(
         animation: _shutterController,
         builder: (_, __) => Transform.scale(
-          scale: 1.0 - 0.06 * _shutterController.value,
+          scale: 1.0 - 0.08 * _shutterController.value,
           child: Container(
-            width: 72,
-            height: 72,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  spreadRadius: 2,
-                ),
-              ],
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.black, width: 4),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
             ),
             child: Center(
-              child: Container(
-                width: 60,
-                height: 60,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black12, width: 2.5),
-                  color: _isVideoMode ? Colors.red : Colors.white,
+                  color: _isVideoMode ? _kNeoRed : _kNeoYellow,
                 ),
               ),
             ),
@@ -856,41 +998,40 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (_, __) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.red.withValues(
-              alpha: 0.7 + 0.25 * _pulseController.value),
-          borderRadius: BorderRadius.circular(20),
+          color: _kNeoRed,
+          border: Border.all(color: Colors.black, width: 3),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-                width: 8,
-                height: 8,
+            Opacity(
+              opacity: _pulseController.value,
+              child: Container(
+                width: 10,
+                height: 10,
                 decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: Colors.white)),
-            const SizedBox(width: 6),
-            Text(
-              '${_recordingSeconds}s',
-              style: const TextStyle(
+                  shape: BoxShape.circle,
                   color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '00:${_recordingSeconds.toString().padLeft(2, '0')}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  IconData _flashIcon(FlashMode mode) {
-    return switch (mode) {
-      FlashMode.on => Icons.flash_on_rounded,
-      FlashMode.auto => Icons.flash_auto_rounded,
-      FlashMode.always => Icons.flashlight_on_rounded,
-      FlashMode.none => Icons.flash_off_rounded,
-    };
   }
 
   // ── Build ────────────────────────────────────────────────────────────────────
@@ -902,8 +1043,15 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         isVideo: _isVideo,
         localThumbnailPath: _localThumbnailPath,
         isGeneratingThumbnail: _isGeneratingThumbnail,
-          isFrontCamera: _isFrontCamera,
+        isFrontCamera: _isFrontCamera,
         capturedMedia: _capturedMedia,
+        isMirrored: _isMirrored,
+        webImageBytes: _webImageBytes,
+        onToggleMirror: () {
+          setState(() {
+            _isMirrored = !_isMirrored;
+          });
+        },
         onRetake: () {
           if (_localThumbnailPath != null) {
             try {
@@ -914,6 +1062,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             _capturedMedia = null;
             _localThumbnailPath = null;
             _needsLensReset = true;
+            _isMirrored = false;
+            _webImageBytes = null;
           });
           if (kIsWeb && mounted) {
             _pickFromGallery().then((_) {
@@ -934,6 +1084,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             _capturedMedia = null;
             _localThumbnailPath = null;
             _needsLensReset = true;
+            _isMirrored = false;
+            _webImageBytes = null;
           });
           if (kIsWeb && mounted) {
             Navigator.pop(context);
@@ -951,33 +1103,36 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CameraAwesomeBuilder.custom(
-        saveConfig: SaveConfig.photoAndVideo(
-          initialCaptureMode: CaptureMode.photo,
-          mirrorFrontCamera: false,
-          videoOptions: VideoOptions(enableAudio: true),
-        ),
-        sensorConfig: SensorConfig.single(
-          sensor: Sensor.position(SensorPosition.back),
-          flashMode: FlashMode.none,
-          // ratio_4_3 in portrait = 3:4 visual frame
-          aspectRatio: CameraAspectRatios.ratio_4_3,
-          zoom: 0.0,
-        ),
-        // contain = preview fills the 3:4 area without cropping
-        previewFit: CameraPreviewFit.contain,
-        onPreviewTapBuilder: (state) => OnPreviewTap(
-          onTap: (position, flutterPreviewSize, pixelPreviewSize) {
-            _focusOnPreviewTap(
-              state,
-              position,
-              flutterPreviewSize,
-              pixelPreviewSize,
-            );
-          },
-        ),
-        onMediaCaptureEvent: _onMediaCaptureEvent,
-        builder: (state, _) => _buildCameraOverlay(state),
+      body: Stack(
+        children: [
+          CameraAwesomeBuilder.custom(
+            saveConfig: SaveConfig.photoAndVideo(
+              initialCaptureMode: _isVideoMode ? CaptureMode.video : CaptureMode.photo,
+              mirrorFrontCamera: true, // Natively mirror front camera photo and video
+              videoOptions: VideoOptions(enableAudio: true),
+            ),
+            sensorConfig: SensorConfig.single(
+              sensor: Sensor.position(SensorPosition.back),
+              flashMode: FlashMode.none,
+              aspectRatio: _isVideoMode ? CameraAspectRatios.ratio_16_9 : CameraAspectRatios.ratio_4_3,
+              zoom: 0.0,
+            ),
+            previewFit: CameraPreviewFit.contain, // Show entire sensor viewport without cropping
+            onPreviewTapBuilder: (state) => OnPreviewTap(
+              onTap: (position, flutterPreviewSize, pixelPreviewSize) {
+                _focusOnPreviewTap(
+                  state,
+                  position,
+                  flutterPreviewSize,
+                  pixelPreviewSize,
+                );
+              },
+            ),
+            onMediaCaptureEvent: _onMediaCaptureEvent,
+            builder: (state, _) => _buildCameraOverlay(state),
+          ),
+          // Processing overlay removed for instant transition
+        ],
       ),
     );
   }
@@ -985,85 +1140,129 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
 // ── Reusable sub-widgets ──────────────────────────────────────────────────────
 
-class _GlassCircleBtn extends StatelessWidget {
+class _NeoCircleBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  final double size;
+  final Color bgColor;
 
-  const _GlassCircleBtn({
+  const _NeoCircleBtn({
     required this.icon,
     required this.onTap,
-    this.size = 44,
+    required this.bgColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.18),
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.25), width: 1),
-            ),
-            child: Icon(icon, color: Colors.white, size: size * 0.48),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-class _ModeBtn extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _ModeBtn({
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
-          color: isActive
-              ? Colors.white.withValues(alpha: 0.22)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isActive
-                ? Colors.white.withValues(alpha: 0.4)
-                : Colors.transparent,
-            width: 1,
-          ),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black, width: 3),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isActive
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.55),
-            fontSize: 14,
-            fontWeight:
-                isActive ? FontWeight.w700 : FontWeight.w400,
-            letterSpacing: 0.2,
-          ),
+        child: Icon(icon, color: Colors.black, size: 26),
+      ),
+    );
+  }
+}
+
+class _NeoDialogButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color bgColor;
+  final Color borderColor;
+  final Color textColor;
+  final Color shadowColor;
+
+  const _NeoDialogButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.bgColor,
+    required this.borderColor,
+    required this.textColor,
+    required this.shadowColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border.all(color: borderColor, width: 3),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              offset: const Offset(4, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: textColor, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// ── Beauty Filter Helper (Runs in isolate via compute) ──
+Uint8List _applyBeautyFilterIsolate(Uint8List bytes) {
+  final image = img.decodeImage(bytes);
+  if (image == null) return bytes;
+
+  // 1. Bake EXIF orientation to ensure consistent rotation
+  final oriented = img.bakeOrientation(image);
+
+  // 2. Resize immediately to feed-ready resolution (max 1440px) using high-quality average interpolation to smooth noise/grain
+  img.Image resized;
+  if (oriented.width > oriented.height) {
+    resized = oriented.width > 1440 
+        ? img.copyResize(oriented, width: 1440, interpolation: img.Interpolation.average) 
+        : oriented;
+  } else {
+    resized = oriented.height > 1440 
+        ? img.copyResize(oriented, height: 1440, interpolation: img.Interpolation.average) 
+        : oriented;
+  }
+
+  // 3. Apply exact color matrix from preview (100% match) for bright, clear Locket style
+  for (final pixel in resized) {
+    pixel.r = (pixel.r * 1.00 + 18.0).round().clamp(0, 255);
+    pixel.g = (pixel.g * 1.00 + 18.0).round().clamp(0, 255);
+    pixel.b = (pixel.b * 1.10 + 40.0).round().clamp(0, 255);
+  }
+
+  return img.encodeJpg(resized, quality: 95);
+}
+
+// ── Mirror Filter Helper (Runs in isolate via compute) ──
+Uint8List _applyMirrorIsolate(Uint8List bytes) {
+  final image = img.decodeImage(bytes);
+  if (image == null) return bytes;
+  final flipped = img.copyFlip(image, direction: img.FlipDirection.horizontal);
+  return img.encodeJpg(flipped, quality: 95);
+}
+

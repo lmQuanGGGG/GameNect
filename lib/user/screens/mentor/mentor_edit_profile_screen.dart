@@ -1,6 +1,6 @@
 // lib/user/screens/mentor_edit_profile_screen.dart
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:http/http.dart' as http;
@@ -8,17 +8,19 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/models/mentor_model.dart';
 import '../../../core/services/firestore_service.dart';
-import '../../../core/theme/theme_helper.dart';
 
 const _kAccent = Color(0xFFFF6E40);
+const _kDarkBg = Color(0xFF121214);
+const _kLightBg = Color(0xFFF4F4F0);
+const _kDarkCard = Color(0xFF2A2A32);
+const _kLightCard = Colors.white;
 
 class MentorEditProfileScreen extends StatefulWidget {
   final MentorModel mentor;
   const MentorEditProfileScreen({super.key, required this.mentor});
 
   @override
-  State<MentorEditProfileScreen> createState() =>
-      _MentorEditProfileScreenState();
+  State<MentorEditProfileScreen> createState() => _MentorEditProfileScreenState();
 }
 
 class _MentorEditProfileScreenState extends State<MentorEditProfileScreen> {
@@ -28,19 +30,9 @@ class _MentorEditProfileScreenState extends State<MentorEditProfileScreen> {
   bool _isSaving = false;
 
   final List<String> _hotGames = [
-    'League of Legends',
-    'Arena of Valor',
-    'Free Fire',
-    'Genshin Impact',
-    'PUBG Mobile',
-    'Valorant',
-    'Call of Duty: Mobile',
-    'FIFA Online 4',
-    'Minecraft',
-    'Mobile Legends',
-    'Dota 2',
-    'CS:GO',
-    'Fortnite',
+    'League of Legends', 'Arena of Valor', 'Free Fire', 'Genshin Impact',
+    'PUBG Mobile', 'Valorant', 'Call of Duty: Mobile', 'FIFA Online 4',
+    'Minecraft', 'Mobile Legends', 'Dota 2', 'CS:GO', 'Fortnite',
   ];
 
   @override
@@ -62,36 +54,22 @@ class _MentorEditProfileScreenState extends State<MentorEditProfileScreen> {
     if (query.isEmpty) return _hotGames;
     try {
       final apiKey = dotenv.env['RAWG_API_KEY'] ?? '';
-      final res = await http.get(Uri.parse(
-        'https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=10',
-      ));
+      final res = await http.get(Uri.parse('https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=10'));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return (data['results'] as List)
-            .map((e) => e['name'] as String)
-            .toList();
+        return (data['results'] as List).map((e) => e['name'] as String).toList();
       }
     } catch (_) {}
-    return _hotGames
-        .where((g) => g.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    return _hotGames.where((g) => g.toLowerCase().contains(query.toLowerCase())).toList();
   }
 
   Future<void> _save() async {
     if (_bioCtrl.text.trim().length < 20) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Bio tối thiểu 20 ký tự'),
-            backgroundColor: Colors.red),
-      );
+      _showError('Bio tối thiểu 20 ký tự');
       return;
     }
     if (_selectedGames.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Chọn ít nhất 1 game'),
-            backgroundColor: Colors.red),
-      );
+      _showError('Chọn ít nhất 1 game chuyên môn');
       return;
     }
 
@@ -108,314 +86,241 @@ class _MentorEditProfileScreenState extends State<MentorEditProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Đã lưu hồ sơ!'), backgroundColor: Colors.green),
+          content: Text('ĐÃ LƯU HỒ SƠ!', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)),
+          backgroundColor: Colors.green,
+          shape: RoundedRectangleBorder(side: BorderSide(color: Colors.white, width: 2)),
+        ),
       );
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-      );
+      _showError('Lỗi: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  /// Glass container — respects theme
-  Widget _glass({required Widget child, double radius = 16}) {
-    final isDark = context.isDarkMode;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.10)
-                  : Colors.black.withValues(alpha: 0.07),
-              width: 1.2,
-            ),
-          ),
-          child: child,
-        ),
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1)),
+        backgroundColor: const Color(0xFFFF2D55),
+        shape: const RoundedRectangleBorder(side: BorderSide(color: Colors.white, width: 2)),
       ),
+    );
+  }
+
+  // Helper cho khối nhập liệu
+  Widget _neoInputBox(BuildContext context, {required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final shadowColor = isDark ? Colors.white : Colors.black;
+    final cardColor = isDark ? _kDarkCard : _kLightCard;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        border: Border.all(color: borderColor, width: 3),
+        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
+      ),
+      child: child,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDarkMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? _kDarkBg : _kLightBg;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final shadowColor = isDark ? Colors.white : Colors.black;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final cardColor = isDark ? _kDarkCard : _kLightCard;
 
     return Scaffold(
-      backgroundColor: context.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Chỉnh sửa hồ sơ Mentor',
-          style: TextStyle(
-            color: context.textColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: context.textColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _save,
-            child: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: _kAccent, strokeWidth: 2),
-                  )
-                : const Text(
-                    'Lưu',
-                    style: TextStyle(
-                      color: _kAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-          ),
-        ],
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.30)
-                  : Colors.white.withValues(alpha: 0.75),
-            ),
-          ),
-        ),
-      ),
-      body: Stack(
+      backgroundColor: bgColor,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ambient orbs
-          Positioned(
-            top: -60,
-            right: -60,
+          // ── Neo App Bar ───────────────────────────────────────────────────
+          SafeArea(
+            bottom: false,
             child: Container(
-              width: 260,
-              height: 260,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _kAccent.withValues(
-                    alpha: isDark ? 0.07 : 0.04),
+                color: bgColor,
+                border: Border(bottom: BorderSide(color: borderColor, width: 3)),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -60,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(
-                    alpha: isDark ? 0.08 : 0.04),
-              ),
-            ),
-          ),
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Bio
-                _sectionLabel('📝 Giới thiệu bản thân'),
-                const SizedBox(height: 8),
-                _glass(
-                  child: TextField(
-                    controller: _bioCtrl,
-                    maxLines: 5,
-                    maxLength: 500,
-                    style: TextStyle(color: context.textColor, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText:
-                          'Kể về bản thân, phong cách chơi, kinh nghiệm...',
-                      hintStyle: TextStyle(
-                          color: context.textTertiaryColor, fontSize: 13),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
-                      counterStyle:
-                          TextStyle(color: context.textTertiaryColor),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: _kAccent,
+                        border: Border.all(color: borderColor, width: 3),
+                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                      ),
+                      child: const Icon(Icons.arrow_back_rounded, color: Colors.black, size: 24),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'SỬA HỒ SƠ',
+                      style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _isSaving ? null : _save,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _kAccent,
+                        border: Border.all(color: borderColor, width: 3),
+                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3))
+                          : const Text('LƯU', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-                const SizedBox(height: 20),
-
-                // Games
-                _sectionLabel('🎮 Game chuyên môn'),
-                const SizedBox(height: 8),
-                _glass(
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      textTheme: TextTheme(
-                        titleMedium: TextStyle(color: context.textColor),
+          // ── Nội dung form ─────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- Bio ---
+                  _sectionLabel(context, 'GIỚI THIỆU BẢN THÂN *'),
+                  const SizedBox(height: 10),
+                  _neoInputBox(
+                    context,
+                    child: TextField(
+                      controller: _bioCtrl,
+                      maxLines: 5,
+                      maxLength: 500,
+                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        hintText: 'Kể về bản thân, phong cách chơi, kinh nghiệm (tối thiểu 20 ký tự)...',
+                        hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 13, fontWeight: FontWeight.w600),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(16),
+                        counterStyle: TextStyle(color: textColor.withValues(alpha: 0.5), fontWeight: FontWeight.bold),
                       ),
                     ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // --- Games ---
+                  _sectionLabel(context, 'GAME CHUYÊN MÔN *'),
+                  const SizedBox(height: 10),
+                  _neoInputBox(
+                    context,
                     child: DropdownSearch<String>.multiSelection(
                       items: (filter, props) => _searchGamesAsync(filter),
                       selectedItems: _selectedGames,
                       compareFn: (i, s) => i == s,
                       decoratorProps: DropDownDecoratorProps(
                         decoration: InputDecoration(
-                          hintText: 'Chọn game chuyên môn...',
-                          hintStyle:
-                              TextStyle(color: context.textTertiaryColor),
+                          hintText: 'Nhấn để chọn game...',
+                          hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontWeight: FontWeight.w600),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          prefixIcon:
-                              const Icon(Icons.sports_esports, color: _kAccent),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          prefixIcon: const Icon(CupertinoIcons.gamecontroller_fill, color: _kAccent),
                         ),
                       ),
                       popupProps: PopupPropsMultiSelection.dialog(
                         showSearchBox: true,
                         searchFieldProps: TextFieldProps(
-                          style: TextStyle(color: context.textColor),
+                          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                           decoration: InputDecoration(
-                            hintText: 'Tìm game...',
-                            hintStyle: TextStyle(
-                                color: context.textTertiaryColor),
-                            prefixIcon:
-                                const Icon(Icons.search, color: _kAccent),
+                            hintText: 'Tìm kiếm tên game...',
+                            hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontWeight: FontWeight.w600),
+                            prefixIcon: const Icon(CupertinoIcons.search, color: _kAccent),
                             filled: true,
-                            fillColor: isDark
-                                ? Colors.white.withValues(alpha: 0.05)
-                                : Colors.black.withValues(alpha: 0.03),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.10)
-                                      : Colors.black.withValues(alpha: 0.08)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.10)
-                                      : Colors.black.withValues(alpha: 0.08)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: _kAccent, width: 1.5),
-                            ),
+                            fillColor: bgColor,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: borderColor, width: 2)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: borderColor, width: 2)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: const BorderSide(color: _kAccent, width: 3)),
                           ),
                         ),
                         dialogProps: DialogProps(
-                          backgroundColor: context.dialogBgColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.10)
-                                  : Colors.black.withValues(alpha: 0.08),
-                              width: 1.5,
-                            ),
-                          ),
+                          backgroundColor: cardColor,
+                          shape: RoundedRectangleBorder(side: BorderSide(color: borderColor, width: 3)),
                         ),
                         itemBuilder: (context, item, isSelected, isDisabled) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: borderColor.withValues(alpha: 0.1), width: 1))),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Text(
-                                    item,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? _kAccent
-                                          : context.textColor,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
+                                    item.toUpperCase(),
+                                    style: TextStyle(color: isSelected ? _kAccent : textColor, fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold, fontSize: 13),
                                   ),
                                 ),
-                                if (isSelected)
-                                  const Icon(Icons.check_circle,
-                                      color: _kAccent, size: 18),
+                                if (isSelected) const Icon(Icons.check_box_rounded, color: _kAccent, size: 22),
                               ],
                             ),
                           );
                         },
                       ),
-                      onChanged: (items) =>
-                          setState(() => _selectedGames = items),
+                      onChanged: (items) => setState(() => _selectedGames = items),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 28),
 
-                // Achievements
-                _sectionLabel('🏆 Thành tích / Kinh nghiệm'),
-                const SizedBox(height: 8),
-                _glass(
-                  child: TextField(
-                    controller: _achCtrl,
-                    maxLines: 4,
-                    maxLength: 300,
-                    style: TextStyle(color: context.textColor, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText:
-                          'Rank cao nhất, giải thưởng, số năm kinh nghiệm...',
-                      hintStyle: TextStyle(
-                          color: context.textTertiaryColor, fontSize: 13),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
-                      counterStyle:
-                          TextStyle(color: context.textTertiaryColor),
+                  // --- Achievements ---
+                  _sectionLabel(context, 'THÀNH TÍCH / KINH NGHIỆM'),
+                  const SizedBox(height: 10),
+                  _neoInputBox(
+                    context,
+                    child: TextField(
+                      controller: _achCtrl,
+                      maxLines: 4,
+                      maxLength: 300,
+                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        hintText: 'VD: Rank Thách đấu, Vô địch giải đấu sinh viên...\n(Mỗi thành tích xuống dòng)',
+                        hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 13, fontWeight: FontWeight.w600),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(16),
+                        counterStyle: TextStyle(color: textColor.withValues(alpha: 0.5), fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 36),
+                  const SizedBox(height: 48),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSaving ? null : _save,
-                    icon: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_rounded),
-                    label: Text(_isSaving ? 'Đang lưu...' : 'Lưu hồ sơ'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kAccent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                      elevation: 0,
+                  // --- Nút Save to (nếu cần ở dưới cùng) ---
+                  GestureDetector(
+                    onTap: _isSaving ? null : _save,
+                    child: Container(
+                      width: double.infinity,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: _isSaving ? (isDark ? Colors.grey.shade800 : Colors.grey.shade300) : _kAccent,
+                        border: Border.all(color: borderColor, width: 3),
+                        boxShadow: _isSaving ? null : [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
+                      ),
+                      child: Center(
+                        child: _isStartingOrSaving()
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 40),
-              ],
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ],
@@ -423,12 +328,21 @@ class _MentorEditProfileScreenState extends State<MentorEditProfileScreen> {
     );
   }
 
-  Widget _sectionLabel(String label) => Text(
-        label,
-        style: TextStyle(
-          color: context.textColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
-      );
+  Widget _isStartingOrSaving() {
+      if(_isSaving) return CircularProgressIndicator(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, strokeWidth: 3);
+      return const Text('LƯU HỒ SƠ', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 2));
+  }
+
+  Widget _sectionLabel(BuildContext context, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      label,
+      style: TextStyle(
+        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.6),
+        fontWeight: FontWeight.w900,
+        fontSize: 13,
+        letterSpacing: 1.5,
+      ),
+    );
+  }
 }

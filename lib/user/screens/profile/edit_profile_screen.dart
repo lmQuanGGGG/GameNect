@@ -59,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _interests = [];
   String _lookingFor = 'Bạn chơi game';
   String _gameStyle = 'Casual';
+  DateTime? _createdAt;
 
   final List<String> _hotGames = [
     "League of Legends", "Arena of Valor", "Free Fire", "Genshin Impact",
@@ -130,6 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _gender = provider.genderOptions.contains(userData.gender) ? userData.gender : 'Nam';
             _lookingFor = provider.lookingForOptions.contains(userData.lookingFor) ? userData.lookingFor : 'Bạn chơi game';
             _gameStyle = provider.gameStyleOptions.contains(userData.gameStyle) ? userData.gameStyle : 'Casual';
+            _createdAt = userData.createdAt;
 
             final dateFormat = DateFormat('dd/MM/yyyy');
             _birthDateController.text = dateFormat.format(userData.dateOfBirth);
@@ -307,6 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             interests: _interests,
             lookingFor: _lookingFor,
             gameStyle: _gameStyle,
+            createdAt: _createdAt ?? DateTime.now(),
           );
           
           await _firestoreService.addUser(newUser);
@@ -338,7 +341,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Hình ảnh', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.textColor)),
+              Text('Hình ảnh', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
               const SizedBox(height: 18),
               AvatarPickerSection(
                 avatarImage: _avatarImage,
@@ -351,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onRemoveAdditionalPhoto: _removeAdditionalPhoto,
               ),
               const SizedBox(height: 24),
-              Text('Thông tin cơ bản', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.textColor)),
+              Text('Thông tin cơ bản', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
               const SizedBox(height: 18),
               BasicInfoSection(
                 usernameController: _usernameController,
@@ -366,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 interestOptions: prov.interestOptions,
               ),
               const SizedBox(height: 24),
-              Text('Thông tin Gaming', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.textColor)),
+              Text('Thông tin Gaming', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
               const SizedBox(height: 18),
               GamingSection(
                 rank: _rank,
@@ -392,12 +395,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                      ),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, offset: Offset(4, 4)),
                     ],
                   ),
                   child: ElevatedButton(
@@ -406,12 +405,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundColor: const Color(0xFFFF6E40),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: const BorderSide(color: Colors.black, width: 3),
+                      ),
                       elevation: 0,
                     ),
                     child: Text(
-                      _isUpdating ? 'Cập nhật hồ sơ' : 'Lưu hồ sơ',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                      _isUpdating ? 'Cập NHẬT HỒ SƠ' : 'LƯU HỒ SƠ',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white),
                     ),
                   ),
                 ),
@@ -423,38 +425,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     final containerDecoration = BoxDecoration(
-      color: kIsWeb ? (context.isDarkMode ? const Color(0xFF1A1A1E) : Colors.white) : context.cardBgColor,
-      borderRadius: BorderRadius.circular(28),
-      border: Border.all(color: context.cardBorderColor, width: 1.5),
-      boxShadow: [
-        BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, 8)),
+      color: const Color(0xFFFFF1EB), // Light warm white
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: Colors.black, width: 4),
+      boxShadow: const [
+        BoxShadow(color: Colors.black, offset: Offset(8, 8)),
       ],
     );
 
-    if (kIsWeb) {
-      // Web: không dùng BackdropFilter (tránh bug xám CanvasKit trên deploy)
-      return Container(
-        width: 420,
-        constraints: const BoxConstraints(maxWidth: 500),
-        padding: const EdgeInsets.all(24),
-        decoration: containerDecoration,
-        child: formContent,
-      );
-    }
-
-    // Mobile: glassmorphism với BackdropFilter
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          width: 420,
-          constraints: const BoxConstraints(maxWidth: 500),
-          padding: const EdgeInsets.all(24),
-          decoration: containerDecoration,
-          child: formContent,
-        ),
-      ),
+    return Container(
+      width: 420,
+      constraints: const BoxConstraints(maxWidth: 500),
+      padding: const EdgeInsets.all(24),
+      decoration: containerDecoration,
+      child: formContent,
     );
   }
 
@@ -471,62 +455,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: context.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(_isUpdating ? 'Chỉnh sửa hồ sơ' : 'Tạo hồ sơ', style: TextStyle(color: context.textColor)),
+        title: Text(_isUpdating ? 'Chỉnh sửa hồ sơ' : 'Tạo hồ sơ', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: context.textColor),
+        iconTheme: IconThemeData(color: Colors.black),
       ),
-      body: Stack(
-        children: [
-          // Background Orbs
-          Positioned(
-            top: 50, right: -50,
-            child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.12 * context.bgOrbOpacityMultiplier),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: kIsWeb ? 40 : 100, spreadRadius: kIsWeb ? 20 : 40)],
-              ),
-            ),
+      backgroundColor: const Color(0xFFF0F0F0), // Solid light gray background
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              SizedBox(height: kToolbarHeight + MediaQuery.of(context).padding.top + 24),
+              _buildFormCard(provider),
+              const SizedBox(height: 60),
+            ],
           ),
-          Positioned(
-            bottom: -80, left: -80,
-            child: Container(
-              width: 350, height: 350,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFBF360C).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
-                boxShadow: [BoxShadow(color: const Color(0xFFBF360C).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier), blurRadius: kIsWeb ? 40 : 120, spreadRadius: kIsWeb ? 20 : 50)],
-              ),
-            ),
-          ),
-          // Trên Web (CanvasKit), BackdropFilter + transparent child gây xám màn hình
-          if (!kIsWeb)
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-          
-          Align(
-            alignment: Alignment.topCenter,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  SizedBox(height: kToolbarHeight + MediaQuery.of(context).padding.top + 24),
-                  // Fix: trên Web dùng Container solid thay BackdropFilter (tránh bug xám CanvasKit)
-                  _buildFormCard(provider),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

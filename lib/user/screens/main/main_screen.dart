@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:rxdart/rxdart.dart';
 import 'dart:developer' as developer;
 
 import '../profile/profile_screen.dart';
@@ -9,10 +11,14 @@ import '../matching/match_screen.dart';
 import '../matching/liked_me_screen.dart';
 import '../matching/match_list_screen.dart';
 import '../moments/moment_screen.dart';
+import '../camera/camera_capture_screen.dart';
 
 // Tách TabBar ra file riêng để code gọn gàng hơn
 import '../../widgets/liquid_glass_tab_bar.dart';
 import '../../widgets/tab_bar_visibility.dart';
+import '../../../core/theme/theme_helper.dart';
+import '../../../core/providers/match_provider.dart';
+import '../../../core/models/user_model.dart';
 
 final ValueNotifier<int> mainScreenTabIndex = ValueNotifier<int>(0);
 
@@ -30,6 +36,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late final List<AnimationController> _itemControllers;
   late final List<Animation<double>> _itemScales;
   late final List<Animation<double>> _itemGlows;
+  late final Stream<Map<String, int>> _badgeStream;
 
   final List<Widget> _screens = [
     MatchScreen(),
@@ -53,6 +60,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _currentIndex = widget.initialIndex;
     mainScreenTabIndex.value = _currentIndex;
     mainScreenTabIndex.addListener(_onGlobalTabChanged);
+
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    _badgeStream = _getBadgeCountsStream(currentUserId);
+
     _itemControllers = List.generate(
       _tabs.length,
       (i) => AnimationController(
@@ -105,8 +116,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-
     return TabBarVisibility(
       controller: _tabBarVisibility,
       child: Scaffold(
@@ -139,7 +148,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       opacity: _tabBarVisibility.visible ? 1.0 : 0.0,
                       duration: const Duration(milliseconds: 250),
                       child: StreamBuilder<Map<String, int>>(
-                        stream: _getBadgeCountsStream(currentUserId),
+                        stream: _badgeStream,
                         builder: (context, snapshot) {
                           final badges = snapshot.data ??
                               {'likes': 0, 'messages': 0, 'moments': 0};
@@ -165,11 +174,90 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ),
           ],
         ),
+        floatingActionButton: ListenableBuilder(
+          listenable: _tabBarVisibility,
+          builder: (context, _) {
+            return AnimatedSlide(
+              offset: _tabBarVisibility.visible ? Offset.zero : const Offset(0, 1.5),
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
+              child: AnimatedOpacity(
+                opacity: _tabBarVisibility.visible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 84), // Nằm ngay trên TabBar
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Camera shortcut button
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
+                        ),
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6E40), // Cam Neo-Brutalism
+                            border: Border.all(color: context.textColor, width: 3),
+                            boxShadow: [
+                              BoxShadow(color: context.textColor, offset: const Offset(3, 3))
+                            ],
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Live button
+                      GestureDetector(
+                        onTap: () => Navigator.pushNamed(context, '/live-discover'),
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF2D55),
+                            border: Border.all(color: context.textColor, width: 3),
+                            boxShadow: [
+                              BoxShadow(color: context.textColor, offset: const Offset(3, 3))
+                            ],
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                CupertinoIcons.radiowaves_right,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              Text(
+                                'LIVE',
+                                style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  // ─── Badge Stream Logic (Giữ nguyên) ─────────────────────────────────────────
+  // ─── Badge Stream Logic (Tối ưu hóa tránh Connection Storm & Async Map) ─────────────────────────────────────────
   Stream<Map<String, int>> _getBadgeCountsStream(String currentUserId) {
     if (currentUserId.isEmpty) {
       return Stream.value({'likes': 0, 'messages': 0, 'moments': 0});
@@ -186,41 +274,30 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         .where('matchIds', arrayContains: currentUserId)
         .snapshots();
 
-    return matchesStream.asyncExpand((matchesSnapshot) {
-      return momentsStream.asyncMap((momentsSnapshot) async {
-        final likeSnapshot = await FirebaseFirestore.instance
-            .collection('swipe_history')
-            .where('targetUserId', isEqualTo: currentUserId)
-            .where('action', isEqualTo: 'like')
-            .get();
+    // Stream liked me của người dùng (tải từ MatchProvider)
+    final mProvider = Provider.of<MatchProvider>(context, listen: false);
+    final likedMeStream = mProvider.streamLikedMeUsers(currentUserId);
 
-        final matchedUserIds = <String>{};
-        for (var doc in matchesSnapshot.docs) {
-          final userIds = List<String>.from(doc['userIds'] ?? []);
-          matchedUserIds.addAll(userIds.where((id) => id != currentUserId));
-        }
+    // Stream thay đổi của chính user để lấy lastSeenMoments realtime
+    final userStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .snapshots();
 
-        final cancelledSnapshot = await FirebaseFirestore.instance
-            .collection('matches')
-            .where('userIds', arrayContains: currentUserId)
-            .where('status', isEqualTo: 'cancelled')
-            .get();
+    return Rx.combineLatest4(
+      matchesStream,
+      momentsStream,
+      likedMeStream,
+      userStream,
+      (QuerySnapshot matchesSnapshot, QuerySnapshot momentsSnapshot, List<UserModel> likedUsers, DocumentSnapshot userSnapshot) {
+        
+        // 1. Số lượt thích (likes) = Số user thích mình chưa phản hồi
+        final newLikesCount = likedUsers.length;
 
-        final cancelledUserIds = <String>{};
-        for (var doc in cancelledSnapshot.docs) {
-          final userIds = List<String>.from(doc['userIds'] ?? []);
-          cancelledUserIds.addAll(userIds.where((id) => id != currentUserId));
-        }
-
-        final newLikesCount = likeSnapshot.docs.where((doc) {
-          final userId = doc['userId'];
-          return !matchedUserIds.contains(userId) &&
-              !cancelledUserIds.contains(userId);
-        }).length;
-
+        // 2. Số tin nhắn chưa đọc
         int unreadMessagesCount = 0;
         for (var matchDoc in matchesSnapshot.docs) {
-          final matchData = matchDoc.data();
+          final matchData = matchDoc.data() as Map<String, dynamic>? ?? {};
           final lastMessageTime = matchData['lastMessageTime'];
           final lastMessageSenderId = matchData['lastMessageSenderId'];
           final lastSeen = matchData['lastSeen_$currentUserId'];
@@ -250,16 +327,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           }
         }
 
+        // 3. Số khoảnh khắc chưa đọc
         int newMomentsCount = 0;
         try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUserId)
-              .get();
-
           DateTime? lastSeenMoments;
-          if (userDoc.exists) {
-            final lastSeen = userDoc.data()?['lastSeenMoments'];
+          if (userSnapshot.exists) {
+            final userData = userSnapshot.data() as Map<String, dynamic>?;
+            final lastSeen = userData?['lastSeenMoments'];
             if (lastSeen is Timestamp) {
               lastSeenMoments = lastSeen.toDate();
             } else if (lastSeen is String) {
@@ -269,7 +343,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
           if (lastSeenMoments != null) {
             newMomentsCount = momentsSnapshot.docs.where((doc) {
-              final data = doc.data();
+              final data = doc.data() as Map<String, dynamic>? ?? {};
               final userId = data['userId'];
               final createdAt = data['createdAt'];
               if (userId == currentUserId) return false;
@@ -280,7 +354,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             }).length;
           } else {
             newMomentsCount = momentsSnapshot.docs
-                .where((doc) => doc.data()['userId'] != currentUserId)
+                .where((doc) => (doc.data() as Map<String, dynamic>?)?['userId'] != currentUserId)
                 .length;
           }
         } catch (e) {
@@ -297,7 +371,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           'messages': unreadMessagesCount,
           'moments': newMomentsCount,
         };
-      });
-    });
+      },
+    );
   }
 }

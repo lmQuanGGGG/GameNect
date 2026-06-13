@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/widgets/network_image.dart';
 import 'dart:ui';
 import '../../../core/providers/moment_provider.dart';
 import '../../../core/providers/chat_provider.dart';
@@ -9,10 +9,11 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/firestore_service.dart';
 import '../camera/camera_capture_screen.dart';
 import 'video_player_widget.dart';
+import '../../../core/utils/cdn_helper.dart';
 
 /// Widget hiển thị chi tiết một moment với video/ảnh fullscreen,
 /// thông tin user, reactions và action buttons (react, camera reply, send message).
-class MomentCard extends StatelessWidget {
+class MomentCard extends StatefulWidget {
   final dynamic moment;
   final String currentUserId;
 
@@ -22,7 +23,24 @@ class MomentCard extends StatelessWidget {
     required this.currentUserId,
   });
 
+  @override
+  State<MomentCard> createState() => _MomentCardState();
+}
+
+class _MomentCardState extends State<MomentCard>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   static final Map<String, Map<String, dynamic>> _userCache = {};
+  Future<Map<String, dynamic>?>? _userInfoFuture;
+  final Map<String, Future<DocumentSnapshot>> _reactionUserFutures = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _userInfoFuture = _getUserInfo(widget.moment.userId);
+  }
 
   Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
     if (_userCache.containsKey(userId)) {
@@ -35,6 +53,19 @@ class MomentCard extends StatelessWidget {
     }
     return null;
   }
+
+  dynamic get moment {
+    try {
+      final momentProvider = Provider.of<MomentProvider>(context);
+      return momentProvider.moments.firstWhere(
+        (m) => m.id == widget.moment.id,
+        orElse: () => widget.moment,
+      );
+    } catch (_) {
+      return widget.moment;
+    }
+  }
+  String get currentUserId => widget.currentUserId;
 
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
@@ -64,70 +95,64 @@ class MomentCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFF101012).withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(36),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.25),
-                blurRadius: 30,
-                spreadRadius: 2,
-                offset: const Offset(0, 10),
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black, width: 4),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black,
+              offset: Offset(8, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 6,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(3),
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Text('Chọn cảm xúc',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white)),
-              const SizedBox(height: 28),
-              Wrap(
-                spacing: 16, runSpacing: 16,
-                alignment: WrapAlignment.center,
-                children: ['❤️', '😍', '😂', '😮', '😢', '👏', '🔥', '🎉'].map((emoji) {
-                  return GestureDetector(
-                    onTap: () {
-                      Provider.of<MomentProvider>(context, listen: false)
-                          .reactToMoment(momentId, userId, emoji);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 68, height: 68,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
+            ),
+            const Text('CHỌN CẢM XÚC',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0)),
+            const SizedBox(height: 28),
+            Wrap(
+              spacing: 16, runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: ['❤️', '😍', '😂', '😮', '😢', '👏', '🔥', '🎉'].map((emoji) {
+                return GestureDetector(
+                  onTap: () {
+                    Provider.of<MomentProvider>(context, listen: false)
+                        .reactToMoment(momentId, userId, emoji);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    width: 68, height: 68,
+                    decoration: BoxDecoration(
+                      color: Colors.white, // White
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 3),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black,
+                          offset: Offset(4, 4),
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
+                    child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+          ],
         ),
       ),
     );
@@ -151,14 +176,13 @@ class MomentCard extends StatelessWidget {
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF101012).withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
-                  boxShadow: [
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.black, width: 4),
+                  boxShadow: const [
                     BoxShadow(
-                      color: const Color(0xFFFF6E40).withValues(alpha: 0.3),
-                      blurRadius: 30,
-                      spreadRadius: 2,
+                      color: Colors.black,
+                      offset: Offset(8, 8),
                     ),
                   ],
                 ),
@@ -167,38 +191,37 @@ class MomentCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Nhắn tin cho người đăng',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white)),
+                    const Text('NHẮN TIN CHO NGƯỜI ĐĂNG',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 0.5)),
                     const SizedBox(height: 20),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
-                        boxShadow: [
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.black, width: 2),
+                        boxShadow: const [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            color: Colors.black,
+                            offset: Offset(4, 4),
                           )
                         ]
                       ),
                       child: Theme(
-                        data: ThemeData.dark().copyWith(
+                        data: ThemeData.light().copyWith(
                           textSelectionTheme: const TextSelectionThemeData(
-                            cursorColor: Color(0xFFFF6E40),
-                            selectionColor: Color(0x55FF6E40),
-                            selectionHandleColor: Color(0xFFFF6E40),
+                            cursorColor: Colors.black,
+                            selectionColor: Colors.black26,
+                            selectionHandleColor: Colors.black,
                           ),
                         ),
                         child: TextField(
                           controller: controller,
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
-                          cursorColor: const Color(0xFFFF6E40),
+                          style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
+                          cursorColor: Colors.black,
                           maxLines: 4,
                           decoration: InputDecoration(
                             hintText: 'Nhập nội dung...',
-                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
+                            hintStyle: TextStyle(color: Colors.black.withValues(alpha: 0.5), fontSize: 16, fontWeight: FontWeight.w600),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
@@ -211,8 +234,8 @@ class MomentCard extends StatelessWidget {
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text('Hủy',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
+                          child: const Text('Hủy',
+                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16)),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
@@ -284,88 +307,99 @@ class MomentCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          margin: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F4F4), // Light background
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black, width: 4),
+          boxShadow: const [
+            BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 6,
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(3),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Text('Cảm xúc',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white)),
-              ),
-              const Divider(color: Colors.white24, height: 1),
-              Flexible(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  shrinkWrap: true,
-                  children: byUser.entries.map<Widget>((entry) {
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
-                      builder: (context, snapshot) {
-                        final user = snapshot.data?.data() as Map<String, dynamic>?;
-                        final avatarUrl = user?['avatarUrl'];
-                        final username = user?['username'] ?? entry.key;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 22,
-                                backgroundColor: Colors.grey[800],
-                                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text('CẢM XÚC',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0)),
+            ),
+            const Divider(color: Colors.black, height: 4, thickness: 3),
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                shrinkWrap: true,
+                children: byUser.entries.map<Widget>((entry) {
+                  final future = _reactionUserFutures.putIfAbsent(
+                    entry.key,
+                    () => FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                  );
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: future,
+                    builder: (context, snapshot) {
+                      final user = snapshot.data?.data() as Map<String, dynamic>?;
+                      final avatarUrl = user?['avatarUrl'];
+                      final username = user?['username'] ?? entry.key;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black, width: 3),
+                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.black, width: 2),
+                              ),
+                              child: CircleAvatar(
+                                radius: 20,
+                                backgroundColor: const Color(0xFF00E676),
+                                backgroundImage: avatarUrl != null ? cdnImageProvider(avatarUrl) : null,
                                 child: avatarUrl == null
                                     ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))
+                                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16))
                                     : null,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(username,
-                                    style: const TextStyle(
-                                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
-                              ),
-                              // All emojis from this user
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: entry.value.map((e) =>
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: Text(e, style: const TextStyle(fontSize: 22)),
-                                    )
-                                ).toList(),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  }).toList(),
-                ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(username.toUpperCase(),
+                                  style: const TextStyle(
+                                      color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.5)),
+                            ),
+                            // All emojis from this user
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: entry.value.map((e) =>
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: Text(e, style: const TextStyle(fontSize: 22)),
+                                  )
+                              ).toList(),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -384,8 +418,9 @@ class MomentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     return FutureBuilder<Map<String, dynamic>?>(
-      future: _getUserInfo(moment.userId),
+      future: _userInfoFuture,
       builder: (context, snapshot) {
         final userInfo = snapshot.data;
         final username = userInfo?['username'] ??
@@ -397,42 +432,67 @@ class MomentCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Media (ảnh hoặc video)
-              moment.isVideo
-                  ? VideoPlayerWidget(videoUrl: moment.mediaUrl)
-                  : Container(
-                      color: Colors.black,
-                      child: Center(
-                        child: CachedNetworkImage(
-                          imageUrl: moment.mediaUrl,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) =>
-                              const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
-                          errorWidget: (context, url, error) =>
-                              const Center(child: Icon(Icons.error_outline, color: Colors.white, size: 50)),
+              // Media (Khung viền tránh crop ảnh cho cả Web và Mobile App)
+              Positioned(
+                top: 16,
+                bottom: 110,
+                left: 16,
+                right: 16,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border.all(color: Colors.black, width: 3),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(6, 6),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      moment.isVideo
+                          ? VideoPlayerWidget(videoUrl: moment.mediaUrl)
+                          : GamenectNetworkImage(
+                              imageUrl: moment.mediaUrl,
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(color: Colors.deepOrange),
+                              ),
+                              errorWidget: (context, url, error) =>
+                                  const Center(child: Icon(Icons.error_outline, color: Colors.white, size: 50)),
+                            ),
+
+                      // Gradient overlay bên trong frame để đảm bảo chữ đè lên ảnh đọc được
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 200,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.85),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-
-              // Gradient overlay
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.5),
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.8),
                     ],
-                    stops: const [0.0, 0.3, 1.0],
                   ),
                 ),
               ),
 
-              // User info + caption
+              // User info + caption (được căn chỉnh đẹp mắt bên trong frame trên Web, hoặc fullscreen trên App)
               Positioned(
-                left: 20, right: 80,
+                left: 28,
+                right: 90,
                 bottom: 120,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,12 +503,13 @@ class MomentCard extends StatelessWidget {
                         Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2.5),
+                            border: Border.all(color: Colors.black, width: 3),
+                            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
                           ),
                           child: CircleAvatar(
                             radius: 22,
                             backgroundColor: Colors.grey[800],
-                            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                            backgroundImage: avatarUrl != null ? cdnImageProvider(avatarUrl) : null,
                             child: avatarUrl == null
                                 ? Text(username.substring(0, 1).toUpperCase(),
                                     style: const TextStyle(
@@ -463,12 +524,12 @@ class MomentCard extends StatelessWidget {
                             children: [
                               Text(username,
                                   style: const TextStyle(
-                                      color: Colors.white, fontSize: 17,
+                                      color: Colors.white, fontSize: 18, shadows: [Shadow(color: Colors.black, offset: Offset(2, 2))],
                                       fontWeight: FontWeight.w600, letterSpacing: 0.3)),
                               const SizedBox(height: 2),
                               Text(_formatTime(moment.createdAt),
                                   style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.7),
+                                      color: Colors.white, shadows: [Shadow(color: Colors.black, offset: Offset(1, 1))],
                                       fontSize: 13, fontWeight: FontWeight.w400)),
                             ],
                           ),
@@ -481,7 +542,7 @@ class MomentCard extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(moment.caption!,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 16,
+                              color: Colors.white, fontSize: 16, shadows: [Shadow(color: Colors.black, offset: Offset(1, 1))],
                               fontWeight: FontWeight.w400, height: 1.4),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis),
@@ -502,8 +563,12 @@ class MomentCard extends StatelessWidget {
                           return Wrap(
                             spacing: 8, runSpacing: 8,
                             children: byUser.entries.take(4).map<Widget>((entry) {
+                              final future = _reactionUserFutures.putIfAbsent(
+                                entry.key,
+                                () => FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                              );
                               return FutureBuilder<DocumentSnapshot>(
-                                future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                                future: future,
                                 builder: (context, snapshot) {
                                   final user = snapshot.data?.data() as Map<String, dynamic>?;
                                   final av = user?['avatarUrl'];
@@ -525,7 +590,7 @@ class MomentCard extends StatelessWidget {
                                             CircleAvatar(
                                               radius: 11,
                                               backgroundColor: Colors.grey[700],
-                                              backgroundImage: av != null ? NetworkImage(av) : null,
+                                              backgroundImage: av != null ? cdnImageProvider(av) : null,
                                               child: av == null
                                                   ? Text(uname.isNotEmpty ? uname[0].toUpperCase() : '?',
                                                       style: const TextStyle(color: Colors.white, fontSize: 9,
@@ -556,13 +621,13 @@ class MomentCard extends StatelessWidget {
               // TikTok-style vertical emoji bar on the RIGHT (only for others' moments)
               if (moment.userId != currentUserId)
                 Positioned(
-                  right: 12,
+                  right: 28,
                   bottom: 130,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ...['❤️', '😂', '🔥', '😍'].map((emoji) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.only(bottom: 16),
                       child: GestureDetector(
                         onTap: () {
                           Provider.of<MomentProvider>(context, listen: false)
@@ -579,38 +644,34 @@ class MomentCard extends StatelessWidget {
                             ),
                           );
                         },
-                        child: ClipOval(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                            child: Container(
-                              width: 48, height: 48,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1),
-                              ),
-                              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
-                            ),
+                        child: Container(
+                          width: 48, height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white, // White
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 3),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                            ],
                           ),
+                          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
                         ),
                       ),
                     )),
                     // + button
                     GestureDetector(
                       onTap: () => _showReactionPicker(context, moment.id, currentUserId),
-                      child: ClipOval(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                          child: Container(
-                            width: 48, height: 48,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
-                            ),
-                            child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
-                          ),
+                      child: Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00E5FF), // Cyan
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black, width: 3),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                          ],
                         ),
+                        child: const Icon(Icons.add_rounded, color: Colors.black, size: 28),
                       ),
                     ),
                   ],
@@ -619,11 +680,9 @@ class MomentCard extends StatelessWidget {
 
               // Action buttons bar (camera + send only)
               Positioned(
-                left: 20, right: 20, bottom: 40,
+                left: 16, right: 16, bottom: 40,
                 child: Row(
                   children: [
-
-                    const SizedBox(width: 12),
 
                     // Camera button
                     GestureDetector(
@@ -639,64 +698,50 @@ class MomentCard extends StatelessWidget {
                       child: Container(
                         width: 56, height: 56,
                         decoration: BoxDecoration(
+                          color: const Color(0xFFFF6E40), // Deep Orange
                           shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Colors.deepOrange, Colors.orange.shade600],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                                color: Colors.deepOrange.withValues(alpha: 0.5),
-                                blurRadius: 20, offset: const Offset(0, 5)),
+                          border: Border.all(color: Colors.black, width: 3),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
                           ],
                         ),
                         child: const Icon(Icons.camera_alt_rounded,
-                            color: Colors.white, size: 26),
+                            color: Colors.black, size: 28),
                       ),
                     ),
 
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
 
                     // Send message button
                     Expanded(
                       child: GestureDetector(
                         onTap: () => _showReplyDialog(context, moment.id, currentUserId),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                            child: Container(
-                              height: 56,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.4), width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.2),
-                                      blurRadius: 15, offset: const Offset(0, 5)),
-                                ],
+                        child: Container(
+                          height: 56,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F4F4), // Light gray
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.black, width: 3),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.chat_bubble_rounded,
+                                  color: Colors.black, size: 24),
+                              SizedBox(width: 8),
+                              Flexible(
+                                child: Text('GỬI',
+                                    style: TextStyle(
+                                        color: Colors.black, fontSize: 16,
+                                        fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                                    maxLines: 1),
                               ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.chat_bubble_outline_rounded,
-                                      color: Colors.white, size: 20),
-                                  SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text('Gửi',
-                                        style: TextStyle(
-                                            color: Colors.white, fontSize: 15,
-                                            fontWeight: FontWeight.w600, letterSpacing: 0.3),
-                                        maxLines: 1),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
@@ -709,5 +754,10 @@ class MomentCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }

@@ -13,6 +13,7 @@ import 'match_list_screen.dart';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../../../core/utils/cdn_helper.dart';
 
 // Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 
@@ -34,8 +35,11 @@ class _MatchScreenState extends State<MatchScreen> {
   void initState() {
     super.initState();
     matchProvider = Provider.of<MatchProvider>(context, listen: false);
-    // Sau khi build xong, tải dữ liệu đề xuất match
+    // Sau khi build xong, tải dữ liệu đề xuất match nếu chưa có sẵn
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (matchProvider.recommendations.isNotEmpty) {
+        return; // Đã tải sẵn từ lúc khởi động app
+      }
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
         final firestoreService = Provider.of<FirestoreService>(
@@ -72,55 +76,80 @@ class _MatchScreenState extends State<MatchScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.favorite, color: Colors.deepOrange, size: 48),
-            const SizedBox(height: 16),
-            CircleAvatar(
-              radius: 40,
-              backgroundImage: avatarUrl.isNotEmpty
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl.isEmpty
-                  ? const Icon(Icons.person, size: 40)
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Bạn đã match với $username!',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Hãy nhắn tin làm quen ngay nhé!',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F4F4), // Light background
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black, width: 4),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(8, 8))],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.favorite, color: Color(0xFFFF6E40), size: 56),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black, width: 3),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                ),
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: const Color(0xFFFFEB3B),
+                  backgroundImage: avatarUrl.isNotEmpty
+                      ? cdnImageProvider(avatarUrl)
+                      : null,
+                  child: avatarUrl.isEmpty
+                      ? const Icon(Icons.person, size: 40, color: Colors.black)
+                      : null,
                 ),
               ),
-              onPressed: () {
-                Navigator.pop(context); // Đóng dialog
-                // Điều hướng đến màn hình danh sách match
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MatchListScreen()),
-                );
-              },
-              child: const Text(
-                'Xem match',
-                style: TextStyle(color: Colors.white),
+              const SizedBox(height: 20),
+              Text(
+                'TƯƠNG HỢP VỚI\n${username.toUpperCase()}!',
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0, height: 1.2),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              const Text(
+                'Hãy nhắn tin làm quen ngay nhé!',
+                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context); // Đóng dialog
+                  // Điều hướng đến màn hình danh sách match
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MatchListScreen()),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6E40),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black, width: 3),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'XEM MATCH',
+                      style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -139,10 +168,10 @@ class _MatchScreenState extends State<MatchScreen> {
         elevation: 0,
         toolbarHeight: 60,
         titleSpacing: 0,
-        flexibleSpace: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: context.appBarBgColor),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            color: context.scaffoldBackgroundColor,
+            border: Border(bottom: BorderSide(color: context.isDarkMode ? Colors.white24 : Colors.black12, width: 1)),
           ),
         ),
         title: Row(
@@ -160,14 +189,8 @@ class _MatchScreenState extends State<MatchScreen> {
               'gamenect',
               style: TextStyle(
                 color: context.textColor,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w900,
                 fontSize: 22,
-                shadows: [
-                  Shadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
-                    blurRadius: 12,
-                  ),
-                ],
               ),
             ),
           ],
@@ -187,25 +210,30 @@ class _MatchScreenState extends State<MatchScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.amber, Colors.orange.shade600],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
+                        color: context.textColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.textColor, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: context.textColor,
+                            offset: const Offset(4, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
+                        children: [
+                          const Icon(
                             Icons.workspace_premium_rounded,
-                            color: Colors.white,
+                            color: Color(0xFFFF6E40),
                             size: 18,
                           ),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
                             'Premium',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              color: context.scaffoldBackgroundColor,
+                              fontWeight: FontWeight.w900,
                               fontSize: 13,
                             ),
                           ),
@@ -228,11 +256,11 @@ class _MatchScreenState extends State<MatchScreen> {
                     color: Color(0xFFFF6E40),
                     size: 20,
                   ),
-                  label: const Text(
+                  label: Text(
                     'Nâng cấp',
                     style: TextStyle(
-                      color: Color(0xFFFF6E40),
-                      fontWeight: FontWeight.w600,
+                      color: context.textColor,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   style: TextButton.styleFrom(
@@ -245,14 +273,32 @@ class _MatchScreenState extends State<MatchScreen> {
           // Nút cài đặt để điều chỉnh vị trí và các tùy chọn match
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6E40).withValues(alpha: 0.1),
-                shape: const CircleBorder(),
-                padding: const EdgeInsets.all(0),
-                minimumSize: const Size(40, 40),
-                elevation: 0,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: context.scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: context.textColor, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.textColor,
+                    offset: const Offset(2, 2),
+                  ),
+                ],
               ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.scaffoldBackgroundColor,
+                  foregroundColor: context.textColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.all(0),
+                  minimumSize: const Size(34, 34),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                ),
               onPressed: () async {
                 // Điều hướng đến màn hình cài đặt vị trí
                 final result = await Navigator.pushNamed(
@@ -284,34 +330,16 @@ class _MatchScreenState extends State<MatchScreen> {
               child: const Icon(
                 Icons.settings,
                 color: Color(0xFFFF6E40),
-                size: 20,
+                size: 18,
               ),
+            ),
             ),
           ),
         ],
       ),
       body: Stack(
         children: [
-          // Background Orbs để tạo hiệu ứng Liquid Glass cho Topbar
-          Positioned(
-            top: 0,
-            left: -50,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFF6E40).withValues(alpha: 0.15 * context.bgOrbOpacityMultiplier),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6E40).withValues(alpha: 0.1 * context.bgOrbOpacityMultiplier),
-                    blurRadius: 100,
-                    spreadRadius: 40,
-                  ),
-                ],
-              ),
-            ),
-          ),
+
 
           // Nội dung chính an toàn dưới Topbar
           SafeArea(
@@ -334,6 +362,10 @@ class _MatchScreenState extends State<MatchScreen> {
                 // Listener nhận raw pointer events TRƯỚC khi bất kỳ widget nào tiêu thụ chúng.
                 onPointerMove: (event) {
                   try {
+                    if (kIsWeb) return;
+                    // Tránh làm thay đổi giao diện/layout khi đang vuốt card ngang (ngăn xung đột khi swipe)
+                    if (event.delta.dx.abs() > event.delta.dy.abs()) return;
+
                     final controller = TabBarVisibility.of(context);
                     final dy = event.delta.dy;
                     if (dy < -5) {
@@ -375,6 +407,13 @@ class _MatchScreenState extends State<MatchScreen> {
                           padding: EdgeInsets.zero,
                           numberOfCardsDisplayed: users.length < 3 ? users.length : 3,
                           isLoop: false,
+                          threshold: kIsWeb ? 30 : 50, // Nhạy hơn trên Web
+                          allowedSwipeDirection: const AllowedSwipeDirection.only(
+                            left: true,
+                            right: true,
+                            up: false,
+                            down: false,
+                          ),
                           onSwipe: (int previousIndex, int? currentIndex, CardSwiperDirection direction) async {
                             if (previousIndex < 0 || previousIndex >= users.length) return true;
                             final swipedUser = users[previousIndex];
@@ -445,14 +484,27 @@ class _MatchScreenState extends State<MatchScreen> {
                                             // Avatar + tên
                                             Row(
                                               children: [
-                                                CircleAvatar(
-                                                  radius: 40,
-                                                  backgroundImage: (user.avatarUrl?.isNotEmpty == true)
-                                                      ? NetworkImage(user.avatarUrl!)
-                                                      : null,
-                                                  child: user.avatarUrl?.isEmpty != false
-                                                      ? const Icon(Icons.person, size: 40)
-                                                      : null,
+                                                Container(
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(color: context.textColor, width: 3),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: context.textColor,
+                                                        offset: const Offset(4, 4),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: CircleAvatar(
+                                                     radius: 40,
+                                                     backgroundColor: context.scaffoldBackgroundColor,
+                                                     backgroundImage: (user.avatarUrl?.isNotEmpty == true)
+                                                         ? cdnImageProvider(user.avatarUrl!)
+                                                         : null,
+                                                    child: user.avatarUrl?.isEmpty != false
+                                                        ? const Icon(Icons.person, size: 40, color: Color(0xFFFF6E40))
+                                                        : null,
+                                                  ),
                                                 ),
                                                 const SizedBox(width: 16),
                                                 Column(
@@ -501,12 +553,18 @@ class _MatchScreenState extends State<MatchScreen> {
                                                 padding: const EdgeInsets.symmetric(
                                                     horizontal: 14, vertical: 7),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
-                                                  borderRadius: BorderRadius.circular(20),
-                                                  border: Border.all(
-                                                      color: const Color(0xFFFF6E40).withValues(alpha: 0.5))),
+                                                  color: context.scaffoldBackgroundColor,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: context.textColor, width: 2),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: context.textColor,
+                                                      offset: const Offset(2, 2),
+                                                    ),
+                                                  ],
+                                                ),
                                                 child: Text(g, style: TextStyle(
-                                                    color: context.textColor, fontWeight: FontWeight.w600)),
+                                                    color: context.textColor, fontWeight: FontWeight.w900)),
                                               )).toList(),
                                             ),
                                             const SizedBox(height: 24),
@@ -514,31 +572,62 @@ class _MatchScreenState extends State<MatchScreen> {
                                             Row(
                                               children: [
                                                 Expanded(
-                                                  child: OutlinedButton.icon(
-                                                    onPressed: () => controller.swipe(CardSwiperDirection.left),
-                                                    icon: const Icon(Icons.close, color: Colors.red),
-                                                    label: const Text('Bỏ qua',
-                                                        style: TextStyle(color: Colors.red)),
-                                                    style: OutlinedButton.styleFrom(
-                                                      side: const BorderSide(color: Colors.red),
-                                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                                      shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(12))),
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: context.scaffoldBackgroundColor,
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      border: Border.all(color: context.textColor, width: 3),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: context.textColor,
+                                                          offset: const Offset(4, 4),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: ElevatedButton.icon(
+                                                      onPressed: () => controller.swipe(CardSwiperDirection.left),
+                                                      icon: Icon(Icons.close, color: context.textColor),
+                                                      label: Text('Bỏ qua',
+                                                          style: TextStyle(color: context.textColor, fontWeight: FontWeight.w900)),
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: context.scaffoldBackgroundColor,
+                                                        foregroundColor: context.textColor,
+                                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                                        elevation: 0,
+                                                        shadowColor: Colors.transparent,
+                                                        shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(12))),
+                                                    ),
                                                   ),
                                                 ),
-                                                const SizedBox(width: 12),
+                                                const SizedBox(width: 16),
                                                 Expanded(
-                                                  child: ElevatedButton.icon(
-                                                    onPressed: () => controller.swipe(CardSwiperDirection.right),
-                                                    icon: const Icon(Icons.favorite, color: Colors.white),
-                                                    label: const Text('Thích',
-                                                        style: TextStyle(color: Colors.white)),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: const Color(0xFFFF6E40),
-                                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                                      elevation: 0,
-                                                      shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(12))),
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: context.textColor,
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      border: Border.all(color: context.textColor, width: 3),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: context.textColor,
+                                                          offset: const Offset(4, 4),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: ElevatedButton.icon(
+                                                      onPressed: () => controller.swipe(CardSwiperDirection.right),
+                                                      icon: const Icon(Icons.favorite, color: Color(0xFFFF6E40)),
+                                                      label: Text('Thích',
+                                                          style: TextStyle(color: context.scaffoldBackgroundColor, fontWeight: FontWeight.w900)),
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: context.textColor,
+                                                        foregroundColor: context.scaffoldBackgroundColor,
+                                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                                        elevation: 0,
+                                                        shadowColor: Colors.transparent,
+                                                        shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(12))),
+                                                    ),
                                                   ),
                                                 ),
                                               ],

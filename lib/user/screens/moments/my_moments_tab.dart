@@ -5,8 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:ui';
 import '../../../core/providers/moment_provider.dart';
-import 'moment_card.dart';
+import '../../../core/providers/profile_provider.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../../../core/widgets/network_image.dart';
+import 'moment_card.dart';
 
 /// Tab "Của tôi" — hiển thị moments do user hiện tại đăng.
 /// Hỗ trợ xóa moment (long press) với xác nhận dialog.
@@ -91,21 +93,35 @@ class MyMomentsTab extends StatelessWidget {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, _) => Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.black,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: Colors.white, width: 4),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.white24,
+                blurRadius: 10,
+                offset: Offset(0, -4),
+              ),
+            ],
           ),
           child: Column(
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40, height: 4,
+                width: 40, height: 6,
                 decoration: BoxDecoration(
-                  color: Colors.white38,
-                  borderRadius: BorderRadius.circular(2),
+                  color: Colors.white54,
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
-              Expanded(child: MomentCard(moment: moment, currentUserId: userId)),
+              Expanded(
+                child: MomentCard(
+                  key: ValueKey(moment.id),
+                  moment: moment,
+                  currentUserId: userId,
+                ),
+              ),
             ],
           ),
         ),
@@ -117,6 +133,8 @@ class MyMomentsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
     final topPadding = MediaQuery.of(context).padding.top + 120;
+    final profileProvider = context.watch<ProfileProvider>();
+    final avatarUrl = profileProvider.userData?.avatarUrl;
 
     return Consumer<MomentProvider>(
       builder: (context, provider, _) {
@@ -134,24 +152,27 @@ class MyMomentsTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(40),
+                  padding: const EdgeInsets.all(24),
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.deepOrange.withValues(alpha: 0.2),
-                        Colors.orange.withValues(alpha: 0.1),
-                      ],
-                    ),
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: context.textColor, width: 3),
+                    boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
                   ),
-                  child: Icon(Icons.photo_library_rounded, size: 80,
-                      color: context.textColor.withValues(alpha: 0.3)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.photo_library_rounded, size: 64, color: context.textColor),
+                      const SizedBox(height: 12),
+                      Text(
+                        'CHƯA CÓ KHOẢNH KHẮC',
+                        style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 24),
-                Text('Bạn chưa đăng khoảnh khắc nào',
-                    style: TextStyle(color: context.textSecondaryColor, fontSize: 17, fontWeight: FontWeight.w500)),
               ],
             ),
           );
@@ -163,7 +184,7 @@ class MyMomentsTab extends StatelessWidget {
             maxCrossAxisExtent: 250,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.65,
+            childAspectRatio: 1.0,
           ),
           itemCount: myMoments.length,
           itemBuilder: (context, index) {
@@ -173,28 +194,23 @@ class MyMomentsTab extends StatelessWidget {
               onLongPress: () => _deleteMoment(context, moment.id),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: context.cardBorderColor, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: context.textColor, width: 3),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(13),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       // Thumbnail image/video
-                      Image.network(
-                        (moment.isVideo && moment.thumbnailUrl != null)
+                      GamenectNetworkImage(
+                        imageUrl: (moment.isVideo && moment.thumbnailUrl != null)
                             ? moment.thumbnailUrl!
                             : moment.mediaUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
+                        errorWidget: (_, __, ___) =>
                             Container(color: Colors.grey[900]),
                       ),
                       Container(
@@ -213,33 +229,72 @@ class MyMomentsTab extends StatelessWidget {
                       ),
                       if (moment.isVideo)
                         Positioned(
-                          top: 12, right: 12,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                                ),
-                                child: const Icon(Icons.play_arrow_rounded,
-                                    color: Colors.white, size: 20),
-                              ),
+                          top: 8, right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
+                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
                           ),
                         ),
-                      if (moment.caption?.isNotEmpty == true)
-                        Positioned(
-                          bottom: 12, left: 12, right: 12,
-                          child: Text(moment.caption!,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.3),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis),
+                      Positioned(
+                        bottom: 8, left: 8, right: 8,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (moment.caption?.isNotEmpty == true)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  moment.caption!,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500, height: 1.2),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 20, height: 20,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF6E40),
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    image: (avatarUrl?.isNotEmpty == true)
+                                        ? DecorationImage(
+                                            image: NetworkImage(avatarUrl!), 
+                                            fit: BoxFit.cover
+                                          ) 
+                                        : null,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: (avatarUrl?.isNotEmpty != true)
+                                      ? const Text('B', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))
+                                      : null,
+                                ),
+                                const SizedBox(width: 6),
+                                const Expanded(
+                                  child: Text(
+                                    'Bạn',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)]
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ),

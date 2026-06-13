@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'user/screens/main/main_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -28,8 +30,10 @@ import 'core/providers/game_provider.dart';
 import 'core/providers/mentor_provider.dart';
 import 'core/providers/livestream_provider.dart';
 import 'core/providers/wallet_provider.dart';
+import 'core/utils/fullscreen_helper.dart' if (dart.library.html) 'core/utils/fullscreen_helper_web.dart';
 import 'core/services/web_notification.dart';
 import 'core/services/web_message.dart';
+import 'core/utils/cdn_helper.dart';
 
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -38,6 +42,9 @@ import 'user/screens/matching/home_screen.dart';
 import 'user/screens/chat/chat_screen.dart';
 
 import 'user/user_app.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+late final SharedPreferences sharedPrefs;
 
 // Pending FCM message khi app được mở từ notification (top-level để tránh lỗi scope)
 RemoteMessage? _pendingFcmMessage;
@@ -64,6 +71,11 @@ void main() async {
   // Đảm bảo Flutter đã được khởi tạo trước khi thực hiện bất kỳ hoạt động bất đồng bộ nào
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    sharedPrefs = await SharedPreferences.getInstance();
+  } catch (e) {
+    developer.log('Lỗi khởi tạo SharedPreferences: $e', name: 'Init');
+  }
+  try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     developer.log(
@@ -76,6 +88,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (kIsWeb) {
+    startWebVideoContainTimer();
     try {
       await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
     } catch (e) {
@@ -209,21 +222,55 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
 
   try {
     if (kIsWeb) {
-      int targetIndex = 0; // Default: Khám phá
-      if (type == 'chat') {
-        targetIndex = 3; // MatchListScreen (Tin nhắn)
-      } else if (type == 'moment_reaction') {
-        targetIndex = 1; // MomentScreen (Feed)
-      } else if (type == 'like') {
-        targetIndex = 2; // LikedMeScreen (Lượt thích)
+      if (type == 'call') {
+        final matchId = data['matchId'] ?? '';
+        final peerUserId = data['peerUserId'] ?? '';
+        developer.log(
+          'Web FCM tap: Call notification clicked. matchId=$matchId peerUserId=$peerUserId',
+          name: 'FCM-Tap',
+        );
+        if (matchId.isNotEmpty && peerUserId.isNotEmpty) {
+          AppNotificationHandler.showIncomingCallDialog(matchId, peerUserId);
+        }
+        return;
       }
+      
+      // Chỉ xử lý các type hợp lệ của Web
+      if (type == 'chat' || type == 'moment_reaction' || type == 'like') {
+        int targetIndex = 0;
+        if (type == 'chat') {
+          targetIndex = 3; // MatchListScreen (Tin nhắn)
+        } else if (type == 'moment_reaction') {
+          targetIndex = 1; // MomentScreen (Feed)
+        } else if (type == 'like') {
+          targetIndex = 2; // LikedMeScreen (Lượt thích)
+        }
 
-      navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      mainScreenTabIndex.value = targetIndex;
-      developer.log(
-        'Web FCM tap: Navigated to tab index $targetIndex',
-        name: 'FCM-Tap',
-      );
+        navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        mainScreenTabIndex.value = targetIndex;
+        developer.log(
+          'Web FCM tap: Navigated to tab index $targetIndex',
+          name: 'FCM-Tap',
+        );
+        return;
+      } else if (type == 'mentor_live') {
+        final streamId = data['streamId'] ?? '';
+        if (streamId.isNotEmpty) {
+          navigatorKey.currentState?.popUntil((route) => route.isFirst);
+          navigatorKey.currentState?.pushNamed(
+            '/live-stream',
+            arguments: {'streamId': streamId, 'isMentor': false},
+          );
+          developer.log(
+            'Web FCM tap: Navigated to /live-stream streamId=$streamId',
+            name: 'FCM-Tap',
+          );
+        }
+        return;
+      }
+      
+      // Nếu type không khớp hoặc không hợp lệ, KHÔNG làm gì cả (tránh tự động chuyển về home screen)
+      developer.log('Web FCM tap: Unknown or unhandled notification type: $type', name: 'FCM-Tap');
       return;
     }
 
@@ -445,6 +492,14 @@ Future<void> _handleWebForegroundMessage(RemoteMessage message) async {
     }
   });
 
+  // Bỏ qua hiển thị thông báo tin nhắn nếu đang mở màn hình chat đó
+  if (data['type'] == 'chat') {
+    final matchId = data['matchId'] ?? '';
+    if (ChatProvider.currentActiveMatchId == matchId) {
+      return;
+    }
+  }
+
   await WebNotificationService.show(
     title: title,
     body: body,
@@ -520,10 +575,130 @@ class GameNectApp extends StatelessWidget {
             supportedLocales: const [Locale('vi', 'VN'), Locale('en', 'US')],
             locale: const Locale('vi', 'VN'),
             navigatorKey: navigatorKey,
+            scrollBehavior: const MaterialScrollBehavior().copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              },
+            ),
           );
         },
       ),
     );
+  }
+}
+
+// Helper function to initialize user services asynchronously after login
+Future<void> _setupUserSession(BuildContext context, String uid) async {
+  try {
+    final fcmToken = await NotificationController().getFirebaseToken();
+    developer.log(
+      'FCM Token retrieved after login: $fcmToken',
+      name: 'Auth',
+    );
+
+    if (!context.mounted) return;
+    final locationProvider = Provider.of<LocationProvider>(
+      context,
+      listen: false,
+    );
+    final profileProvider = Provider.of<ProfileProvider>(
+      context,
+      listen: false,
+    );
+    final chatProvider = Provider.of<ChatProvider>(
+      context,
+      listen: false,
+    );
+    final matchProvider = Provider.of<MatchProvider>(
+      context,
+      listen: false,
+    );
+    final momentProvider = Provider.of<MomentProvider>(
+      context,
+      listen: false,
+    );
+
+    await locationProvider.updateUserLocation(uid);
+
+    if (profileProvider.userData == null) {
+      await profileProvider.loadUserProfile();
+    }
+
+    if (profileProvider.userData != null) {
+      locationProvider.loadSettingsFromUser(
+        profileProvider.userData!,
+      );
+    }
+
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId != null) {
+      final matches = await matchProvider
+          .fetchMatchedUsersWithMatchId(currentUserId);
+      for (var match in matches) {
+        final matchId = match['matchId'] as String;
+        final peerUser = match['user'] as UserModel;
+        chatProvider.messagesStream(matchId, peerUser).listen((_) {});
+        chatProvider.listenForIncomingCalls(matchId, peerUser);
+      }
+
+      developer.log(
+        'Starting moment reactions listener...',
+        name: 'Auth',
+      );
+      await momentProvider.listenMoments(currentUserId);
+      developer.log('Moment listener started', name: 'Auth');
+
+      // TẢI SẴN & PRECACHE ẢNH CỦA 10 MOMENTS ĐẦU TIÊN
+      if (context.mounted) {
+        final topMoments = momentProvider.moments.take(10);
+        for (var m in topMoments) {
+          final imageUrl = (m.isVideo && m.thumbnailUrl != null)
+              ? m.thumbnailUrl!
+              : m.mediaUrl;
+          if (imageUrl.isNotEmpty) {
+            precacheImage(NetworkImage(toCdnUrl(imageUrl) ?? ''), context).catchError((_) => null);
+          }
+        }
+      }
+
+      // TẢI SẴN ĐỀ XUẤT MATCH & PRECACHE ẢNH CỦA 10 NGƯỜI ĐẦU TIÊN
+      if (profileProvider.userData != null) {
+        final userModel = profileProvider.userData!;
+        final candidateUsers = await FirestoreService().getAllUsers();
+        await matchProvider.fetchRecommendations(userModel, candidateUsers);
+        if (context.mounted) {
+          final topRecs = matchProvider.recommendations.take(10);
+          for (var rec in topRecs) {
+            // Precache avatar
+            if (rec.avatarUrl != null && rec.avatarUrl!.isNotEmpty) {
+              precacheImage(NetworkImage(toCdnUrl(rec.avatarUrl) ?? ''), context).catchError((_) => null);
+            }
+            // Precache additional photos (tải trước ảnh phụ)
+            for (var photo in rec.additionalPhotos.take(2)) {
+              if (photo.isNotEmpty) {
+                precacheImage(NetworkImage(toCdnUrl(photo) ?? ''), context).catchError((_) => null);
+              }
+            }
+          }
+        }
+      }
+
+      // Bắt đầu lắng nghe khi mentor follow đang live
+      if (context.mounted) {
+        Provider.of<MentorProvider>(
+          context,
+          listen: false,
+        ).startMentorLiveListener(currentUserId);
+        developer.log('Mentor live listener started', name: 'Auth');
+      }
+    }
+
+    await _handleWebDeepLinkIfAny();
+  } catch (e) {
+    developer.log('Error setting up user session: $e', name: 'Auth');
   }
 }
 
@@ -612,88 +787,26 @@ class AuthWrapper extends StatelessWidget {
 
         if (snapshot.hasData && snapshot.data != null) {
           developer.log('User logged in: ${snapshot.data!.uid}', name: 'Auth');
+          final uid = snapshot.data!.uid;
 
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            try {
-              final fcmToken = await NotificationController()
-                  .getFirebaseToken();
-              developer.log(
-                'FCM Token retrieved after login: $fcmToken',
-                name: 'Auth',
-              );
+          // Kiểm tra xem user đã có thông tin cá nhân (username) được lưu ở local preference chưa
+          final isProfileCompleted = sharedPrefs.getBool('profile_completed_$uid') ?? false;
 
-              if (!context.mounted) return;
-              final locationProvider = Provider.of<LocationProvider>(
-                context,
-                listen: false,
-              );
-              final profileProvider = Provider.of<ProfileProvider>(
-                context,
-                listen: false,
-              );
-              final chatProvider = Provider.of<ChatProvider>(
-                context,
-                listen: false,
-              );
-              final matchProvider = Provider.of<MatchProvider>(
-                context,
-                listen: false,
-              );
-              final momentProvider = Provider.of<MomentProvider>(
-                context,
-                listen: false,
-              );
+          if (isProfileCompleted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _setupUserSession(context, uid);
+            });
+            return const UserApp();
+          }
 
-              await locationProvider.updateUserLocation(snapshot.data!.uid);
-
-              if (profileProvider.userData == null) {
-                await profileProvider.loadUserProfile();
-              }
-
-              if (profileProvider.userData != null) {
-                locationProvider.loadSettingsFromUser(
-                  profileProvider.userData!,
-                );
-              }
-
-              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-              if (currentUserId != null) {
-                final matches = await matchProvider
-                    .fetchMatchedUsersWithMatchId(currentUserId);
-                for (var match in matches) {
-                  final matchId = match['matchId'] as String;
-                  final peerUser = match['user'] as UserModel;
-                  chatProvider.messagesStream(matchId, peerUser).listen((_) {});
-                  chatProvider.listenForIncomingCalls(matchId, peerUser);
-                }
-
-                developer.log(
-                  'Starting moment reactions listener...',
-                  name: 'Auth',
-                );
-                await momentProvider.listenMoments(currentUserId);
-                developer.log('Moment listener started', name: 'Auth');
-
-                // Bắt đầu lắng nghe khi mentor follow đang live
-                if (context.mounted) {
-                  Provider.of<MentorProvider>(
-                    context,
-                    listen: false,
-                  ).startMentorLiveListener(currentUserId);
-                  developer.log('Mentor live listener started', name: 'Auth');
-                }
-              }
-
-              await _handleWebDeepLinkIfAny();
-            } catch (e) {
-              developer.log('Error getting FCM token: $e', name: 'Auth');
-            }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _setupUserSession(context, uid);
           });
 
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
                 .collection('users')
-                .doc(snapshot.data!.uid)
+                .doc(uid)
                 .get(),
             builder: (context, userSnapshot) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
@@ -737,6 +850,9 @@ class AuthWrapper extends StatelessWidget {
               if (isNewUser) {
                 return const UserApp(initialRoute: '/profile');
               }
+
+              // Lưu trạng thái đã cấu hình xong thông tin cá nhân
+              sharedPrefs.setBool('profile_completed_$uid', true);
 
               final isAdmin = userData['isAdmin'] ?? false;
 

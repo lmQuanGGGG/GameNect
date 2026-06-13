@@ -1,20 +1,27 @@
 // lib/user/screens/mentor_media_screen.dart
-// Trang ảnh/video của Mentor — 10 ảnh + 3 video/tháng cho free, premium không giới hạn
 import 'dart:io';
-import 'dart:ui';
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/widgets/network_image.dart';
+import '../../../core/utils/thumbnail_helper.dart' if (dart.library.html) '../../../core/utils/thumbnail_helper_web.dart';
 import '../premium/subscription_screen.dart';
 import 'mentor_media_feed_screen.dart';
 
-const _kBg = Color(0xFF101012);
 const _kAccent = Color(0xFFFF6E40);
+const _kLiveRed = Color(0xFFFF2D55);
+const _kDarkBg = Color(0xFF121214);
+const _kLightBg = Color(0xFFF4F4F0);
+const _kDarkCard = Color(0xFF2A2A32);
+const _kLightCard = Colors.white;
 
 const _kFreePhotoLimit = 10;
 const _kFreeVideoLimit = 3;
@@ -33,9 +40,15 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
   final _picker = ImagePicker();
   bool _isUploading = false;
   double _uploadProgress = 0;
+  late final Stream<QuerySnapshot> _mediaStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _mediaStream = FirestoreService().getMentorMedia(widget.mentorId);
+  }
 
   // ── Check quota ──────────────────────────────────────────────────────────
-
   Future<bool> _checkQuota(String type) async {
     final isPremium = context.read<ProfileProvider>().userData?.isPremium ?? false;
     if (isPremium) return true;
@@ -45,80 +58,104 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
     final videos = counts['videos'] ?? 0;
 
     if (type == 'image' && photos >= _kFreePhotoLimit) {
-      _showPremiumDialog('Bạn đã đăng $photos/$_kFreePhotoLimit ảnh tháng này');
+      _showPremiumDialog('ĐÃ ĐĂNG $photos/$_kFreePhotoLimit ẢNH');
       return false;
     }
     if (type == 'video' && videos >= _kFreeVideoLimit) {
-      _showPremiumDialog('Bạn đã đăng $videos/$_kFreeVideoLimit video tháng này');
+      _showPremiumDialog('ĐÃ ĐĂNG $videos/$_kFreeVideoLimit VIDEO');
       return false;
     }
     return true;
   }
 
-  void _showPremiumDialog(String reason) {
+  void _showPremiumDialog(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? _kDarkCard : _kLightCard;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF1A1A1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 3),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(6, 6))],
+            borderRadius: BorderRadius.circular(13), // 16 - 3
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
+                  color: Colors.amber,
+                  border: Border.all(color: Colors.black, width: 3),
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [_kAccent, Colors.amber.shade600],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  ),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
                 ),
-                child: const Icon(Icons.workspace_premium, color: Colors.white, size: 36),
+                child: const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 40),
               ),
               const SizedBox(height: 20),
-              const Text('Nâng cấp Premium', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
-              const SizedBox(height: 10),
-              Text(reason, style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 14), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text('Premium: đăng ảnh & video không giới hạn mỗi tháng!',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13), textAlign: TextAlign.center),
+              Text(
+                title,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'MUA PREMIUM ĐỂ ĐĂNG ẢNH VÀ VIDEO KHÔNG GIỚI HẠN MỖI THÁNG!',
+                style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 24),
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white54,
-                      side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Để sau'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.star_rounded, size: 18),
-                    label: const Text('Mua Premium'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kAccent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isDark ? _kDarkBg : _kLightBg,
+                          border: Border.all(color: borderColor, width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: borderColor, offset: const Offset(3, 3))],
+                        ),
+                        child: Center(
+                          child: Text('ĐỂ SAU', style: TextStyle(color: textColor, fontWeight: FontWeight.w900, fontSize: 14)),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: _kAccent,
+                          border: Border.all(color: borderColor, width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: borderColor, offset: const Offset(3, 3))],
+                        ),
+                        child: const Center(
+                          child: Text('MUA NGAY', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -126,234 +163,282 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
     );
   }
 
-  // ── Upload image ─────────────────────────────────────────────────────────
-
+  // ── Upload methods ───────────────────────────────────────────────────────
   Future<void> _pickAndUploadImage() async {
+    final xFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 800);
+    if (xFile == null) return;
     final canUpload = await _checkQuota('image');
     if (!canUpload) return;
-
-    final xFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-      maxWidth: 800,
-    );
-    if (xFile == null) return;
-
+    
     final captionCtrl = TextEditingController();
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _CaptionDialog(controller: captionCtrl),
-    );
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => _CaptionDialog(controller: captionCtrl));
     if (confirmed != true) return;
 
-    await _uploadFile(File(xFile.path), 'image', caption: captionCtrl.text.trim());
+    await _uploadFile(xFile, 'image', caption: captionCtrl.text.trim());
   }
 
-  // ── Upload video ─────────────────────────────────────────────────────────
-
   Future<void> _pickAndUploadVideo() async {
+    final xFile = await _picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: _kMaxVideoDurationSec));
+    if (xFile == null) return;
     final canUpload = await _checkQuota('video');
     if (!canUpload) return;
 
-    final xFile = await _picker.pickVideo(
-      source: ImageSource.gallery,
-      maxDuration: const Duration(seconds: _kMaxVideoDurationSec),
-    );
-    if (xFile == null) return;
-
-    // Verify duration using VideoPlayerController
-    final vpCtrl = VideoPlayerController.file(File(xFile.path));
-    await vpCtrl.initialize();
-    final durationSec = vpCtrl.value.duration.inSeconds;
-    await vpCtrl.dispose();
-
-    if (durationSec > _kMaxVideoDurationSec) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Video phải dưới ${_kMaxVideoDurationSec}s (video của bạn: ${durationSec}s)'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    int durationSec = 0;
+    if (kIsWeb) {
+      durationSec = 0;
+    } else {
+      try {
+        final vpCtrl = VideoPlayerController.file(File(xFile.path));
+        await vpCtrl.initialize();
+        durationSec = vpCtrl.value.duration.inSeconds;
+        await vpCtrl.dispose();
+        if (durationSec > _kMaxVideoDurationSec) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('VIDEO PHẢI DƯỚI ${_kMaxVideoDurationSec}S (${durationSec}S)', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white)),
+            backgroundColor: _kLiveRed,
+          ));
+          return;
+        }
+      } catch (e) {
+        developer.log('Error reading video duration: $e', name: 'MentorMedia');
+      }
     }
 
     final captionCtrl = TextEditingController();
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _CaptionDialog(controller: captionCtrl, isVideo: true),
-    );
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => _CaptionDialog(controller: captionCtrl, isVideo: true));
     if (confirmed != true) return;
 
-    await _uploadFile(File(xFile.path), 'video',
-      caption: captionCtrl.text.trim(), durationSec: durationSec);
+    await _uploadFile(xFile, 'video', caption: captionCtrl.text.trim(), durationSec: durationSec > 0 ? durationSec : null);
   }
 
-  // ── Generic upload to Firebase Storage ──────────────────────────────────
-
-  Future<void> _uploadFile(File file, String type, {String caption = '', int? durationSec}) async {
+  Future<void> _uploadFile(XFile xFile, String type, {String caption = '', int? durationSec}) async {
     final uid = widget.mentorId;
-    final ext = file.path.split('.').last;
+    final ext = xFile.name.split('.').last;
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
     final ref = FirebaseStorage.instance.ref('mentor_media/$uid/$fileName');
 
     setState(() { _isUploading = true; _uploadProgress = 0; });
 
     try {
-      final task = ref.putFile(file);
+      String? thumbnailUrl;
+      if (type == 'video') {
+        try {
+          final thumbResult = await generateVideoThumbnail(xFile).timeout(const Duration(seconds: 3), onTimeout: () => null);
+          if (thumbResult != null) {
+            final thumbFileName = 'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            final thumbRef = FirebaseStorage.instance.ref('mentor_media/$uid/$thumbFileName');
+            if (kIsWeb && thumbResult.bytes != null) {
+              await thumbRef.putData(
+                Uint8List.fromList(thumbResult.bytes!),
+                SettableMetadata(
+                  contentType: 'image/jpeg',
+                  cacheControl: 'public, max-age=31536000',
+                ),
+              );
+              thumbnailUrl = await thumbRef.getDownloadURL();
+            } else if (!kIsWeb && thumbResult.path != null) {
+              await thumbRef.putFile(
+                File(thumbResult.path!),
+                SettableMetadata(
+                  contentType: 'image/jpeg',
+                  cacheControl: 'public, max-age=31536000',
+                ),
+              );
+              thumbnailUrl = await thumbRef.getDownloadURL();
+            }
+          }
+        } catch (e) { developer.log('Error thumbnail: $e'); }
+      }
+
+      String contentType = type == 'image' ? 'image/jpeg' : (xFile.name.split('.').last.toLowerCase() == 'webm' ? 'video/webm' : 'video/mp4');
+      final UploadTask task = kIsWeb
+          ? ref.putData(
+              await xFile.readAsBytes(),
+              SettableMetadata(
+                contentType: contentType,
+                cacheControl: 'public, max-age=31536000',
+              ),
+            )
+          : ref.putFile(
+              File(xFile.path),
+              SettableMetadata(
+                contentType: contentType,
+                cacheControl: 'public, max-age=31536000',
+              ),
+            );
+
       task.snapshotEvents.listen((s) {
-        if (mounted) {
-          setState(() => _uploadProgress = s.bytesTransferred / (s.totalBytes == 0 ? 1 : s.totalBytes));
-        }
+        if (mounted) setState(() => _uploadProgress = s.bytesTransferred / (s.totalBytes == 0 ? 1 : s.totalBytes));
       });
       await task;
       final url = await ref.getDownloadURL();
 
       await FirestoreService().addMentorMedia(
-        mentorId: uid,
-        type: type,
-        url: url,
-        caption: caption,
-        durationSeconds: durationSec,
+        mentorId: uid, type: type, url: url, thumbnailUrl: thumbnailUrl, caption: caption, durationSeconds: durationSec,
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(type == 'image' ? 'Đã đăng ảnh!' : 'Đã đăng video!'), backgroundColor: Colors.green),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(type == 'image' ? 'ĐÃ ĐĂNG ẢNH!' : 'ĐÃ ĐĂNG VIDEO!', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+        backgroundColor: Colors.green,
+      ));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi tải lên: $e'), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('LỖI: $e', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white)), backgroundColor: _kLiveRed));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
   }
 
-  // ── Delete ───────────────────────────────────────────────────────────────
-
-  Future<void> _deleteMedia(String docId, String url) async {
+  Future<void> _deleteMedia(String docId, String url, {String? thumbnailUrl}) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1E),
-        title: const Text('Xóa?', style: TextStyle(color: Colors.white)),
-        content: const Text('Bạn có chắc muốn xóa ảnh/video này?', style: TextStyle(color: Colors.white70)),
+        backgroundColor: isDark ? _kDarkCard : _kLightCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: isDark ? Colors.white : Colors.black, width: 3)),
+        title: Text('XÓA FILE?', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w900)),
+        content: Text('Bạn có chắc muốn xóa ảnh/video này?', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.bold)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy', style: TextStyle(color: Colors.white54))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('HỦY', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w900))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kLiveRed,
+              shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.white, width: 2), borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+            child: const Text('XÓA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+          ),
         ],
       ),
     );
     if (confirm != true) return;
     await FirestoreService().deleteMentorMedia(docId);
     try { await FirebaseStorage.instance.refFromURL(url).delete(); } catch (_) {}
+    if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
+      try { await FirebaseStorage.instance.refFromURL(thumbnailUrl).delete(); } catch (_) {}
+    }
   }
-
-  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? _kDarkBg : _kLightBg;
+    final cardColor = isDark ? _kDarkCard : _kLightCard;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final shadowColor = isDark ? Colors.white : Colors.black;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: bgColor,
         elevation: 0,
-        title: const Text('Ảnh & Video', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        title: Text('ALBUM MEDIA', style: TextStyle(color: textColor, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        centerTitle: false,
+        shape: Border(bottom: BorderSide(color: borderColor, width: 3)),
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _kAccent,
+              border: Border.all(color: borderColor, width: 2),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(2, 2))],
+            ),
+            child: const Icon(Icons.arrow_back_rounded, color: Colors.black, size: 20),
+          ),
         ),
         actions: widget.isSelf ? [
           PopupMenuButton<String>(
             icon: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: _kAccent, borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.add, color: Colors.white, size: 20),
+              decoration: BoxDecoration(
+                color: _kAccent,
+                border: Border.all(color: borderColor, width: 2),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(2, 2))],
+              ),
+              child: const Icon(CupertinoIcons.plus, color: Colors.black, size: 20),
             ),
-            color: const Color(0xFF1E1E22),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: borderColor, width: 3)),
             onSelected: (val) {
               if (val == 'image') _pickAndUploadImage();
               if (val == 'video') _pickAndUploadVideo();
             },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'image', child: Row(children: [
-                const Icon(Icons.photo, color: _kAccent, size: 20),
-                const SizedBox(width: 10),
+                const Icon(CupertinoIcons.photo, color: _kAccent, size: 24),
+                const SizedBox(width: 12),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Đăng ảnh', style: TextStyle(color: Colors.white)),
-                  Text('Tối đa $_kFreePhotoLimit ảnh/tháng (free)',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11)),
+                  Text('ĐĂNG ẢNH', style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
+                  Text('Tối đa $_kFreePhotoLimit/tháng (Free)', style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 10, fontWeight: FontWeight.bold)),
                 ]),
               ])),
               PopupMenuItem(value: 'video', child: Row(children: [
-                const Icon(Icons.videocam, color: _kAccent, size: 20),
-                const SizedBox(width: 10),
+                const Icon(CupertinoIcons.videocam_fill, color: _kLiveRed, size: 24),
+                const SizedBox(width: 12),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Đăng video', style: TextStyle(color: Colors.white)),
-                  Text('Tối đa ${_kMaxVideoDurationSec}s | $_kFreeVideoLimit video/tháng (free)',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11)),
+                  Text('ĐĂNG VIDEO', style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
+                  Text('Max ${_kMaxVideoDurationSec}s | $_kFreeVideoLimit/tháng', style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 10, fontWeight: FontWeight.bold)),
                 ]),
               ])),
             ],
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 16),
         ] : null,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-        ),
       ),
       body: Column(
         children: [
-          // Upload progress
           if (_isUploading)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: _kAccent.withValues(alpha: 0.15),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _kAccent,
+                border: Border(bottom: BorderSide(color: borderColor, width: 3)),
+              ),
               child: Row(children: [
-                const Icon(Icons.cloud_upload, color: _kAccent, size: 18),
-                const SizedBox(width: 10),
-                Expanded(child: LinearProgressIndicator(
-                  value: _uploadProgress,
-                  backgroundColor: Colors.white12,
-                  valueColor: const AlwaysStoppedAnimation(_kAccent),
-                )),
-                const SizedBox(width: 10),
-                Text('${(_uploadProgress * 100).toInt()}%',
-                  style: const TextStyle(color: _kAccent, fontWeight: FontWeight.bold)),
+                const Icon(CupertinoIcons.cloud_upload_fill, color: Colors.black, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 12,
+                    decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2), color: Colors.white),
+                    child: LinearProgressIndicator(
+                      value: _uploadProgress,
+                      backgroundColor: Colors.transparent,
+                      valueColor: const AlwaysStoppedAnimation(Colors.black),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text('${(_uploadProgress * 100).toInt()}%', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900)),
               ]),
             ),
 
-          // Quota info for self
-          if (widget.isSelf)
-            _QuotaBanner(mentorId: widget.mentorId),
+          if (widget.isSelf) _QuotaBanner(mentorId: widget.mentorId),
 
-          // Media grid
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirestoreService().getMentorMedia(widget.mentorId),
+              stream: _mediaStream,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: _kAccent));
-                }
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _kAccent, strokeWidth: 3));
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.photo_library_outlined, size: 64,
-                          color: Colors.white.withValues(alpha: 0.25)),
-                        const SizedBox(height: 12),
+                        Icon(CupertinoIcons.camera_on_rectangle, size: 64, color: textColor.withValues(alpha: 0.2)),
+                        const SizedBox(height: 16),
                         Text(
-                          widget.isSelf ? 'Chưa có ảnh/video nào\nBấm + để đăng lên!' : 'Mentor chưa đăng ảnh/video nào',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 15),
+                          widget.isSelf ? 'TRỐNG TRƠN\nBẤM DẤU + ĐỂ ĐĂNG ẢNH!' : 'MENTOR CHƯA CÓ MEDIA',
+                          style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -361,9 +446,7 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                   );
                 }
 
-                // Sort by createdAt descending client-side
-                final docs = [...snapshot.data!.docs];
-                docs.sort((a, b) {
+                final docs = [...snapshot.data!.docs]..sort((a, b) {
                   final aTs = (a.data() as Map)['createdAt'] as Timestamp?;
                   final bTs = (b.data() as Map)['createdAt'] as Timestamp?;
                   if (aTs == null) return 1;
@@ -372,12 +455,8 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                 });
 
                 return GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 4,
-                    mainAxisSpacing: 4,
-                  ),
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
@@ -386,53 +465,41 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                     final url = data['url'] as String? ?? '';
 
                     return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MentorMediaFeedScreen(
-                              docs: docs,
-                              initialIndex: i,
-                            ),
-                          ),
-                        );
-                      },
-                      onLongPress: widget.isSelf ? () => _deleteMedia(docId, url) : null,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (url.isNotEmpty)
-                              Image.network(
-                                isVideo ? (data['thumbnailUrl'] ?? url) : url,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _e, _st) => Container(
-                                  color: Colors.white10,
-                                  child: const Icon(Icons.broken_image, color: Colors.white38),
-                                ),
-                              )
-                            else
-                              Container(color: Colors.white10,
-                                child: const Icon(Icons.image, color: Colors.white24)),
-                            if (isVideo)
-                              Positioned(
-                                bottom: 4, right: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.7),
-                                    borderRadius: BorderRadius.circular(6),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MentorMediaFeedScreen(docs: docs, initialIndex: i))),
+                      onLongPress: widget.isSelf ? () => _deleteMedia(docId, url, thumbnailUrl: data['thumbnailUrl'] as String?) : null,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          border: Border.all(color: borderColor, width: 2),
+                          boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (url.isNotEmpty)
+                                (isVideo && (data['thumbnailUrl'] == null || data['thumbnailUrl'].toString().isEmpty))
+                                    ? Container(color: Colors.black12, child: const Icon(CupertinoIcons.play_circle_fill, color: Colors.white, size: 36))
+                                    : GamenectNetworkImage(imageUrl: isVideo ? data['thumbnailUrl']! : url, fit: BoxFit.cover)
+                              else
+                                Container(color: Colors.black12, child: const Icon(CupertinoIcons.photo, color: Colors.black26)),
+                              
+                              if (isVideo)
+                                Positioned(
+                                  bottom: 4, right: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    decoration: BoxDecoration(color: _kLiveRed, border: Border.all(color: Colors.white, width: 1.5), borderRadius: BorderRadius.circular(6)),
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      const Icon(CupertinoIcons.play_fill, color: Colors.white, size: 10),
+                                      if (data['duration'] != null) Text('${data['duration']}s', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
+                                    ]),
                                   ),
-                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    const Icon(Icons.play_arrow, color: Colors.white, size: 12),
-                                    if (data['duration'] != null)
-                                      Text('${data['duration']}s',
-                                        style: const TextStyle(color: Colors.white, fontSize: 9)),
-                                  ]),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -447,12 +514,9 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
   }
 }
 
-// ── Quota banner ──────────────────────────────────────────────────────────
-
 class _QuotaBanner extends StatefulWidget {
   final String mentorId;
   const _QuotaBanner({required this.mentorId});
-
   @override
   State<_QuotaBanner> createState() => _QuotaBannerState();
 }
@@ -470,53 +534,62 @@ class _QuotaBannerState extends State<_QuotaBanner> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final textColor = isDark ? Colors.white : Colors.black;
+    
     final photos = _counts?['photos'] ?? 0;
     final videos = _counts?['videos'] ?? 0;
     final isPremium = context.read<ProfileProvider>().userData?.isPremium ?? false;
+
     if (isPremium) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.amber.withValues(alpha: 0.1),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(color: Colors.amber, border: Border(bottom: BorderSide(color: borderColor, width: 3))),
         child: Row(children: [
-          const Icon(Icons.workspace_premium, color: Colors.amber, size: 16),
-          const SizedBox(width: 6),
-          const Text('Premium — Đăng không giới hạn', style: TextStyle(color: Colors.amber, fontSize: 13)),
+          const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 24),
+          const SizedBox(width: 8),
+          const Text('PREMIUM', style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900)),
+          const Spacer(),
+          const Text('KHÔNG GIỚI HẠN', style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
         ]),
       );
     }
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.white.withValues(alpha: 0.04),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? _kDarkCard : _kLightCard,
+        border: Border(bottom: BorderSide(color: borderColor, width: 3)),
+      ),
       child: Row(children: [
-        const Icon(Icons.photo, size: 15, color: Colors.white54),
-        const SizedBox(width: 4),
-        Text('$photos/$_kFreePhotoLimit ảnh', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Icon(CupertinoIcons.photo, size: 18, color: textColor),
+        const SizedBox(width: 6),
+        Text('$photos/$_kFreePhotoLimit', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w900)),
         const SizedBox(width: 16),
-        const Icon(Icons.videocam, size: 15, color: Colors.white54),
-        const SizedBox(width: 4),
-        Text('$videos/$_kFreeVideoLimit video', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Icon(CupertinoIcons.videocam_fill, size: 18, color: textColor),
+        const SizedBox(width: 6),
+        Text('$videos/$_kFreeVideoLimit', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w900)),
         const Spacer(),
         GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen())),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _kAccent.withValues(alpha: 0.15),
+              color: _kAccent,
+              border: Border.all(color: borderColor, width: 2),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _kAccent.withValues(alpha: 0.4)),
+              boxShadow: [BoxShadow(color: isDark ? Colors.white : Colors.black, offset: const Offset(2, 2))],
             ),
-            child: const Text('Nâng cấp', style: TextStyle(color: _kAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+            child: const Text('NÂNG CẤP', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900)),
           ),
         ),
       ]),
     );
   }
 }
-
-// ── Caption dialog ────────────────────────────────────────────────────────
 
 class _CaptionDialog extends StatelessWidget {
   final TextEditingController controller;
@@ -525,43 +598,48 @@ class _CaptionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? _kDarkCard : _kLightCard;
+    final borderColor = isDark ? Colors.white : Colors.black;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A1E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Text(isVideo ? 'Đăng video' : 'Đăng ảnh',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      content: TextField(
-        controller: controller,
-        style: const TextStyle(color: Colors.white),
-        maxLines: 3,
-        decoration: InputDecoration(
-          hintText: 'Thêm caption... (tùy chọn)',
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.05),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _kAccent)),
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: borderColor, width: 3)),
+      title: Text(isVideo ? 'ĐĂNG VIDEO' : 'ĐĂNG ẢNH', style: TextStyle(color: textColor, fontWeight: FontWeight.w900, letterSpacing: 1)),
+      content: Container(
+        decoration: BoxDecoration(
+          color: isDark ? _kDarkBg : _kLightBg,
+          border: Border.all(color: borderColor, width: 2),
+          boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(3, 3))],
+        ),
+        child: TextField(
+          controller: controller,
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Thêm caption... (tùy chọn)',
+            hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontWeight: FontWeight.bold),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.all(12),
+          ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+          child: Text('HỦY', style: TextStyle(color: textColor, fontWeight: FontWeight.w900)),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _kAccent, foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            backgroundColor: _kAccent, foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(side: BorderSide(color: borderColor, width: 2), borderRadius: BorderRadius.circular(8)),
+            elevation: 0,
           ),
-          child: const Text('Đăng'),
+          child: const Text('ĐĂNG NGAY', style: TextStyle(fontWeight: FontWeight.w900)),
         ),
       ],
     );
   }
 }
-

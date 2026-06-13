@@ -147,10 +147,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
-                color: context.cardBgColor,
+                color: Colors.white,
                 border: Border.all(
-                  color: context.cardBorderColor,
-                  width: 1,
+                  color: Colors.black,
+                  width: 3,
                 ),
               ),
               child: Row(
@@ -169,7 +169,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       child: IconButton(
                         icon: const Icon(
                           Icons.add_rounded,
-                          color: Color(0xFFFF6E40),
+                          color: Colors.black,
                           size: 22,
                         ),
                         onPressed: () => _handleMediaPick(context),
@@ -239,7 +239,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             gradient: LinearGradient(
                               colors: widget.isRecording
                                   ? [
-                                      const Color(0xFFFF6E40),
+                                      Colors.black,
                                       const Color(0xFFBF360C),
                                     ]
                                   : [
@@ -300,13 +300,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.mic_rounded, color: Color(0xFFFF6E40), size: 18),
+          const Icon(Icons.mic_rounded, color: Colors.black, size: 18),
           const SizedBox(width: 6),
           // Bộ đếm thời gian
           Text(
             _formatDuration(_recordDuration),
             style: const TextStyle(
-              color: Color(0xFFFF6E40),
+              color: Colors.black,
               fontSize: 16,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.0,
@@ -333,10 +333,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: context.dialogBgColor.withValues(alpha: 0.95),
+          color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           border: Border(
-            top: BorderSide(color: context.cardBorderColor),
+            top: BorderSide(color: Colors.black),
           ),
         ),
         child: SafeArea(
@@ -355,7 +355,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ListTile(
                 leading: const Icon(
                   Icons.photo_rounded,
-                  color: Color(0xFFFF6E40),
+                  color: Colors.black,
                 ),
                 title: Text(
                   'Chọn ảnh',
@@ -373,7 +373,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ListTile(
                 leading: const Icon(
                   Icons.videocam_rounded,
-                  color: Color(0xFFFF6E40),
+                  color: Colors.black,
                 ),
                 title: Text(
                   'Chọn video',
