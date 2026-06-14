@@ -31,8 +31,14 @@ class ChatProvider with ChangeNotifier {
   // Track các matchId đã nhận snapshot đầu tiên để tránh thông báo tin nhắn cũ
   final Set<String> _firstSnapshotMatchIds = {};
 
+  // Cache các tin nhắn đã được tải sẵn của từng cuộc hội thoại
+  final Map<String, List<Map<String, dynamic>>> _preloadedMessages = {};
+
   // Getter trả về danh sách tin nhắn
   List<Map<String, dynamic>> get messages => _messages;
+
+  // Getter trả về tin nhắn đã tải sẵn
+  List<Map<String, dynamic>>? getPreloadedMessages(String matchId) => _preloadedMessages[matchId];
   // Getter trả về trạng thái loading
   bool get isLoading => _isLoading;
   // Getter trả về trạng thái đối phương đang nhập
@@ -55,11 +61,24 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Hàm tải sẵn 10 tin nhắn mới nhất cho top 10 cuộc hội thoại
+  Future<void> preloadTopChatsMessages(List<String> matchIds) async {
+    for (final matchId in matchIds) {
+      try {
+        final msgs = await FirestoreService().getLatestMessages(matchId, limit: 10);
+        _preloadedMessages[matchId] = msgs;
+      } catch (e) {
+        debugPrint('Error preloading messages for match $matchId: $e');
+      }
+    }
+    notifyListeners();
+  }
+
   // Hàm gửi tin nhắn văn bản, gọi FirestoreService để gửi, sau đó cập nhật lại danh sách tin nhắn
-  Future<void> sendMessage(String matchId, String text, {UserModel? peerUser}) async {
+  Future<void> sendMessage(String matchId, String text, {UserModel? peerUser, Map<String, dynamic>? repliedMessage}) async {
     _isLoading = true;
     notifyListeners();
-    await FirestoreService().sendMessage(matchId, text);
+    await FirestoreService().sendMessage(matchId, text, repliedMessage: repliedMessage);
     await fetchMessages(matchId);
     _isLoading = false;
     notifyListeners();
@@ -101,6 +120,7 @@ Future<void> sendMediaWithNotify(
   bool isVideo = false,
   String? caption,
   UserModel? peerUser,
+  Map<String, dynamic>? repliedMessage,
 }) async {
   await FirestoreService().sendMediaWithNotify(
     matchId: matchId,
@@ -108,6 +128,7 @@ Future<void> sendMediaWithNotify(
     isVideo: isVideo,
     caption: caption,
     peerUser: peerUser,
+    repliedMessage: repliedMessage,
   );
   await fetchMessages(matchId);
   notifyListeners();
@@ -119,13 +140,24 @@ Future<void> sendMediaWithNotify(
     String text, {
     String? mediaUrl,
     bool isVideo = false,
+    Map<String, dynamic>? repliedMessage,
   }) async {
     await FirestoreService().sendMessageWithMedia(
       matchId: matchId,
       text: text,
       mediaUrl: mediaUrl,
       isVideo: isVideo,
+      repliedMessage: repliedMessage,
     );
+  }
+
+  // Hàm chuyển tiếp tin nhắn
+  Future<void> forwardMessage(List<String> matchIds, Map<String, dynamic> originalMsg) async {
+    _isLoading = true;
+    notifyListeners();
+    await FirestoreService().forwardMessage(matchIds, originalMsg);
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Hàm chia sẻ Game
@@ -147,10 +179,17 @@ Future<void> sendMediaWithNotify(
 
   }
 
+  // Hàm thu hồi tin nhắn
+  Future<void> recallMessage(String matchId, String messageId) async {
+    await FirestoreService().recallMessage(matchId, messageId);
+    notifyListeners();
+  }
+
   // Hàm trả về stream danh sách tin nhắn, đồng thời kiểm tra nếu có tin nhắn mới từ đối phương thì gửi thông báo, tránh gửi lặp lại bằng cách kiểm tra id/timestamp
   Stream<List<Map<String, dynamic>>> messagesStream(String matchId, UserModel peerUser) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     return FirestoreService().messagesStream(matchId).map((messages) {
+      _preloadedMessages[matchId] = messages;
       if (messages.isNotEmpty) {
         final lastMsg = messages.last;
         final msgId = lastMsg['id'] ?? lastMsg['timestamp']?.toString();
@@ -205,6 +244,7 @@ Future<void> sendMediaWithNotify(
     _incomingCallDialogCtxs.clear();
     _lastNotifiedMessageId.clear();
     _firstSnapshotMatchIds.clear(); // Reset trạng thái snapshot đầu tiên
+    _preloadedMessages.clear(); // Dọn dẹp cache tin nhắn tải sẵn
   }
 
   // Hàm lắng nghe cuộc gọi đến qua Firestore, nếu có cuộc gọi mới từ đối phương thì hiển thị thông báo cuộc gọi

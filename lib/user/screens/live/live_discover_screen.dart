@@ -861,16 +861,14 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                           color: isDark ? Colors.grey[800] : Colors.grey[200],
                           border: Border.all(color: borderColor, width: 3),
                           boxShadow: [BoxShadow(color: isDark ? Colors.white : Colors.black, offset: const Offset(4, 4))],
-                          image: (mentor['avatarUrl'] as String?)?.isNotEmpty == true
-                              ? DecorationImage(
-                                  image: NetworkImage(mentor['avatarUrl']!),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
                         ),
-                        child: (mentor['avatarUrl'] as String?)?.isNotEmpty != true
-                            ? Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black54, size: 32)
-                            : null,
+                        clipBehavior: Clip.hardEdge,
+                        child: (mentor['avatarUrl'] as String?)?.isNotEmpty == true
+                            ? GamenectNetworkImage(
+                                imageUrl: mentor['avatarUrl']!,
+                                fit: BoxFit.cover,
+                              )
+                            : Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black54, size: 32),
                       ),
                       if (isLive)
                         Positioned(

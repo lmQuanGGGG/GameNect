@@ -9,7 +9,6 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/firestore_service.dart';
 import '../camera/camera_capture_screen.dart';
 import 'video_player_widget.dart';
-import '../../../core/utils/cdn_helper.dart';
 
 /// Widget hiển thị chi tiết một moment với video/ảnh fullscreen,
 /// thông tin user, reactions và action buttons (react, camera reply, send message).
@@ -368,11 +367,23 @@ class _MomentCardState extends State<MomentCard>
                               child: CircleAvatar(
                                 radius: 20,
                                 backgroundColor: const Color(0xFF00E676),
-                                backgroundImage: avatarUrl != null ? cdnImageProvider(avatarUrl) : null,
-                                child: avatarUrl == null
-                                    ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
-                                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16))
-                                    : null,
+                                child: avatarUrl != null
+                                    ? ClipOval(
+                                        child: GamenectNetworkImage(
+                                          imageUrl: avatarUrl,
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : Text(
+                                        username.isNotEmpty ? username[0].toUpperCase() : '?',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -509,12 +520,23 @@ class _MomentCardState extends State<MomentCard>
                           child: CircleAvatar(
                             radius: 22,
                             backgroundColor: Colors.grey[800],
-                            backgroundImage: avatarUrl != null ? cdnImageProvider(avatarUrl) : null,
-                            child: avatarUrl == null
-                                ? Text(username.substring(0, 1).toUpperCase(),
+                            child: avatarUrl != null
+                                ? ClipOval(
+                                    child: GamenectNetworkImage(
+                                      imageUrl: avatarUrl,
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Text(
+                                    username.isNotEmpty ? username.substring(0, 1).toUpperCase() : '?',
                                     style: const TextStyle(
-                                        color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18))
-                                : null,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 18,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -590,12 +612,23 @@ class _MomentCardState extends State<MomentCard>
                                             CircleAvatar(
                                               radius: 11,
                                               backgroundColor: Colors.grey[700],
-                                              backgroundImage: av != null ? cdnImageProvider(av) : null,
-                                              child: av == null
-                                                  ? Text(uname.isNotEmpty ? uname[0].toUpperCase() : '?',
-                                                      style: const TextStyle(color: Colors.white, fontSize: 9,
-                                                          fontWeight: FontWeight.w700))
-                                                  : null,
+                                              child: av != null
+                                                  ? ClipOval(
+                                                      child: GamenectNetworkImage(
+                                                        imageUrl: av,
+                                                        width: 22,
+                                                        height: 22,
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    )
+                                                  : Text(
+                                                      uname.isNotEmpty ? uname[0].toUpperCase() : '?',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
+                                                    ),
                                             ),
                                             const SizedBox(width: 5),
                                             // All emojis inline

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../core/widgets/network_image.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/location_provider.dart';
@@ -619,9 +620,12 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Load thông tin profile sau khi build frame đầu tiên
+    // Load thông tin profile sau khi build frame đầu tiên nếu chưa có
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProfileProvider>().loadUserProfile();
+      final provider = context.read<ProfileProvider>();
+      if (provider.userData == null) {
+        provider.loadUserProfile();
+      }
     });
   }
 
@@ -896,9 +900,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                   shape: BoxShape.circle,
                                   border: Border.all(color: context.textColor, width: 3),
                                   boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(6, 6))],
-                                  image: DecorationImage(
-                                    image: cdnImageProvider(provider.userData!.avatarUrl, fallback: 'https://via.placeholder.com/400'),
+                                  color: context.cardBgColor,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(50),
+                                  child: GamenectNetworkImage(
+                                    imageUrl: provider.userData!.avatarUrl ?? '',
                                     fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(color: context.cardBgColor),
+                                    errorWidget: (context, url, error) => const Icon(Icons.person, size: 40),
                                   ),
                                 ),
                               ),

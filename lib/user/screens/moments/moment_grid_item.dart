@@ -220,12 +220,23 @@ class _MomentGridItemState extends State<MomentGridItem> {
                         child: CircleAvatar(
                           radius: 14,
                           backgroundColor: const Color(0xFF00E676),
-                          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                          child: avatarUrl == null
-                              ? Text(username[0].toUpperCase(),
+                          child: avatarUrl != null
+                              ? ClipOval(
+                                  child: GamenectNetworkImage(
+                                    imageUrl: avatarUrl,
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Text(
+                                  username.isNotEmpty ? username[0].toUpperCase() : '?',
                                   style: const TextStyle(
-                                      color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900))
-                              : null,
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(width: 6),

@@ -26,7 +26,6 @@ class LikedMeScreen extends StatefulWidget {
 class _LikedMeScreenState extends State<LikedMeScreen>
     with AutomaticKeepAliveClientMixin {
   bool isLoading = true;
-  bool isPremium = false;
 
   // Danh sách người đã thích mình
   List<UserModel> _likedMeUsers = [];
@@ -44,22 +43,20 @@ class _LikedMeScreenState extends State<LikedMeScreen>
   @override
   void initState() {
     super.initState();
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    if (profileProvider.userData != null) {
+      isLoading = false;
+    } else {
+      profileProvider.loadUserProfile();
+    }
     _initializeData();
   }
 
   // Khởi tạo dữ liệu khi mở màn hình
-  // Load thông tin premium và setup stream để lắng nghe realtime
+  // Setup stream để lắng nghe realtime và cập nhật thời gian xem likes
   Future<void> _initializeData() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
-
-    // Lấy thông tin user hiện tại để check premium
-    final currentUser = await FirestoreService().getCurrentUser();
-    if (currentUser != null && mounted) {
-      setState(() {
-        isPremium = currentUser.isPremium;
-      });
-    }
 
     // Cập nhật thời gian xem likes cuối cùng để reset badge
     await FirebaseFirestore.instance.collection('users').doc(userId).update({
@@ -70,30 +67,31 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       final matchProvider = Provider.of<MatchProvider>(context, listen: false);
 
       // Setup stream để lắng nghe danh sách người thích mình
-      _likedMeStream = matchProvider.streamLikedMeUsers(userId);
+      if (_likedMeStream == null) {
+        _likedMeStream = matchProvider.streamLikedMeUsers(userId);
+        _likedMeStream!.listen((users) {
+          if (mounted) {
+            setState(() {
+              _likedMeUsers = users;
+            });
+          }
+        });
+      }
+
       // Setup stream để lắng nghe danh sách người đã dislike
-      _myDislikedStream = matchProvider.streamMyDislikedUsers(
-        userId,
-        limit: 1000,
-      );
-
-      // Lắng nghe thay đổi danh sách người thích mình
-      _likedMeStream!.listen((users) {
-        if (mounted) {
-          setState(() {
-            _likedMeUsers = users;
-          });
-        }
-      });
-
-      // Lắng nghe thay đổi danh sách người đã dislike
-      _myDislikedStream!.listen((users) {
-        if (mounted) {
-          setState(() {
-            _myDislikedUsers = users;
-          });
-        }
-      });
+      if (_myDislikedStream == null) {
+        _myDislikedStream = matchProvider.streamMyDislikedUsers(
+          userId,
+          limit: 1000,
+        );
+        _myDislikedStream!.listen((users) {
+          if (mounted) {
+            setState(() {
+              _myDislikedUsers = users;
+            });
+          }
+        });
+      }
 
       setState(() {
         isLoading = false;
@@ -193,7 +191,6 @@ class _LikedMeScreenState extends State<LikedMeScreen>
               shape: BoxShape.circle,
               color: Colors.grey.shade800,
             ),
-            child: const CircularProgressIndicator(strokeWidth: 2),
           ),
           errorWidget: (context, url, error) {
             // Fallback nếu load ảnh lỗi
@@ -284,13 +281,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
 
   // Tab 1: Người đã thích tôi
   // FREE user chỉ xem 3 người đầu tiên, còn lại blur và hiện banner upsell
-  Widget _likedMeTab(String currentUserId) {
-    final shadowColors = const [
-      Color(0xFFFF6E40), // Orange
-      Color(0xFFC293FF), // Purple
-      Color(0xFFB9FF66), // Lime
-      Color(0xFF4EEAF6), // Cyan
-    ];
+  Widget _likedMeTab(String currentUserId, bool isPremium) {
 
     // Hiển thị empty state nếu chưa có ai thích
     if (_likedMeUsers.isEmpty) {
@@ -611,13 +602,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
 
   // Tab 2: Bỏ lỡ - danh sách người đã dislike
   // Chỉ Premium user mới xem được và có thể Rewind để thích lại
-  Widget _missedTab(String currentUserId) {
-    final shadowColors = const [
-      Color(0xFFFF6E40), // Orange
-      Color(0xFFC293FF), // Purple
-      Color(0xFFB9FF66), // Lime
-      Color(0xFF4EEAF6), // Cyan
-    ];
+  Widget _missedTab(String currentUserId, bool isPremium) {
 
     // Nếu chưa premium thì hiển thị banner upsell
     if (!isPremium) {
@@ -798,19 +783,15 @@ class _LikedMeScreenState extends State<LikedMeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final shadowColors = [
-      const Color(0xFFFF6E40), // Orange
-      const Color(0xFFC293FF), // Purple
-      const Color(0xFFB9FF66), // Lime
-      const Color(0xFF4EEAF6), // Cyan
-    ];
 
     super.build(context);
 
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final profileProvider = Provider.of<ProfileProvider>(context);
+    final isPremium = profileProvider.userData?.isPremium ?? false;
 
-    // Hiển thị loading khi đang khởi tạo dữ liệu
-    if (isLoading) {
+    // Hiển thị loading khi đang khởi tạo dữ liệu hoặc đang tải thông tin profile
+    if (isLoading || (profileProvider.userData == null && profileProvider.isLoading)) {
       return Scaffold(
         backgroundColor: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
         appBar: AppBar(
@@ -1013,8 +994,8 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                     )
                   : TabBarView(
                       children: [
-                        _likedMeTab(currentUserId),
-                        _missedTab(currentUserId),
+                        _likedMeTab(currentUserId, isPremium),
+                        _missedTab(currentUserId, isPremium),
                       ],
                     ),
             ),

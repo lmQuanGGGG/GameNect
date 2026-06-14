@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'chat_info_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,8 +31,14 @@ import '../../../core/utils/cdn_helper.dart';
 class ChatScreen extends StatefulWidget {
   final String matchId; // ID của match (dùng làm room chat)
   final UserModel peerUser; // Thông tin user đối phương
+  final bool showBackButton; // Có hiển thị nút back không
   
-  const ChatScreen({super.key, required this.matchId, required this.peerUser});
+  const ChatScreen({
+    super.key,
+    required this.matchId,
+    required this.peerUser,
+    this.showBackButton = true,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -46,6 +53,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final AudioRecorder _audioRecorder = AudioRecorder(); 
   bool _isRecording = false; 
   String? _recordingPath; 
+
+  bool _showInfoPane = false;
+  Map<String, dynamic>? _repliedMessage;
 
   // Realtime streams initialized once to prevent rebuild lag
   late Stream<List<Map<String, dynamic>>> _messagesStream;
@@ -411,7 +421,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final myAvatarUrl = chatProvider.currentUser?.avatarUrl ?? '';
     final peerAvatarUrl = widget.peerUser.avatarUrl ?? '';
 
-    return Scaffold(
+    final isLargeScreen = MediaQuery.of(context).size.width > 800;
+
+    final chatScaffold = Scaffold(
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: true,
@@ -442,24 +454,26 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Row(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.black, width: 0.8),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.chevron_left, color: Colors.black, size: 28),
-                              onPressed: () => Navigator.pop(context),
+                      if (widget.showBackButton) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.black, width: 0.8),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.chevron_left, color: Colors.black, size: 28),
+                                onPressed: () => Navigator.pop(context),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 12),
+                      ],
 
                       Expanded(
                         child: GestureDetector(
@@ -595,6 +609,29 @@ class _ChatScreenState extends State<ChatScreen> {
                               }
                             },
                           ),
+                          const SizedBox(width: 8),
+                          _buildGlassButton(
+                            icon: Icons.info_outline,
+                            onPressed: () {
+                              if (isLargeScreen) {
+                                setState(() {
+                                  _showInfoPane = !_showInfoPane;
+                                });
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatInfoScreen(
+                                      matchId: widget.matchId,
+                                      peerName: widget.peerUser.username,
+                                      myAvatarUrl: myAvatarUrl,
+                                      peerAvatarUrl: peerAvatarUrl,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ],
@@ -675,7 +712,17 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: StreamBuilder<List<Map<String, dynamic>>>(
                   stream: _messagesStream,
+                  initialData: chatProvider.getPreloadedMessages(widget.matchId),
                   builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      developer.log('ChatScreen MessagesStream error: ${snapshot.error}', name: 'ChatScreen', error: snapshot.error);
+                      return Center(
+                        child: Text(
+                          'Đã xảy ra lỗi tải tin nhắn: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      );
+                    }
                     if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator(color: Colors.black));
                     }
@@ -708,11 +755,18 @@ class _ChatScreenState extends State<ChatScreen> {
                                 crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                 children: [
                                   MessageBubbleWidget(
+                                    key: ValueKey(msg['id']),
                                     msg: msg,
                                     isMe: isMe,
                                     avatarUrl: avatarUrl,
                                     timeString: timeString,
                                     matchId: widget.matchId,
+                                    onReply: () {
+                                      setState(() {
+                                        _repliedMessage = msg;
+                                      });
+                                      _focusNode.requestFocus();
+                                    },
                                   ),
                                   Padding(
                                     padding: EdgeInsets.only(
@@ -726,7 +780,6 @@ class _ChatScreenState extends State<ChatScreen> {
                                         fontSize: 11,
                                         color: context.textTertiaryColor,
                                         fontWeight: FontWeight.w500,
-                                        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
                                       ),
                                     ),
                                   ),
@@ -758,7 +811,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           style: TextStyle(
                             color: context.textSecondaryColor,
                             fontSize: 13, fontStyle: FontStyle.italic,
-                            shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
                           ),
                         ),
                       ],
@@ -767,24 +819,102 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
 
-              ChatInputBar(
-                controller: _controller,
-                focusNode: _focusNode,
-                isRecording: _isRecording,
-                matchId: widget.matchId,
-                peerUserId: widget.peerUser.id,
-                onStartRecording: _startRecording,
-                onStopRecording: _stopAndSendRecording,
-                onCancelRecording: _cancelRecording,
-                onSendMedia: _sendMedia,
-                onSendMessage: (text) => chatProvider.sendMessage(
-                  widget.matchId, text, peerUser: widget.peerUser
+              if (_repliedMessage != null)
+                Container(
+                  margin: EdgeInsets.only(
+                    right: isLargeScreen ? (_showInfoPane ? 0.0 : 80.0) : 0.0,
+                    left: 0.0,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    border: const Border(top: BorderSide(color: Colors.black, width: 2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.reply, color: Colors.black54),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Đang trả lời ${_repliedMessage!['senderId'] == currentUserId ? 'chính bạn' : widget.peerUser.username}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            Text(
+                              _repliedMessage!['text'] ?? (_repliedMessage!['type'] == 'media' ? '[Hình ảnh/Video]' : '[Tin nhắn]'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.black54, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => setState(() => _repliedMessage = null),
+                      ),
+                    ],
+                  ),
+                ),
+
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: isLargeScreen ? 90.0 : 0.0,
+                  right: isLargeScreen ? (_showInfoPane ? 0.0 : 80.0) : 0.0,
+                  left: 0.0,
+                ),
+                child: ChatInputBar(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  isRecording: _isRecording,
+                  matchId: widget.matchId,
+                  peerUserId: widget.peerUser.id,
+                  onStartRecording: _startRecording,
+                  onStopRecording: _stopAndSendRecording,
+                  onCancelRecording: _cancelRecording,
+                  onSendMedia: _sendMedia,
+                  onSendMessage: (text) {
+                    chatProvider.sendMessage(
+                      widget.matchId, 
+                      text, 
+                      peerUser: widget.peerUser,
+                      repliedMessage: _repliedMessage,
+                    );
+                    if (_repliedMessage != null) {
+                      setState(() => _repliedMessage = null);
+                    }
+                  },
                 ),
               ),
             ],
           ),
         ],
       ),
+    );
+
+    return Row(
+      children: [
+        Expanded(child: chatScaffold),
+        if (isLargeScreen && _showInfoPane) ...[
+          Container(width: 2, color: Colors.black), // Neo divider
+          SizedBox(
+            width: 350,
+            child: ChatInfoScreen(
+              matchId: widget.matchId,
+              peerName: widget.peerUser.username,
+              myAvatarUrl: myAvatarUrl,
+              peerAvatarUrl: peerAvatarUrl,
+              onClose: () {
+                setState(() {
+                  _showInfoPane = false;
+                });
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
 

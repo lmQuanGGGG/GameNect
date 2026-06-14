@@ -29,6 +29,9 @@ class _MatchListScreenState extends State<MatchListScreen> {
   Stream<List<Map<String, dynamic>>>? _matchStream;
   String? _currentUserId;
 
+  String? _activeMatchId;
+  UserModel? _activePeerUser;
+
   Timer? _debounce;
   List<UserModel> _globalSearchResults = [];
   bool _isSearchingGlobal = false;
@@ -65,6 +68,25 @@ class _MatchListScreenState extends State<MatchListScreen> {
     });
   }
 
+  void _handleChatTap(BuildContext context, String matchId, UserModel peerUser, bool isLargeScreen) {
+    if (isLargeScreen) {
+      setState(() {
+        _activeMatchId = matchId;
+        _activePeerUser = peerUser;
+      });
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            matchId: matchId,
+            peerUser: peerUser,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -84,17 +106,16 @@ class _MatchListScreenState extends State<MatchListScreen> {
       // Load profile sau khi frame đầu tiên được build để tránh lỗi
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          Provider.of<ProfileProvider>(
-            context,
-            listen: false,
-          ).loadUserProfile();
+          final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+          if (profileProvider.userData == null) {
+            profileProvider.loadUserProfile();
+          }
         }
       });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildMobileOrLeftPane(BuildContext context, bool isLargeScreen) {
     final shadowColors = [
       const Color(0xFFFF6E40), // Orange
       const Color(0xFFC293FF), // Purple
@@ -346,7 +367,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                       });
 
                       // Sắp xếp theo thời gian tin nhắn cuối để hiển thị danh sách chat
-                      final sortedByMessageTime = [...filteredData];
+                      final sortedByMessageTime = filteredData.where((m) => m['lastMessage'] != null).toList();
                       sortedByMessageTime.sort((a, b) {
                         final aTime =
                             a['lastMessageTime'] ??
@@ -414,17 +435,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
 
                                     return GestureDetector(
                                       // Tap để vào chat
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ChatScreen(
-                                              matchId: matchId,
-                                              peerUser: user,
-                                            ),
-                                          ),
-                                        );
-                                      },
+                                      onTap: () => _handleChatTap(context, matchId, user, isLargeScreen),
                                       // Long press để unmatch
                                       onLongPress: () async {
                                         final confirm = await showDialog<bool>(
@@ -903,16 +914,146 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                   lastMessageSenderId != _currentUserId;
 
                               return InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ChatScreen(
-                                        matchId: matchId,
-                                        peerUser: user,
+                                onTap: () => _handleChatTap(context, matchId, user, isLargeScreen),
+                                onLongPress: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => Dialog(
+                                      backgroundColor: Colors.transparent,
+                                      elevation: 0,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: context.isDarkMode
+                                              ? Colors.black
+                                              : const Color(0xFFF4F4F4),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: context.isDarkMode
+                                                ? Colors.white
+                                                : Colors.black,
+                                            width: 3,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: context.isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                              offset: const Offset(8, 8),
+                                            ),
+                                          ],
+                                        ),
+                                        padding: const EdgeInsets.all(24),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Xóa hội thoại?',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight:
+                                                    FontWeight.w600,
+                                                color: context.textColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Text(
+                                              'Bạn có chắc muốn xóa cuộc trò chuyện với ${user.username}? (Bên kia vẫn sẽ giữ lại tin nhắn)',
+                                              style: TextStyle(
+                                                color: context
+                                                    .textSecondaryColor,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 24),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              children: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        ctx,
+                                                        false,
+                                                      ),
+                                                  style: TextButton.styleFrom(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 20,
+                                                          vertical: 12,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    'Không',
+                                                    style: TextStyle(
+                                                      color: context
+                                                          .textSecondaryColor,
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                ElevatedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        ctx,
+                                                        true,
+                                                      ),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        const Color(
+                                                          0xFFFF6E40,
+                                                        ),
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 24,
+                                                          vertical: 12,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                    elevation: 0,
+                                                  ),
+                                                  child: const Text(
+                                                    'Xóa',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   );
+                                  if (confirm == true) {
+                                    await Provider.of<MatchProvider>(
+                                      context,
+                                      listen: false,
+                                    ).clearChatForMe(matchId);
+                                    ScaffoldMessenger.of(
+                                      context,
+                                    ).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Đã xóa hội thoại với ${user.username}',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 },
                                 child: Container(
                                   child: ListTile(
@@ -1070,5 +1211,90 @@ class _MatchListScreenState extends State<MatchListScreen> {
     } else {
       return '${time.day}/${time.month}';
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isLargeScreen = constraints.maxWidth > 800;
+
+        if (isLargeScreen) {
+          return Scaffold(
+            backgroundColor: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+            body: Row(
+              children: [
+                SizedBox(
+                  width: 380,
+                  child: _buildMobileOrLeftPane(context, true),
+                ),
+                Container(width: 2, color: context.textColor), // Neo divider
+                Expanded(
+                  child: _activeMatchId != null && _activePeerUser != null
+                      ? ChatScreen(
+                          key: ValueKey(_activeMatchId!),
+                          matchId: _activeMatchId!,
+                          peerUser: _activePeerUser!,
+                          showBackButton: false,
+                        )
+                      : _buildEmptyState(),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return _buildMobileOrLeftPane(context, false);
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: context.cardBgColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: context.textColor, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.textColor,
+                    offset: const Offset(4, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 64,
+                color: context.textColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Tin nhắn của bạn',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: context.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Chọn một đoạn chat để bắt đầu trò chuyện',
+              style: TextStyle(
+                fontSize: 16,
+                color: context.textSecondaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

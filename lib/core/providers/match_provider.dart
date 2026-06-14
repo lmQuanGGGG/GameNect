@@ -218,11 +218,15 @@ class MatchProvider with ChangeNotifier {
       );
       if (isMutual) {
         if (currentUserId != targetUser.id) {
-          await FirestoreService().createNewMatch(
-            userIds: [currentUserId, targetUser.id],
-            game: 'Tên game',
-            expiresAt: DateTime.now().add(const Duration(hours: 24)),
-          );
+          // Kiem tra xem da co match ton tai chua de tranh bug bam 2 lan tao ra 2 cuoc hoi thoai
+          final existingMatch = await FirestoreService().getMatchBetweenUsers(currentUserId, targetUser.id);
+          if (existingMatch == null) {
+            await FirestoreService().createNewMatch(
+              userIds: [currentUserId, targetUser.id],
+              game: 'Tên game',
+              expiresAt: DateTime.now().add(const Duration(hours: 24)),
+            );
+          }
         }
         // Hiển thị dialog match thành công
       }
@@ -449,6 +453,12 @@ class MatchProvider with ChangeNotifier {
           }
         }
 
+        // Xử lý ẩn chat nếu user đã xóa hội thoại
+        final clearedAt = (data['clearedAt_$currentUserId'] as Timestamp?)?.toDate();
+        if (clearedAt != null && lastMessageTime != null && !lastMessageTime.isAfter(clearedAt)) {
+          lastMessage = null;
+        }
+
         return {
           'matchId': matchId,
           'user': user,
@@ -617,6 +627,12 @@ class MatchProvider with ChangeNotifier {
   // Hàm hủy match giữa hai người dùng
   Future<void> unmatch(String matchId) async {
     await FirestoreService().unmatch(matchId);
+    notifyListeners();
+  }
+
+  // Xóa hội thoại (ẩn tin nhắn)
+  Future<void> clearChatForMe(String matchId) async {
+    await FirestoreService().clearChatForMe(matchId);
     notifyListeners();
   }
 }

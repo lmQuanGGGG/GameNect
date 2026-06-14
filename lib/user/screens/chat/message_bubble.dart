@@ -8,6 +8,12 @@ import 'video_player_bubble.dart';
 import 'voice_message_bubble.dart';
 import 'full_screen_media_viewer.dart';
 import '../../../core/theme/theme_helper.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:any_link_preview/any_link_preview.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'forward_message_dialog.dart';
 
 /// Bubble hiển thị tin nhắn (text, image, video, voice, call)
 /// Chứa logic rendering, avatar cho bên nhận, và xử lý reactions (double tap/long press)
@@ -17,6 +23,7 @@ class MessageBubbleWidget extends StatelessWidget {
   final String avatarUrl;
   final String timeString;
   final String matchId;
+  final VoidCallback? onReply;
 
   const MessageBubbleWidget({
     required this.msg,
@@ -24,13 +31,17 @@ class MessageBubbleWidget extends StatelessWidget {
     required this.avatarUrl,
     required this.timeString,
     required this.matchId,
+    this.onReply,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isLargeScreen = MediaQuery.of(context).size.width > 800;
+    Widget content;
+    
     if (!isMe) {
-      return Row(
+      content = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -47,20 +58,189 @@ class MessageBubbleWidget extends StatelessWidget {
             ),
           ),
           Flexible(child: _buildMessageBubbleContent(context)),
+          if (isLargeScreen && onReply != null)
+            IconButton(
+              icon: const Icon(Icons.reply, size: 20, color: Colors.black54),
+              onPressed: onReply,
+              tooltip: 'Trả lời',
+            ),
         ],
       );
     } else {
-      return _buildMessageBubbleContent(context);
+      content = Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isLargeScreen && onReply != null)
+            IconButton(
+              icon: const Icon(Icons.reply, size: 20, color: Colors.black54),
+              onPressed: onReply,
+              tooltip: 'Trả lời',
+            ),
+          Flexible(child: _buildMessageBubbleContent(context)),
+        ],
+      );
+    }
+
+    return Dismissible(
+      key: ValueKey('dismiss_${msg['id']}'),
+      direction: isMe ? DismissDirection.endToStart : DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        if (onReply != null) {
+          onReply!();
+        }
+        return false;
+      },
+      background: Container(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: const Icon(Icons.reply, color: Colors.black54),
+      ),
+      child: content,
+    );
+  }
+
+  DateTime? _getDateTime(dynamic timestamp) {
+    if (timestamp == null) return null;
+    if (timestamp is DateTime) return timestamp;
+    if (timestamp is String) return DateTime.tryParse(timestamp);
+    // Assumes it has a toDate() method (like Firestore Timestamp)
+    try {
+      return (timestamp as dynamic).toDate();
+    } catch (_) {
+      return null;
     }
   }
 
+  String? _extractUrl(String text) {
+    final urlRegExp = RegExp(
+      r'(?:(?:https?):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+',
+      caseSensitive: false,
+    );
+    final match = urlRegExp.firstMatch(text);
+    if (match != null) {
+      String url = text.substring(match.start, match.end);
+      if (!url.startsWith('http')) {
+        url = 'https://$url';
+      }
+      return url;
+    }
+    return null;
+  }
+
   Widget _buildMessageBubbleContent(BuildContext context) {
+    final isRecalled = msg['isRecalled'] == true;
+
+    if (isRecalled) {
+      return Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: EdgeInsets.only(
+            bottom: 12,
+            left: isMe ? 40 : 8,
+            right: isMe ? 8 : 40,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: context.isDarkMode ? Colors.grey[850] : Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: context.isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            'Tin nhắn đã bị thu hồi',
+            style: TextStyle(
+              color: context.textSecondaryColor,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      );
+    }
+
     final isCall = msg['type'] == 'call';
     final isVoice = msg['type'] == 'voice';
     final isGame = msg['type'] == 'game';
 
     if (isGame) {
       return _buildGameMessageBubble(context);
+    }
+
+    final repliedToText = msg['repliedToText'];
+    final repliedToSender = msg['repliedToSender'];
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    Widget buildQuotedMessage() {
+      if (repliedToText == null) return const SizedBox.shrink();
+      final isReplyMe = repliedToSender == currentUserId;
+      return Container(
+        margin: EdgeInsets.only(
+          bottom: 4,
+          left: isMe ? 40 : 0,
+          right: isMe ? 8 : 40,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isMe ? Colors.black.withValues(alpha: 0.6) : Colors.grey[300],
+          borderRadius: BorderRadius.circular(12),
+          border: Border(left: BorderSide(color: isMe ? Colors.white : Colors.black, width: 4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isReplyMe ? 'Bạn' : 'Đối phương',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: isMe ? Colors.white70 : Colors.black87,
+              ),
+            ),
+            Text(
+              repliedToText,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: isMe ? Colors.white54 : Colors.black54,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget buildForwardedLabel() {
+      if (msg['isForwarded'] != true) return const SizedBox.shrink();
+      return Container(
+        margin: EdgeInsets.only(
+          bottom: 4,
+          left: isMe ? 40 : 0,
+          right: isMe ? 8 : 40,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.reply, size: 14, color: Colors.grey[600], textDirection: TextDirection.rtl),
+            const SizedBox(width: 4),
+            Text(
+              'Đã chuyển tiếp',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Xử lý long press chung
+    void handleLongPress() {
+      _showOptionsDialog(context);
     }
 
     // Xử lý cuộc gọi
@@ -161,8 +341,10 @@ class MessageBubbleWidget extends StatelessWidget {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
+          buildForwardedLabel(),
+          buildQuotedMessage(),
           GestureDetector(
-            onLongPress: !isMe ? () => _showReactionPicker(context) : null,
+            onLongPress: handleLongPress,
             onDoubleTap: !isMe
                 ? () {
                     Provider.of<ChatProvider>(
@@ -189,7 +371,7 @@ class MessageBubbleWidget extends StatelessWidget {
     final reactions = (msg['reactions'] as List?) ?? [];
 
     return GestureDetector(
-      onLongPress: !isMe ? () => _showReactionPicker(context) : null,
+      onLongPress: handleLongPress,
       onDoubleTap: !isMe
           ? () {
               Provider.of<ChatProvider>(
@@ -199,10 +381,10 @@ class MessageBubbleWidget extends StatelessWidget {
             }
           : null,
       child: Column(
-        crossAxisAlignment: isMe
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          buildForwardedLabel(),
+          buildQuotedMessage(),
           if (mediaUrl != null && mediaUrl.isNotEmpty)
             GestureDetector(
               onTap: () {
@@ -250,16 +432,7 @@ class MessageBubbleWidget extends StatelessWidget {
             ),
           ),
           if (text.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(20),
-                topRight: const Radius.circular(20),
-                bottomLeft: Radius.circular(isMe ? 20 : 4),
-                bottomRight: Radius.circular(isMe ? 4 : 20),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                child: Container(
+            Container(
                   margin: EdgeInsets.only(
                     left: isMe ? 40 : 0,
                     right: isMe ? 8 : 40,
@@ -287,17 +460,71 @@ class MessageBubbleWidget extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      color: isMe ? Colors.white : Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Linkify(
+                        text: text,
+                        onOpen: (link) async {
+                          final Uri uri = Uri.parse(link.url);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          }
+                        },
+                        style: TextStyle(
+                          color: isMe ? Colors.white : Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        linkStyle: const TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      if (_extractUrl(text) != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: IgnorePointer(
+                            ignoring: true, // Allow outer GestureDetector to catch long presses
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.grey[900]! : Colors.grey[200]!,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isMe ? Colors.white : Colors.black,
+                                  width: 2,
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: AnyLinkPreview(
+                                  link: _extractUrl(text)!,
+                                  displayDirection: UIDirection.uiDirectionVertical,
+                                  showMultimedia: true,
+                                  bodyMaxLines: 2,
+                                  bodyTextOverflow: TextOverflow.ellipsis,
+                                  titleStyle: TextStyle(
+                                    color: isMe ? Colors.white : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  bodyStyle: TextStyle(
+                                    color: isMe ? Colors.white70 : Colors.black54,
+                                    fontSize: 12,
+                                  ),
+                                  backgroundColor: Colors.transparent,
+                                  borderRadius: 0,
+                                  removeElevation: true,
+                                  errorWidget: const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-            ),
           if (reactions.isNotEmpty) _buildReactionsRow(reactions),
         ],
       ),
@@ -348,62 +575,6 @@ class MessageBubbleWidget extends StatelessWidget {
     );
   }
 
-  /// Bottom sheet chọn emoji nhanh
-  Future<void> _showReactionPicker(BuildContext context) async {
-    final emoji = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 40),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(
-            color: Colors.black,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 30,
-              spreadRadius: 2,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: SizedBox(
-              height: 70,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: ['👍', '❤️', '😂', '😮', '😢', '😡'].map((e) {
-                  return GestureDetector(
-                    onTap: () => Navigator.pop(context, e),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(shape: BoxShape.circle),
-                      child: Text(e, style: const TextStyle(fontSize: 32)),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    if (emoji != null && context.mounted) {
-      Provider.of<ChatProvider>(
-        context,
-        listen: false,
-      ).reactToMessage(matchId, msg['id'], emoji);
-    }
-  }
-
   Widget _buildGameMessageBubble(BuildContext context) {
     final gameName = msg['gameName'] ?? 'Game';
     final gameImage = msg['gameImage'] ?? '';
@@ -420,7 +591,9 @@ class MessageBubbleWidget extends StatelessWidget {
           );
         }
       },
-      onLongPress: !isMe ? () => _showReactionPicker(context) : null,
+      onLongPress: () {
+        _showOptionsDialog(context);
+      },
       onDoubleTap: !isMe
           ? () {
               Provider.of<ChatProvider>(
@@ -551,6 +724,97 @@ class MessageBubbleWidget extends StatelessWidget {
           ),
           if (reactions.isNotEmpty) _buildReactionsRow(reactions),
         ],
+      ),
+    );
+  }
+
+  void _showOptionsDialog(BuildContext context) {
+    final text = msg['text'] as String?;
+    final hasText = text != null && text.isNotEmpty && msg['type'] == 'text';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: context.isDarkMode ? const Color(0xFF2C2A29) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isMe) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: ['👍', '❤️', '😂', '😮', '😢', '😡'].map((e) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Provider.of<ChatProvider>(context, listen: false).reactToMessage(matchId, msg['id'], e);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(shape: BoxShape.circle),
+                      child: Text(e, style: const TextStyle(fontSize: 28)),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              Divider(color: context.textColor.withValues(alpha: 0.1)),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              'Tùy chọn tin nhắn',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: context.textColor,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (hasText)
+              ListTile(
+                leading: Icon(Icons.copy, color: context.textColor),
+                title: Text('Sao chép tin nhắn', style: TextStyle(color: context.textColor)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Clipboard.setData(ClipboardData(text: text));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đã sao chép vào bộ nhớ tạm')),
+                  );
+                },
+              ),
+            ListTile(
+              leading: Icon(Icons.reply, color: context.textColor, textDirection: TextDirection.rtl),
+              title: Text('Chuyển tiếp tin nhắn', style: TextStyle(color: context.textColor)),
+              onTap: () {
+                Navigator.pop(ctx);
+                showDialog(
+                  context: context,
+                  builder: (_) => ForwardMessageDialog(originalMsg: msg),
+                );
+              },
+            ),
+            if (isMe)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Thu hồi tin nhắn', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  final msgTime = _getDateTime(msg['timestamp']);
+                  if (msgTime != null && DateTime.now().difference(msgTime).inHours < 24) {
+                    Provider.of<ChatProvider>(context, listen: false).recallMessage(matchId, msg['id']);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chỉ có thể thu hồi tin nhắn trong vòng 24 giờ')),
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ part of '../firestore_service.dart';
 // Quản lý tin nhắn, voice message, media, reactions và call logs
 
 extension ChatServiceExtension on FirestoreService {
+  static final Map<String, DateTime?> _clearedAtCache = {};
   // Lấy danh sách tin nhắn một lần (không realtime)
   Future<List<Map<String, dynamic>>> getMessages(String matchId) async {
     final snapshot = await _db
@@ -16,7 +17,7 @@ extension ChatServiceExtension on FirestoreService {
   }
 
   // Gửi tin nhắn text
-  Future<void> sendMessage(String matchId, String text) async {
+  Future<void> sendMessage(String matchId, String text, {Map<String, dynamic>? repliedMessage}) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     await FirebaseFirestore.instance
@@ -28,6 +29,12 @@ extension ChatServiceExtension on FirestoreService {
           'text': text,
           'timestamp': FieldValue.serverTimestamp(),
           'type': 'text',
+          if (repliedMessage != null) ...{
+            'repliedToId': repliedMessage['id'],
+            'repliedToText': repliedMessage['text'],
+            'repliedToSender': repliedMessage['senderId'],
+            'repliedToType': repliedMessage['type'],
+          }
         });
 
     await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
@@ -44,6 +51,7 @@ extension ChatServiceExtension on FirestoreService {
     required String text,
     String? mediaUrl,
     bool isVideo = false,
+    Map<String, dynamic>? repliedMessage,
   }) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -57,6 +65,12 @@ extension ChatServiceExtension on FirestoreService {
           'mediaUrl': mediaUrl,
           'isVideo': isVideo,
           'timestamp': FieldValue.serverTimestamp(),
+          if (repliedMessage != null) ...{
+            'repliedToId': repliedMessage['id'],
+            'repliedToText': repliedMessage['text'],
+            'repliedToSender': repliedMessage['senderId'],
+            'repliedToType': repliedMessage['type'],
+          }
         });
 
     await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
@@ -76,6 +90,7 @@ extension ChatServiceExtension on FirestoreService {
     bool isVideo = false,
     String? caption,
     UserModel? peerUser,
+    Map<String, dynamic>? repliedMessage,
   }) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -90,6 +105,12 @@ extension ChatServiceExtension on FirestoreService {
           'caption': caption,
           'timestamp': FieldValue.serverTimestamp(),
           'type': 'media',
+          if (repliedMessage != null) ...{
+            'repliedToId': repliedMessage['id'],
+            'repliedToText': repliedMessage['text'],
+            'repliedToSender': repliedMessage['senderId'],
+            'repliedToType': repliedMessage['type'],
+          }
         });
 
     await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
@@ -100,6 +121,60 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessageSenderId': userId,
       'lastMessageRead': false,
     });
+  }
+
+  // Chuyển tiếp tin nhắn
+  Future<void> forwardMessage(List<String> matchIds, Map<String, dynamic> originalMsg) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null || matchIds.isEmpty) return;
+
+    final Map<String, dynamic> newMsg = {
+      'senderId': userId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'isForwarded': true,
+      'type': originalMsg['type'] ?? 'text',
+      if (originalMsg['text'] != null) 'text': originalMsg['text'],
+      if (originalMsg['mediaUrl'] != null) 'mediaUrl': originalMsg['mediaUrl'],
+      if (originalMsg['isVideo'] != null) 'isVideo': originalMsg['isVideo'],
+      if (originalMsg['audioUrl'] != null) 'audioUrl': originalMsg['audioUrl'],
+      if (originalMsg['duration'] != null) 'duration': originalMsg['duration'],
+      if (originalMsg['gameId'] != null) 'gameId': originalMsg['gameId'],
+      if (originalMsg['gameName'] != null) 'gameName': originalMsg['gameName'],
+      if (originalMsg['gameImageUrl'] != null) 'gameImageUrl': originalMsg['gameImageUrl'],
+    };
+
+    String lastMessageText = newMsg['text'] ?? 'Đã chuyển tiếp tin nhắn';
+    if (newMsg['type'] == 'media') {
+      lastMessageText = (newMsg['isVideo'] == true) ? 'Đã gửi video' : 'Đã gửi hình ảnh';
+    } else if (newMsg['type'] == 'voice') {
+      lastMessageText = 'Đã gửi tin nhắn thoại';
+    } else if (newMsg['type'] == 'game') {
+      lastMessageText = 'Đã chia sẻ một trò chơi';
+    }
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    for (final matchId in matchIds) {
+      final msgRef = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(matchId)
+          .collection('messages')
+          .doc();
+          
+      batch.set(msgRef, newMsg);
+
+      final matchRef = FirebaseFirestore.instance.collection('matches').doc(matchId);
+      batch.update(matchRef, {
+        'lastMessage': lastMessageText,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessageSenderId': userId,
+        'lastMessageRead': false,
+        if (newMsg['mediaUrl'] != null) 'lastMediaUrl': newMsg['mediaUrl'],
+        if (newMsg['isVideo'] != null) 'lastIsVideo': newMsg['isVideo'],
+      });
+    }
+
+    await batch.commit();
   }
 
   // Lưu log cuộc gọi vào messages
@@ -250,20 +325,101 @@ extension ChatServiceExtension on FirestoreService {
     }
   }
 
+  // Lấy danh sách tin nhắn mới nhất (phục vụ preload)
+  Future<List<Map<String, dynamic>>> getLatestMessages(String matchId, {int limit = 10}) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    
+    // Lấy thời điểm xóa chat của user hiện tại
+    DateTime? clearedAt;
+    if (userId != null) {
+      final cacheKey = '${matchId}_$userId';
+      if (_clearedAtCache.containsKey(cacheKey)) {
+        clearedAt = _clearedAtCache[cacheKey];
+      } else {
+        try {
+          final matchDoc = await FirebaseFirestore.instance
+              .collection('matches')
+              .doc(matchId)
+              .get()
+              .timeout(const Duration(seconds: 2));
+          clearedAt = (matchDoc.data()?['clearedAt_$userId'] as Timestamp?)?.toDate();
+          _clearedAtCache[cacheKey] = clearedAt;
+        } catch (_) {}
+      }
+    }
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(matchId)
+          .collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(limit)
+          .get();
+
+      final messages = <Map<String, dynamic>>[];
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        final msgTime = (data['timestamp'] as Timestamp?)?.toDate();
+        // Lọc bỏ các tin nhắn trước thời điểm xóa
+        if (clearedAt != null && msgTime != null && !msgTime.isAfter(clearedAt)) {
+          continue;
+        }
+        messages.add(data);
+      }
+      return messages.reversed.toList();
+    } catch (e) {
+      debugPrint('Error preloading messages: $e');
+      return [];
+    }
+  }
+
   // Stream tin nhắn real-time
   Stream<List<Map<String, dynamic>>> messagesStream(String matchId) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
     return FirebaseFirestore.instance
         .collection('chats')
         .doc(matchId)
         .collection('messages')
         .orderBy('timestamp', descending: false)
         .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
+        .asyncMap((snapshot) async {
+          if (snapshot.docs.isEmpty) {
+            return <Map<String, dynamic>>[];
+          }
+
+          // Lấy thời điểm xóa chat của user hiện tại
+          DateTime? clearedAt;
+          if (userId != null) {
+            final cacheKey = '${matchId}_$userId';
+            if (_clearedAtCache.containsKey(cacheKey)) {
+              clearedAt = _clearedAtCache[cacheKey];
+            } else {
+              try {
+                final matchDoc = await FirebaseFirestore.instance
+                    .collection('matches')
+                    .doc(matchId)
+                    .get()
+                    .timeout(const Duration(seconds: 2));
+                clearedAt = (matchDoc.data()?['clearedAt_$userId'] as Timestamp?)?.toDate();
+                _clearedAtCache[cacheKey] = clearedAt;
+              } catch (_) {}
+            }
+          }
+
+          final messages = <Map<String, dynamic>>[];
+          for (var doc in snapshot.docs) {
             final data = doc.data();
             data['id'] = doc.id;
-            return data;
-          }).toList();
+            final msgTime = (data['timestamp'] as Timestamp?)?.toDate();
+            // Lọc bỏ các tin nhắn trước thời điểm xóa
+            if (clearedAt != null && msgTime != null && !msgTime.isAfter(clearedAt)) {
+              continue;
+            }
+            messages.add(data);
+          }
+          return messages;
         });
   }
 
@@ -272,7 +428,7 @@ extension ChatServiceExtension on FirestoreService {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
     
-    // Lấy thông tin match hiện tại để kiểm tra
+    // Lấy thôngkiem tra
     final doc = await FirebaseFirestore.instance.collection('matches').doc(matchId).get();
     final data = doc.data();
     if (data != null && data['lastMessageSenderId'] != userId) {
@@ -280,6 +436,65 @@ extension ChatServiceExtension on FirestoreService {
         'lastMessageRead': true,
       });
     }
+  }
+
+  // Thu hồi tin nhắn
+  Future<void> recallMessage(String matchId, String messageId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    
+    final db = FirebaseFirestore.instance;
+    final msgRef = db.collection('chats').doc(matchId).collection('messages').doc(messageId);
+    final matchRef = db.collection('matches').doc(matchId);
+
+    try {
+      final msgSnapshot = await msgRef.get();
+      if (!msgSnapshot.exists) return;
+
+      final batch = db.batch();
+
+      batch.update(msgRef, {
+        'isRecalled': true,
+        'text': 'Tin nhắn đã bị thu hồi',
+        'type': 'text',
+        'mediaUrl': FieldValue.delete(),
+        'audioUrl': FieldValue.delete(),
+        'isVideo': FieldValue.delete(),
+        'gameId': FieldValue.delete(),
+      });
+
+      final matchDoc = await matchRef.get();
+      if (matchDoc.exists) {
+        final data = matchDoc.data();
+        final lastMsgTime = data?['lastMessageTime'] as Timestamp?;
+        final msgTime = msgSnapshot.data()?['timestamp'] as Timestamp?;
+
+        // Nếu tin nhắn này là tin nhắn cuối cùng (hoặc cùng timestamp)
+        if (lastMsgTime != null && msgTime != null && lastMsgTime.seconds == msgTime.seconds) {
+          batch.update(matchRef, {
+            'lastMessage': 'Tin nhắn đã bị thu hồi',
+            'lastMessageSenderId': userId,
+          });
+        }
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error recalling message: $e');
+    }
+  }
+
+  // Xóa hội thoại cho riêng mình (ẩn tin nhắn cũ)
+  Future<void> clearChatForMe(String matchId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
+      'clearedAt_$userId': FieldValue.serverTimestamp(),
+    });
+
+    final cacheKey = '${matchId}_$userId';
+    _clearedAtCache.remove(cacheKey);
   }
 
   // Cập nhật typing indicator

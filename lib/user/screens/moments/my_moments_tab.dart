@@ -260,21 +260,27 @@ class MyMomentsTab extends StatelessWidget {
                             Row(
                               children: [
                                 Container(
-                                  width: 20, height: 20,
+                                  width: 20,
+                                  height: 20,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFF6E40),
                                     border: Border.all(color: Colors.white, width: 1.5),
-                                    image: (avatarUrl?.isNotEmpty == true)
-                                        ? DecorationImage(
-                                            image: NetworkImage(avatarUrl!), 
-                                            fit: BoxFit.cover
-                                          ) 
-                                        : null,
                                   ),
-                                  alignment: Alignment.center,
-                                  child: (avatarUrl?.isNotEmpty != true)
-                                      ? const Text('B', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))
-                                      : null,
+                                  child: (avatarUrl?.isNotEmpty == true)
+                                      ? GamenectNetworkImage(
+                                          imageUrl: avatarUrl!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : const Center(
+                                          child: Text(
+                                            'B',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                                 const SizedBox(width: 6),
                                 const Expanded(

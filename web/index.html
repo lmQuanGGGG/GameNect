@@ -73,6 +73,53 @@
 
 <body>
   <script>
+    // Mô phỏng cử chỉ vuốt từ mép trái để quay lại (Back Swipe) như App trên trình duyệt di động
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isLeftEdgeTouch = false;
+
+    window.addEventListener('touchstart', function(e) {
+      if (e.touches && e.touches.length === 1) {
+        const touch = e.touches[0];
+        const edgeThreshold = 25; // Vùng nhận diện chạm mép
+        if (touch.clientX < edgeThreshold) {
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+          isLeftEdgeTouch = true;
+          // Ngăn chặn cử chỉ vuốt chuyển trang mặc định của trình duyệt
+          e.preventDefault();
+        } else if (touch.clientX > window.innerWidth - edgeThreshold) {
+          isLeftEdgeTouch = false;
+          // Chặn vuốt từ mép phải (để không bị forward gây lỗi)
+          e.preventDefault();
+        } else {
+          isLeftEdgeTouch = false;
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', function(e) {
+      if (isLeftEdgeTouch && e.touches && e.touches.length === 1) {
+        // Tiếp tục chặn chuyển trang của trình duyệt trong quá trình vuốt
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', function(e) {
+      if (isLeftEdgeTouch && e.changedTouches && e.changedTouches.length === 1) {
+        const touch = e.changedTouches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+
+        // Nếu vuốt ngang sang phải đủ xa (> 55px) và ít lệch chiều dọc (< 40px)
+        if (deltaX > 55 && deltaY < 40) {
+          // Gọi quay lại lịch sử (tương đương nhấn nút Back trong Flutter)
+          window.history.back();
+        }
+      }
+      isLeftEdgeTouch = false;
+    }, { passive: false });
+
     // Lưu pending notification từ Service Worker để Flutter pull khi sẵn sàng
     window.__pendingSwNotification = null;
     window.__swNotificationDelivered = false;

@@ -97,7 +97,7 @@ void main() async {
 
     try {
       FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
+        persistenceEnabled: false, // Tắt trên Web để tránh bị khóa IndexedDB gây treo
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
     } catch (e) {
@@ -681,9 +681,14 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
       for (var match in matches) {
         final matchId = match['matchId'] as String;
         final peerUser = match['user'] as UserModel;
-        chatProvider.messagesStream(matchId, peerUser).listen((_) {});
         chatProvider.listenForIncomingCalls(matchId, peerUser);
       }
+
+      // TẢI SẴN TIN NHẮN CỦA 10 CUỘC TRÒ CHUYỆN GẦN NHẤT (MỖI NGƯỜI 10 TIN NHẮN)
+      final topMatches = matches.take(10).map((m) => m['matchId'] as String).toList();
+      await chatProvider.preloadTopChatsMessages(topMatches);
+      developer.log('Preloaded last 10 messages for top 10 matches', name: 'Auth');
+
 
       developer.log(
         'Starting moment reactions listener...',
@@ -725,6 +730,25 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
             }
           }
         }
+      }
+
+      // TẢI SẴN MENTORS & PRECACHE ẢNH CỦA 10 MENTOR ĐẦU TIÊN
+      if (context.mounted) {
+        final mentorProvider = Provider.of<MentorProvider>(
+          context,
+          listen: false,
+        );
+        await mentorProvider.loadApprovedMentors();
+        if (context.mounted) {
+          final topMentors = mentorProvider.approvedMentors.take(10);
+          for (var mentor in topMentors) {
+            final avatarUrl = mentor['avatarUrl'] as String?;
+            if (avatarUrl != null && avatarUrl.isNotEmpty) {
+              precacheImage(NetworkImage(toCdnUrl(avatarUrl) ?? ''), context).catchError((_) => null);
+            }
+          }
+        }
+        developer.log('Preloaded approved mentors list and precached top 10 avatar images', name: 'Auth');
       }
 
       // Bắt đầu lắng nghe khi mentor follow đang live

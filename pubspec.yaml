@@ -89,6 +89,8 @@ dependencies:
   shared_preferences: ^2.5.5
   replay_kit_launcher: ^1.0.0
   wakelock_plus: ^1.5.2
+  flutter_linkify: ^6.0.0
+  any_link_preview: ^3.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
