@@ -322,20 +322,32 @@ class _ChatScreenState extends State<ChatScreen> {
       
       Overlay.of(context).insert(overlayEntry);
 
-      final file = File(localPath);
       final fileName = '${widget.matchId}_${DateTime.now().millisecondsSinceEpoch}${isVideo ? '.mp4' : '.jpg'}';
       final storageRef = FirebaseStorage.instance
           .ref()
           .child(isVideo ? 'chat_videos' : 'chat_images')
           .child(fileName);
 
-      await storageRef.putFile(
-        file,
-        SettableMetadata(
-          contentType: isVideo ? 'video/mp4' : 'image/jpeg',
-          cacheControl: 'public, max-age=31536000',
-        ),
-      );
+      if (kIsWeb) {
+        final response = await http.get(Uri.parse(localPath));
+        final bytes = response.bodyBytes;
+        await storageRef.putData(
+          bytes,
+          SettableMetadata(
+            contentType: isVideo ? 'video/mp4' : 'image/jpeg',
+            cacheControl: 'public, max-age=31536000',
+          ),
+        );
+      } else {
+        final file = File(localPath);
+        await storageRef.putFile(
+          file,
+          SettableMetadata(
+            contentType: isVideo ? 'video/mp4' : 'image/jpeg',
+            cacheControl: 'public, max-age=31536000',
+          ),
+        );
+      }
       final downloadUrl = await storageRef.getDownloadURL();
 
       if (mounted) {

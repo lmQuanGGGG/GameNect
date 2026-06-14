@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/profile_card.dart';
 import '../../../core/models/user_model.dart';
@@ -151,6 +152,166 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         }
       }
     }
+  }
+
+  void _showEditUserDialog(Map<String, dynamic> user, String userId) {
+    int currentCoins = (user['coinBalance'] ?? 0) as int;
+    bool isPremium = user['isPremium'] == true;
+    final coinController = TextEditingController(text: currentCoins.toString());
+    final reasonController = TextEditingController();
+    final premiumDaysController = TextEditingController(text: '30');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Colors.black, width: 2.5),
+              ),
+              title: const Text(
+                'Cập nhật tài khoản',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: coinController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.black),
+                      decoration: const InputDecoration(
+                        labelText: 'Số Coin',
+                        labelStyle: TextStyle(color: Colors.black54),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 1.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: reasonController,
+                      style: const TextStyle(color: Colors.black),
+                      decoration: const InputDecoration(
+                        labelText: 'Lý do cập nhật',
+                        labelStyle: TextStyle(color: Colors.black54),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 1.5)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      title: const Text('Premium Status', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      value: isPremium,
+                      activeColor: const Color(0xFFFF6E40),
+                      onChanged: (val) {
+                        setState(() {
+                          isPremium = val;
+                        });
+                      },
+                    ),
+                    if (isPremium) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: premiumDaysController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.black),
+                        decoration: const InputDecoration(
+                          labelText: 'Số ngày Premium',
+                          labelStyle: TextStyle(color: Colors.black54),
+                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 1.5)),
+                          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+                        ),
+                      ),
+                    ]
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Hủy', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81C784),
+                    border: Border.all(color: Colors.black, width: 2),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+                  ),
+                  child: TextButton(
+                    onPressed: () async {
+                      if (reasonController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Vui lòng nhập lý do cập nhật!'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
+
+                      final newCoins = int.tryParse(coinController.text) ?? currentCoins;
+                      final premiumDays = int.tryParse(premiumDaysController.text) ?? 30;
+
+                      try {
+                        final updates = <String, dynamic>{
+                          'coinBalance': newCoins,
+                          'isPremium': isPremium,
+                        };
+                        
+                        DateTime? endDate;
+                        if (isPremium) {
+                          endDate = DateTime.now().add(Duration(days: premiumDays));
+                          updates['subscriptionEndDate'] = endDate.toIso8601String();
+                          updates['subscriptionTier'] = 'monthly';
+                          if (user['premiumStartDate'] == null) {
+                            updates['premiumStartDate'] = DateTime.now().toIso8601String();
+                          }
+                        } else {
+                          updates['subscriptionTier'] = 'free';
+                        }
+                        
+                        await FirebaseFirestore.instance.collection('users').doc(userId).update(updates);
+                        
+                        final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown_admin';
+                        await FirebaseFirestore.instance.collection('transactions').add({
+                          'userId': userId,
+                          'adminId': adminId,
+                          'type': 'admin_update',
+                          'reason': reasonController.text.trim(),
+                          'oldCoins': currentCoins,
+                          'newCoins': newCoins,
+                          'coinDiff': newCoins - currentCoins,
+                          'isPremium': isPremium,
+                          'premiumDaysAdded': isPremium ? premiumDays : 0,
+                          'endDate': endDate?.toIso8601String(),
+                          'timestamp': FieldValue.serverTimestamp(),
+                        });
+
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Cập nhật tài khoản & ghi log thành công!'), backgroundColor: Colors.green),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Lưu', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildSearchBar() {
@@ -418,6 +579,27 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             const SizedBox(width: 8),
             Container(
               decoration: BoxDecoration(
+                color: const Color(0xFFFFF176),
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: Colors.black,
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                onPressed: () => _showEditUserDialog(user, userId),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
                 color: const Color(0xFFEF5350),
                 border: Border.all(color: Colors.black, width: 2),
                 borderRadius: BorderRadius.circular(8),
@@ -453,6 +635,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
+                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {

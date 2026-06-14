@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -150,9 +151,9 @@ class SubscriptionProvider with ChangeNotifier {
     }
 
     // URL trả về khi thanh toán thành công hoặc hủy
-    final baseUrl = 'https://incandescent-pavlova-a73522.netlify.app/';
-    final returnUrl = '$baseUrl/payment/success?orderCode=$orderCode';
-    final cancelUrl = '$baseUrl/payment/cancel?orderCode=$orderCode';
+    final baseUrl = kIsWeb ? Uri.base.origin : 'https://incandescent-pavlova-a73522.netlify.app';
+    final returnUrl = kIsWeb ? '${Uri.base.origin}/#/profile' : '$baseUrl/payment/success?orderCode=$orderCode';
+    final cancelUrl = kIsWeb ? '${Uri.base.origin}/#/profile' : '$baseUrl/payment/cancel?orderCode=$orderCode';
 
     final url = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests');
     final body = <String, dynamic>{

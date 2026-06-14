@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/subscription_provider.dart';
 import '../../../core/theme/theme_helper.dart';
@@ -231,7 +232,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
 
                         final uri = Uri.parse(checkoutUrl);
                         if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          await launchUrl(uri, mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication, webOnlyWindowName: '_self');
                         } else {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(

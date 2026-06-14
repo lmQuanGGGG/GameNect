@@ -7,6 +7,7 @@ import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
 import '../../../core/providers/wallet_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/theme/theme_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -446,7 +447,7 @@ class _TopupTabState extends State<_TopupTab> {
 
                               final url = Uri.parse(checkoutUrl);
                               if (await canLaunchUrl(url)) {
-                                await launchUrl(url, mode: LaunchMode.externalApplication);
+                                await launchUrl(url, mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication, webOnlyWindowName: '_self');
                               }
 
                               if (!completed) {

@@ -153,6 +153,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     icon: CupertinoIcons.mail,
                     keyboardType: TextInputType.emailAddress,
                     validator: _validateEmail,
+                    textInputAction: TextInputAction.next,
                   ),
                   const SizedBox(height: 14),
                   _buildTextField(
@@ -164,6 +165,10 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     obscureText: _obscurePassword,
                     onToggleObscure: () => setState(() => _obscurePassword = !_obscurePassword),
                     validator: _validatePassword,
+                    textInputAction: _isSignUp ? TextInputAction.next : TextInputAction.done,
+                    onFieldSubmitted: _isSignUp ? null : (_) {
+                      if (!authProvider.isLoading) _handleSubmit();
+                    },
                   ),
                   if (_isSignUp) ...[
                     const SizedBox(height: 14),
@@ -176,6 +181,10 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                       obscureText: _obscureConfirmPassword,
                       onToggleObscure: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                       validator: _validateConfirmPassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (!authProvider.isLoading) _handleSubmit();
+                      },
                     ),
                   ],
                   const SizedBox(height: 28),
@@ -276,6 +285,8 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     bool obscureText = false,
     VoidCallback? onToggleObscure,
     String? Function(String?)? validator,
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,6 +304,8 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
             controller: controller,
             keyboardType: keyboardType,
             obscureText: obscureText,
+            textInputAction: textInputAction ?? TextInputAction.next,
+            onFieldSubmitted: onFieldSubmitted,
             style: TextStyle(color: context.textColor, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: hint,

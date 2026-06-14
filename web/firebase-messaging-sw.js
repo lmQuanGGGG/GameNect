@@ -57,6 +57,7 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('notificationclick', (event) => {
+  event.stopImmediatePropagation();
   event.notification.close();
   const { targetUrl = '/', payload = {} } = event.notification.data || {};
 

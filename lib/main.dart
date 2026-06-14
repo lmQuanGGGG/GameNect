@@ -96,10 +96,24 @@ void main() async {
     }
 
     try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    } catch (e) {
+      developer.log('Error setting firestore persistence: $e', name: 'Firestore-Web');
+    }
+
+    try {
       bool isSupported = await FirebaseMessaging.instance.isSupported();
       if (isSupported) {
         await FirebaseMessaging.instance.requestPermission();
         FirebaseMessaging.onMessage.listen(_handleWebForegroundMessage);
+        
+        // Tự động cập nhật Token mới lên Firestore nếu Firebase thay đổi Token ngầm
+        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+          NotificationController.myFcmTokenHandle(newToken);
+        });
       } else {
         developer.log(
           'Push notifications not supported on this browser/tab. Skipping FCM init.',
@@ -248,8 +262,35 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
 
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
         mainScreenTabIndex.value = targetIndex;
+        
+        if (type == 'chat') {
+          final matchId = data['matchId'] ?? '';
+          final peerUserId = data['peerUserId'] ?? '';
+          if (matchId.isNotEmpty && peerUserId.isNotEmpty) {
+            final userDoc = await FirebaseFirestore.instance.collection('users').doc(peerUserId).get();
+            if (userDoc.exists && userDoc.data() != null) {
+              final peerUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
+              navigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(matchId: matchId, peerUser: peerUser),
+                ),
+              );
+            }
+          }
+        } else if (type == 'moment_reaction') {
+          final momentId = data['momentId'] ?? '';
+          if (momentId.isNotEmpty) {
+            navigatorKey.currentState?.pushNamed(
+              '/moments',
+              arguments: {'momentId': momentId},
+            );
+          }
+        } else if (type == 'like') {
+          navigatorKey.currentState?.pushNamed('/liked-me');
+        }
+
         developer.log(
-          'Web FCM tap: Navigated to tab index $targetIndex',
+          'Web FCM tap: Navigated to tab index $targetIndex and pushed detail',
           name: 'FCM-Tap',
         );
         return;

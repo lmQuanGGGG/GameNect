@@ -60,6 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _lookingFor = 'Bạn chơi game';
   String _gameStyle = 'Casual';
   DateTime? _createdAt;
+  UserModel? _existingUser;
 
   final List<String> _hotGames = [
     "League of Legends", "Arena of Valor", "Free Fire", "Genshin Impact",
@@ -119,6 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         
         if (userData != null) {
           setState(() {
+            _existingUser = userData;
             _isUpdating = true;
             _usernameController.text = userData.username;
             _rank = userData.rank;
@@ -286,31 +288,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final locationText = locationProvider.currentLocation ?? locationProvider.address ?? locationProvider.city ?? 'Không xác định';
 
-          UserModel newUser = UserModel(
-            id: user.uid,
-            username: _usernameController.text,
-            favoriteGames: _favoriteGames,
-            rank: _rank!,
-            location: locationText,
-            playTime: _playTime,
-            winRate: _winRate,
-            avatarUrl: _avatarUrl,
-            additionalPhotos: _additionalPhotoUrls,
-            latitude: locationProvider.latitude,
-            longitude: locationProvider.longitude,
-            address: locationProvider.address,
-            city: locationProvider.city,
-            country: locationProvider.country,
-            gender: _gender,
-            dateOfBirth: birthDate,
-            age: _calculateAge(birthDate),
-            height: int.parse(_heightController.text),
-            bio: _bioController.text,
-            interests: _interests,
-            lookingFor: _lookingFor,
-            gameStyle: _gameStyle,
-            createdAt: _createdAt ?? DateTime.now(),
-          );
+          UserModel newUser;
+          if (_existingUser != null) {
+            newUser = _existingUser!.copyWith(
+              username: _usernameController.text,
+              favoriteGames: _favoriteGames,
+              rank: _rank!,
+              location: locationText,
+              playTime: _playTime,
+              winRate: _winRate,
+              avatarUrl: _avatarUrl,
+              additionalPhotos: _additionalPhotoUrls,
+              latitude: locationProvider.latitude,
+              longitude: locationProvider.longitude,
+              address: locationProvider.address,
+              city: locationProvider.city,
+              country: locationProvider.country,
+              gender: _gender,
+              dateOfBirth: birthDate,
+              age: _calculateAge(birthDate),
+              height: int.parse(_heightController.text),
+              bio: _bioController.text,
+              interests: _interests,
+              lookingFor: _lookingFor,
+              gameStyle: _gameStyle,
+            );
+          } else {
+            newUser = UserModel(
+              id: user.uid,
+              username: _usernameController.text,
+              favoriteGames: _favoriteGames,
+              rank: _rank!,
+              location: locationText,
+              playTime: _playTime,
+              winRate: _winRate,
+              avatarUrl: _avatarUrl,
+              additionalPhotos: _additionalPhotoUrls,
+              latitude: locationProvider.latitude,
+              longitude: locationProvider.longitude,
+              address: locationProvider.address,
+              city: locationProvider.city,
+              country: locationProvider.country,
+              gender: _gender,
+              dateOfBirth: birthDate,
+              age: _calculateAge(birthDate),
+              height: int.parse(_heightController.text),
+              bio: _bioController.text,
+              interests: _interests,
+              lookingFor: _lookingFor,
+              gameStyle: _gameStyle,
+              createdAt: _createdAt ?? DateTime.now(),
+            );
+          }
           
           await _firestoreService.addUser(newUser);
           if (!mounted) return;

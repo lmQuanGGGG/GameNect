@@ -337,7 +337,6 @@ class NotificationController {
   // Lưu token vào Firestore để backend sử dụng gửi thông báo.
   @pragma("vm:entry-point")
   static Future<void> myFcmTokenHandle(String token) async {
-    if (kIsWeb) return;
     developer.log('FCM Token Handle: $token', name: 'FCM');
     await _saveTokenToFirestore(token);
   }

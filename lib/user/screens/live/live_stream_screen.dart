@@ -12,6 +12,7 @@ import 'package:replay_kit_launcher/replay_kit_launcher.dart';
 import '../../../core/providers/livestream_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter/foundation.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveBadge = Color(0xFFFF3B30);
@@ -976,7 +977,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           }
 
           // Local camera preview
-          return AgoraVideoView(
+          Widget localView = AgoraVideoView(
             controller: VideoViewController(
               rtcEngine: provider.engine!,
               canvas: VideoCanvas(
@@ -990,6 +991,15 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
               ),
             ),
           );
+          
+          // Lật ngang video local cho Web (Web SDK không tự lật)
+          if (kIsWeb && !provider.isScreenSharing) {
+            return Transform.flip(
+              flipX: true,
+              child: localView,
+            );
+          }
+          return localView;
         } else {
           // Remote broadcaster video
           if (provider.remoteUid == null) {
