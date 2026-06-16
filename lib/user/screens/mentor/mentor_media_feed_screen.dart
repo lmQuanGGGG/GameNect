@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/network_image.dart';
-import '../../../core/utils/cdn_helper.dart';
 import 'dart:ui';
 import '../chat/video_player_bubble.dart';
 import '../../../core/services/firestore_service.dart';
@@ -30,6 +31,11 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  String get _seenPostsKey {
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+    return 'seen_mentor_post_ids_$userId';
+  }
+
   List<DocumentSnapshot> get filteredDocs {
     if (_searchQuery.trim().isEmpty) return widget.docs;
     final query = _searchQuery.toLowerCase().trim();
@@ -37,16 +43,63 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
       final data = doc.data() as Map<String, dynamic>;
       final caption = (data['caption'] as String? ?? '').toLowerCase();
       final mentorId = data['mentorId'] as String? ?? '';
-      final mentorName = (MentorMediaFeedScreen.mentorCache[mentorId]?['username'] as String? ?? '').toLowerCase();
-      
+      final mentorName =
+          (MentorMediaFeedScreen.mentorCache[mentorId]?['username']
+                      as String? ??
+                  '')
+              .toLowerCase();
+
       return caption.contains(query) || mentorName.contains(query);
     }).toList();
+  }
+
+  void _preloadNextMedia(
+    int currentIndex,
+    List<DocumentSnapshot> docs,
+  ) {
+    if (currentIndex >= docs.length - 1) return;
+
+    final endIndex = (currentIndex + 2).clamp(0, docs.length - 1);
+
+    for (var index = currentIndex + 1; index <= endIndex; index++) {
+      final data = docs[index].data() as Map<String, dynamic>;
+      final isVideo = data['type'] == 'video';
+      final url = isVideo
+          ? (data['thumbnailUrl'] as String? ?? '')
+          : (data['url'] as String? ?? '');
+      if (url.isNotEmpty) {
+        precacheImage(CachedNetworkImageProvider(url), context);
+      }
+    }
+  }
+
+  Future<void> _markPostSeen(
+    int index,
+    List<DocumentSnapshot> docs,
+  ) async {
+    if (index < 0 || index >= docs.length) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final seenIds = prefs.getStringList(_seenPostsKey)?.toSet() ?? {};
+    if (seenIds.add(docs[index].id)) {
+      await prefs.setStringList(_seenPostsKey, seenIds.toList());
+    }
   }
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: widget.initialIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markPostSeen(widget.initialIndex, filteredDocs);
+    });
+    if (widget.initialIndex >= 9) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _preloadNextMedia(widget.initialIndex, filteredDocs);
+        }
+      });
+    }
   }
 
   @override
@@ -67,14 +120,25 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
       appBar: AppBar(
         backgroundColor: context.appBarBgColor,
         elevation: 0,
-        title: Text('BÀI VIẾT MENTOR', style: TextStyle(color: context.textColor, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-        iconTheme: IconThemeData(
-          color: context.textColor,
+        title: Text(
+          'BÀI VIẾT MENTOR',
+          style: TextStyle(
+            color: context.textColor,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.0,
+          ),
         ),
-        bottom: PreferredSize(preferredSize: const Size.fromHeight(3), child: Container(color: context.textColor, height: 3)),
+        iconTheme: IconThemeData(color: context.textColor),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: Container(color: context.textColor, height: 3),
+        ),
         actions: [
           IconButton(
-            icon: Icon(isGridMode ? Icons.view_agenda_rounded : Icons.grid_view_rounded, color: context.textColor),
+            icon: Icon(
+              isGridMode ? Icons.view_agenda_rounded : Icons.grid_view_rounded,
+              color: context.textColor,
+            ),
             onPressed: () {
               setState(() {
                 isGridMode = !isGridMode;
@@ -87,7 +151,7 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                 }
               });
             },
-          )
+          ),
         ],
       ),
       body: Stack(
@@ -96,10 +160,14 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
           isGridMode
               ? GridView.builder(
                   padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
-                      left: 12,
-                      right: 12,
-                      bottom: 100), // Extra bottom padding for search bar
+                    top:
+                        MediaQuery.of(context).padding.top +
+                        kToolbarHeight +
+                        16,
+                    left: 12,
+                    right: 12,
+                    bottom: 100,
+                  ), // Extra bottom padding for search bar
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 250,
                     crossAxisSpacing: 12,
@@ -108,7 +176,8 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                   ),
                   itemCount: docsToDisplay.length,
                   itemBuilder: (context, i) {
-                    final data = docsToDisplay[i].data() as Map<String, dynamic>;
+                    final data =
+                        docsToDisplay[i].data() as Map<String, dynamic>;
                     return MentorGridItem(
                       data: data,
                       onTap: () {
@@ -128,6 +197,12 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                   controller: _pageController,
                   scrollDirection: Axis.vertical,
                   itemCount: docsToDisplay.length,
+                  onPageChanged: (index) {
+                    _markPostSeen(index, docsToDisplay);
+                    if (index >= 9) {
+                      _preloadNextMedia(index, docsToDisplay);
+                    }
+                  },
                   itemBuilder: (context, index) {
                     return MentorMediaFeedCard(doc: docsToDisplay[index]);
                   },
@@ -136,7 +211,10 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
           // Transparent Neo-Brutalism Search Bar
           if (isGridMode)
             Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 20 + MediaQuery.of(context).viewInsets.bottom,
+              bottom:
+                  MediaQuery.of(context).padding.bottom +
+                  20 +
+                  MediaQuery.of(context).viewInsets.bottom,
               left: 20,
               right: 20,
               child: ClipRRect(
@@ -152,17 +230,34 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                     ),
                     child: TextField(
                       controller: _searchController,
-                      style: TextStyle(color: context.textColor, fontSize: 14, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: context.textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                       decoration: InputDecoration(
                         filled: false,
                         hintText: 'TÌM KIẾM MENTOR...',
-                        hintStyle: TextStyle(color: context.textSecondaryColor, fontWeight: FontWeight.w900),
-                        prefixIcon: Icon(Icons.search, color: context.textColor),
+                        hintStyle: TextStyle(
+                          color: context.textSecondaryColor,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: context.textColor,
+                        ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 15,
+                        ),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.clear, color: context.textColor, size: 20),
+                                icon: Icon(
+                                  Icons.clear,
+                                  color: context.textColor,
+                                  size: 20,
+                                ),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() {
@@ -198,7 +293,11 @@ class MentorGridItem extends StatefulWidget {
   State<MentorGridItem> createState() => _MentorGridItemState();
 }
 
-class _MentorGridItemState extends State<MentorGridItem> {
+class _MentorGridItemState extends State<MentorGridItem>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   Map<String, dynamic>? mentorData;
 
   @override
@@ -211,19 +310,29 @@ class _MentorGridItemState extends State<MentorGridItem> {
     final mentorId = widget.data['mentorId'] as String? ?? '';
     if (mentorId.isNotEmpty) {
       if (MentorMediaFeedScreen.mentorCache.containsKey(mentorId)) {
-        if (mounted) setState(() => mentorData = MentorMediaFeedScreen.mentorCache[mentorId]);
+        if (mounted)
+          setState(
+            () => mentorData = MentorMediaFeedScreen.mentorCache[mentorId],
+          );
         return;
       }
-      final doc = await FirebaseFirestore.instance.collection('users').doc(mentorId).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(mentorId)
+          .get();
       if (doc.exists && mounted) {
-        MentorMediaFeedScreen.mentorCache[mentorId] = doc.data() as Map<String, dynamic>;
-        setState(() => mentorData = MentorMediaFeedScreen.mentorCache[mentorId]);
+        MentorMediaFeedScreen.mentorCache[mentorId] =
+            doc.data() as Map<String, dynamic>;
+        setState(
+          () => mentorData = MentorMediaFeedScreen.mentorCache[mentorId],
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isVideo = widget.data['type'] == 'video';
     final url = widget.data['url'] as String? ?? '';
     final caption = widget.data['caption'] as String?;
@@ -237,7 +346,9 @@ class _MentorGridItemState extends State<MentorGridItem> {
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.textColor, width: 3),
-          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
+          boxShadow: [
+            BoxShadow(color: context.textColor, offset: const Offset(3, 3)),
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(13),
@@ -245,25 +356,38 @@ class _MentorGridItemState extends State<MentorGridItem> {
             fit: StackFit.expand,
             children: [
               if (url.isNotEmpty)
-                (isVideo && (widget.data['thumbnailUrl'] == null || widget.data['thumbnailUrl'].toString().isEmpty))
+                (isVideo &&
+                        (widget.data['thumbnailUrl'] == null ||
+                            widget.data['thumbnailUrl'].toString().isEmpty))
                     ? Container(
                         color: Colors.white.withValues(alpha: 0.05),
                         child: const Center(
-                          child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 40),
+                          child: Icon(
+                            Icons.play_circle_outline,
+                            color: Colors.white24,
+                            size: 40,
+                          ),
                         ),
                       )
                     : GamenectNetworkImage(
                         imageUrl: isVideo ? widget.data['thumbnailUrl']! : url,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(color: Colors.white10),
+                        placeholder: (context, url) =>
+                            Container(color: Colors.white10),
                         errorWidget: (context, url, error) => Container(
                           color: Colors.white10,
-                          child: const Icon(Icons.broken_image, color: Colors.white38),
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.white38,
+                          ),
                         ),
                       )
               else
-                Container(color: Colors.white10, child: const Icon(Icons.image, color: Colors.white24)),
-                
+                Container(
+                  color: Colors.white10,
+                  child: const Icon(Icons.image, color: Colors.white24),
+                ),
+
               // Gradient overlay
               Container(
                 decoration: BoxDecoration(
@@ -279,11 +403,12 @@ class _MentorGridItemState extends State<MentorGridItem> {
                   ),
                 ),
               ),
-              
+
               // Play icon overlay for videos
               if (isVideo)
                 Positioned(
-                  top: 8, right: 8,
+                  top: 8,
+                  right: 8,
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -291,13 +416,19 @@ class _MentorGridItemState extends State<MentorGridItem> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
-                
+
               // User info and caption at the bottom
               Positioned(
-                bottom: 10, left: 10, right: 10,
+                bottom: 10,
+                left: 10,
+                right: 10,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,31 +436,46 @@ class _MentorGridItemState extends State<MentorGridItem> {
                     if (caption?.isNotEmpty == true)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(caption!,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500, height: 1.2),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          caption!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     Row(
                       children: [
                         Container(
-                          width: 20, height: 20,
+                          width: 20,
+                          height: 20,
                           decoration: BoxDecoration(
                             color: const Color(0xFFFF6E40),
                             border: Border.all(color: Colors.white, width: 1.5),
-                            image: avatarUrl != null
-                                ? DecorationImage(
-                                    image: NetworkImage(toCdnUrl(avatarUrl) ?? avatarUrl),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
                           ),
                           alignment: Alignment.center,
-                          child: avatarUrl == null
-                              ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))
-                              : null,
+                          clipBehavior: Clip.hardEdge,
+                          child: avatarUrl != null
+                              ? GamenectNetworkImage(
+                                  imageUrl: avatarUrl,
+                                  width: 20,
+                                  height: 20,
+                                  fit: BoxFit.cover,
+                                )
+                              : Text(
+                                  username.isNotEmpty
+                                      ? username[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
@@ -339,14 +485,20 @@ class _MentorGridItemState extends State<MentorGridItem> {
                               color: Colors.white,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              shadows: [Shadow(color: Colors.black54, blurRadius: 4)]
+                              shadows: [
+                                Shadow(color: Colors.black54, blurRadius: 4),
+                              ],
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 2),
-                        const Icon(Icons.verified, color: Colors.blue, size: 12),
+                        const Icon(
+                          Icons.verified,
+                          color: Colors.blue,
+                          size: 12,
+                        ),
                       ],
                     ),
                   ],
@@ -368,7 +520,10 @@ class MentorMediaFeedCard extends StatefulWidget {
   State<MentorMediaFeedCard> createState() => _MentorMediaFeedCardState();
 }
 
-class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
+class _MentorMediaFeedCardState extends State<MentorMediaFeedCard>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   Map<String, dynamic>? mentorData;
 
   @override
@@ -382,19 +537,29 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
     final mentorId = data['mentorId'] as String? ?? '';
     if (mentorId.isNotEmpty) {
       if (MentorMediaFeedScreen.mentorCache.containsKey(mentorId)) {
-        if (mounted) setState(() => mentorData = MentorMediaFeedScreen.mentorCache[mentorId]);
+        if (mounted)
+          setState(
+            () => mentorData = MentorMediaFeedScreen.mentorCache[mentorId],
+          );
         return;
       }
-      final doc = await FirebaseFirestore.instance.collection('users').doc(mentorId).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(mentorId)
+          .get();
       if (doc.exists && mounted) {
-        MentorMediaFeedScreen.mentorCache[mentorId] = doc.data() as Map<String, dynamic>;
-        setState(() => mentorData = MentorMediaFeedScreen.mentorCache[mentorId]);
+        MentorMediaFeedScreen.mentorCache[mentorId] =
+            doc.data() as Map<String, dynamic>;
+        setState(
+          () => mentorData = MentorMediaFeedScreen.mentorCache[mentorId],
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final data = widget.doc.data() as Map<String, dynamic>;
     final isVideo = data['type'] == 'video';
     final url = data['url'] as String? ?? '';
@@ -423,7 +588,10 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                 color: Colors.black,
                 border: Border.all(color: context.textColor, width: 3),
                 boxShadow: [
-                  BoxShadow(color: context.textColor, offset: const Offset(6, 6))
+                  BoxShadow(
+                    color: context.textColor,
+                    offset: const Offset(6, 6),
+                  ),
                 ],
               ),
               clipBehavior: Clip.hardEdge,
@@ -432,12 +600,18 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                 children: [
                   if (url.isNotEmpty)
                     isVideo
-                        ? Center(child: VideoPlayerBubble(videoUrl: url))
-                        : GamenectNetworkImage(
-                            imageUrl: url,
-                            fit: BoxFit.contain,
-                            placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
-                            errorWidget: (context, url, error) => Container(color: Colors.black),
+                        ? RepaintBoundary(
+                            child: Center(
+                              child: VideoPlayerBubble(videoUrl: url),
+                            ),
+                          )
+                        : RepaintBoundary(
+                            child: GamenectNetworkImage(
+                              imageUrl: url,
+                              fit: BoxFit.contain,
+                              errorWidget: (context, url, error) =>
+                                  Container(color: Colors.black),
+                            ),
                           )
                   else
                     Container(color: Colors.black),
@@ -453,7 +627,10 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.8),
+                          ],
                         ),
                       ),
                     ),
@@ -474,12 +651,16 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                 // Mentor Info
                 GestureDetector(
                   onTap: () {
-                    final mentorId = (widget.doc.data() as Map<String, dynamic>)['mentorId'] as String? ?? '';
+                    final mentorId =
+                        (widget.doc.data() as Map<String, dynamic>)['mentorId']
+                            as String? ??
+                        '';
                     if (mentorId.isNotEmpty) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => MentorProfileScreen(mentorId: mentorId),
+                          builder: (_) =>
+                              MentorProfileScreen(mentorId: mentorId),
                         ),
                       );
                     }
@@ -490,36 +671,67 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                       Container(
                         width: 52,
                         height: 52,
+                        clipBehavior: Clip.hardEdge,
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF6E40),
-                          border: Border.all(color: context.textColor, width: 3),
-                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
-                          image: avatar.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(toCdnUrl(avatar) ?? avatar),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
+                          border: Border.all(
+                            color: context.textColor,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.textColor,
+                              offset: const Offset(4, 4),
+                            ),
+                          ],
                         ),
-                        child: avatar.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
+                        child: avatar.isNotEmpty
+                            ? GamenectNetworkImage(
+                                imageUrl: avatar,
+                                width: 52,
+                                height: 52,
+                                fit: BoxFit.cover,
+                              )
+                            : const Icon(Icons.person, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2979FF), // Changed from red to blue
-                          border: Border.all(color: context.textColor, width: 2),
-                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(2, 2))],
+                          color: const Color(
+                            0xFF2979FF,
+                          ), // Changed from red to blue
+                          border: Border.all(
+                            color: context.textColor,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.textColor,
+                              offset: const Offset(2, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               username.toUpperCase(),
-                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.verified, color: Colors.white, size: 16),
+                            const Icon(
+                              Icons.verified,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ],
                         ),
                       ),
@@ -530,15 +742,27 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                 // Caption
                 if (caption.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2A2A32),
                       border: Border.all(color: context.textColor, width: 3),
-                      boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.textColor,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
                     ),
                     child: Text(
                       caption,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -556,7 +780,10 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                 GestureDetector(
                   onTap: () {
                     if (currentUserId.isNotEmpty) {
-                      FirestoreService().toggleLikeMentorMedia(widget.doc.id, currentUserId);
+                      FirestoreService().toggleLikeMentorMedia(
+                        widget.doc.id,
+                        currentUserId,
+                      );
                     }
                   },
                   child: Column(
@@ -564,12 +791,24 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isLiked ? const Color(0xFFFF2D55) : const Color(0xFF2A2A32),
-                          border: Border.all(color: context.textColor, width: 3),
-                          boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                          color: isLiked
+                              ? const Color(0xFFFF2D55)
+                              : const Color(0xFF2A2A32),
+                          border: Border.all(
+                            color: context.textColor,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.textColor,
+                              offset: const Offset(4, 4),
+                            ),
+                          ],
                         ),
                         child: Icon(
-                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          isLiked
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
                           color: Colors.white,
                           size: 32,
                         ),
@@ -577,7 +816,17 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard> {
                       const SizedBox(height: 4),
                       Text(
                         likeCount > 0 ? likeCount.toString() : 'THÍCH',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, shadows: [Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1,1))]),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black,
+                              blurRadius: 2,
+                              offset: Offset(1, 1),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

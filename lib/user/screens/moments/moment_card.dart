@@ -469,9 +469,6 @@ class _MomentCardState extends State<MomentCard>
                           : GamenectNetworkImage(
                               imageUrl: moment.mediaUrl,
                               fit: BoxFit.contain,
-                              placeholder: (context, url) => const Center(
-                                child: CircularProgressIndicator(color: Colors.deepOrange),
-                              ),
                               errorWidget: (context, url, error) =>
                                   const Center(child: Icon(Icons.error_outline, color: Colors.white, size: 50)),
                             ),

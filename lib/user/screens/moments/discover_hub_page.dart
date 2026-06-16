@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../games/game_trending_screen.dart';
 import '../mentor/all_mentor_media_screen.dart';
+import 'mentor_post_preview_card.dart';
+import 'trending_games_page.dart';
 
 /// Trang Hub khám phá kết hợp cả "Trending Games" và "Mentor Posts" trên một màn hình duy nhất
 /// giúp tối ưu hành trình vuốt dọc xem Moments (chỉ cần vuốt 1 lần thay vì 2 lần).
@@ -13,98 +15,120 @@ class DiscoverHubPage extends StatelessWidget {
     final hubBgColor = isDark ? Colors.black : Colors.white;
     final borderColor = isDark ? Colors.white : Colors.black;
 
-    return Container(
-      color: hubBgColor,
-      child: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 8),
-                // Tiêu đề chính dạng Neo-Brutalism
-                Text(
-                  'GAMENECT HUB',
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2.0,
-                    shadows: [
-                      Shadow(
-                        color: Colors.deepOrange.withValues(alpha: 0.5),
-                        offset: const Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isLargeScreen = constraints.maxWidth >= 900;
+        final mentorMediaSize = (constraints.maxWidth * 0.24).clamp(
+          360.0,
+          620.0,
+        );
+        final mentorCardHeight = isLargeScreen ? mentorMediaSize + 58 : 250.0;
 
-                // Card 1: Trending Games
-                _buildDiscoverCard(
-                  context,
-                  title: 'TRENDING GAMES',
-                  description: 'KHÁM PHÁ CÁC TRÒ CHƠI HOT NHẤT & TÌM BẠN CHƠI',
-                  icon: Icons.sports_esports_rounded,
-                  buttonText: 'KHÁM PHÁ',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
-                  ),
+        return Container(
+          color: hubBgColor,
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isLargeScreen ? 12 : 8,
+                  isLargeScreen ? 12 : 20,
+                  isLargeScreen ? 12 : 8,
+                  120,
                 ),
-                const SizedBox(height: 20),
-
-                // Card 2: Mentor Posts
-                _buildDiscoverCard(
-                  context,
-                  title: 'MENTOR POSTS',
-                  description: 'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
-                  icon: Icons.auto_awesome_mosaic_rounded,
-                  buttonText: 'XEM NGAY',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AllMentorMediaScreen()),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Hint vuốt lên
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E24) : const Color.fromARGB(255, 242, 227, 230),
-                    border: Border.all(color: borderColor, width: 2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.keyboard_double_arrow_up_rounded,
-                        color: isDark ? Colors.white : Colors.black,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'VUỐT LÊN ĐỂ XEM MOMENTS',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(right: isLargeScreen ? 80 : 68),
+                      child: isLargeScreen
+                          ? const TrendingGamesButton()
+                          : _buildDiscoverCard(
+                              context,
+                              title: 'TRENDING GAMES',
+                              description:
+                                  'KHÁM PHÁ CÁC TRÒ CHƠI HOT NHẤT & TÌM BẠN CHƠI',
+                              icon: Icons.sports_esports_rounded,
+                              buttonText: 'KHÁM PHÁ',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const GameTrendingScreen(),
+                                ),
+                              ),
+                            ),
+                    ),
+                    SizedBox(height: isLargeScreen ? 12 : 20),
+                    MentorPostPreviewCard(
+                      height: mentorCardHeight,
+                      mediaAspectRatio: 1,
+                      autoplayVideo: true,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AllMentorMediaScreen(),
+                          ),
+                        );
+                      },
+                      fallback: _buildDiscoverCard(
+                        context,
+                        title: 'MENTOR POSTS',
+                        description:
+                            'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
+                        icon: Icons.auto_awesome_mosaic_rounded,
+                        buttonText: 'XEM NGAY',
+                        isLargeScreen: isLargeScreen,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AllMentorMediaScreen(),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: isLargeScreen ? 32 : 28),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isLargeScreen ? 22 : 16,
+                        vertical: isLargeScreen ? 11 : 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF1E1E24)
+                            : const Color.fromARGB(255, 242, 227, 230),
+                        border: Border.all(color: borderColor, width: 2),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard_double_arrow_up_rounded,
+                            color: isDark ? Colors.white : Colors.black,
+                            size: isLargeScreen ? 24 : 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'VUỐT LÊN ĐỂ XEM MOMENTS',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black,
+                              fontSize: isLargeScreen ? 15 : 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -115,9 +139,12 @@ class DiscoverHubPage extends StatelessWidget {
     required IconData icon,
     required String buttonText,
     required VoidCallback onTap,
+    bool isLargeScreen = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBgColor = isDark ? const Color(0xFF1E1E24) : const Color(0xFFF4F4F4);
+    final cardBgColor = isDark
+        ? const Color(0xFF1E1E24)
+        : const Color(0xFFF4F4F4);
     final borderColor = isDark ? Colors.white : Colors.black;
     final shadowColor = isDark ? Colors.white : Colors.black;
     final textColor = isDark ? Colors.white : Colors.black;
@@ -130,34 +157,35 @@ class DiscoverHubPage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isLargeScreen ? 24 : 20),
       decoration: BoxDecoration(
         color: cardBgColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 4),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor,
-            offset: const Offset(8, 8),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
       ),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(isLargeScreen ? 15 : 12),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.black : Colors.white,
                   shape: BoxShape.rectangle,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: borderColor, width: 2.5),
-                  boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                  boxShadow: [
+                    BoxShadow(color: shadowColor, offset: const Offset(3, 3)),
+                  ],
                 ),
-                child: Icon(icon, size: 36, color: textColor),
+                child: Icon(
+                  icon,
+                  size: isLargeScreen ? 42 : 36,
+                  color: textColor,
+                ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isLargeScreen ? 20 : 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +194,7 @@ class DiscoverHubPage extends StatelessWidget {
                       title,
                       style: TextStyle(
                         color: textColor,
-                        fontSize: 18,
+                        fontSize: isLargeScreen ? 23 : 18,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.0,
                       ),
@@ -176,7 +204,7 @@ class DiscoverHubPage extends StatelessWidget {
                       description,
                       style: TextStyle(
                         color: textColor,
-                        fontSize: 12,
+                        fontSize: isLargeScreen ? 15 : 12,
                         fontWeight: FontWeight.w700,
                         height: 1.3,
                       ),
@@ -186,12 +214,12 @@ class DiscoverHubPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isLargeScreen ? 24 : 20),
           GestureDetector(
             onTap: onTap,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: isLargeScreen ? 15 : 12),
               decoration: BoxDecoration(
                 color: btnBgColor,
                 borderRadius: BorderRadius.circular(10),
@@ -207,13 +235,17 @@ class DiscoverHubPage extends StatelessWidget {
                     buttonText,
                     style: TextStyle(
                       color: btnTextColor,
-                      fontSize: 14,
+                      fontSize: isLargeScreen ? 17 : 14,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.arrow_forward_rounded, color: btnTextColor, size: 18),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: btnTextColor,
+                    size: isLargeScreen ? 22 : 18,
+                  ),
                 ],
               ),
             ),

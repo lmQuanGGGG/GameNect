@@ -90,3 +90,35 @@ self.addEventListener('notificationclick', (event) => {
     }
   }());
 });
+
+// Cache name for Firebase Storage media files
+const MEDIA_CACHE_NAME = 'gamenect-media-cache';
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Chỉ cache các request lấy file từ Firebase Storage qua phương thức GET
+  if (url.origin === 'https://firebasestorage.googleapis.com' && event.request.method === 'GET') {
+    event.respondWith(
+      caches.open(MEDIA_CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        try {
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+            // Lưu bản sao vào cache
+            await cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch (error) {
+          console.error('Fetch and cache failed for Storage URL:', error);
+          return fetch(event.request);
+        }
+      })
+    );
+  }
+});
+

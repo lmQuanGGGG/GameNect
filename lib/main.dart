@@ -13,7 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as developer;
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/firestore_service.dart';
 import 'core/services/notification_handler.dart';
@@ -30,10 +30,10 @@ import 'core/providers/game_provider.dart';
 import 'core/providers/mentor_provider.dart';
 import 'core/providers/livestream_provider.dart';
 import 'core/providers/wallet_provider.dart';
-import 'core/utils/fullscreen_helper.dart' if (dart.library.html) 'core/utils/fullscreen_helper_web.dart';
+import 'core/utils/fullscreen_helper.dart'
+    if (dart.library.html) 'core/utils/fullscreen_helper_web.dart';
 import 'core/services/web_notification.dart';
 import 'core/services/web_message.dart';
-import 'core/utils/cdn_helper.dart';
 
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -97,11 +97,15 @@ void main() async {
 
     try {
       FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: false, // Tắt trên Web để tránh bị khóa IndexedDB gây treo
+        persistenceEnabled:
+            false, // Tắt trên Web để tránh bị khóa IndexedDB gây treo
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
     } catch (e) {
-      developer.log('Error setting firestore persistence: $e', name: 'Firestore-Web');
+      developer.log(
+        'Error setting firestore persistence: $e',
+        name: 'Firestore-Web',
+      );
     }
 
     try {
@@ -109,7 +113,7 @@ void main() async {
       if (isSupported) {
         await FirebaseMessaging.instance.requestPermission();
         FirebaseMessaging.onMessage.listen(_handleWebForegroundMessage);
-        
+
         // Tự động cập nhật Token mới lên Firestore nếu Firebase thay đổi Token ngầm
         FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
           NotificationController.myFcmTokenHandle(newToken);
@@ -195,7 +199,9 @@ void main() async {
   // Sau khi app build xong, xử lý pending tap
   if (!kIsWeb) {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(const Duration(milliseconds: 1000));
+      while (navigatorKey.currentState == null) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
       AwesomeNotifications().resetGlobalBadge();
 
       // Handle any queued notification actions once navigator is ready
@@ -248,7 +254,7 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
         }
         return;
       }
-      
+
       // Chỉ xử lý các type hợp lệ của Web
       if (type == 'chat' || type == 'moment_reaction' || type == 'like') {
         int targetIndex = 0;
@@ -262,17 +268,21 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
 
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
         mainScreenTabIndex.value = targetIndex;
-        
+
         if (type == 'chat') {
           final matchId = data['matchId'] ?? '';
           final peerUserId = data['peerUserId'] ?? '';
           if (matchId.isNotEmpty && peerUserId.isNotEmpty) {
-            final userDoc = await FirebaseFirestore.instance.collection('users').doc(peerUserId).get();
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(peerUserId)
+                .get();
             if (userDoc.exists && userDoc.data() != null) {
               final peerUser = UserModel.fromMap(userDoc.data()!, userDoc.id);
               navigatorKey.currentState?.push(
                 MaterialPageRoute(
-                  builder: (_) => ChatScreen(matchId: matchId, peerUser: peerUser),
+                  builder: (_) =>
+                      ChatScreen(matchId: matchId, peerUser: peerUser),
                 ),
               );
             }
@@ -309,9 +319,12 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
         }
         return;
       }
-      
+
       // Nếu type không khớp hoặc không hợp lệ, KHÔNG làm gì cả (tránh tự động chuyển về home screen)
-      developer.log('Web FCM tap: Unknown or unhandled notification type: $type', name: 'FCM-Tap');
+      developer.log(
+        'Web FCM tap: Unknown or unhandled notification type: $type',
+        name: 'FCM-Tap',
+      );
       return;
     }
 
@@ -635,10 +648,7 @@ class GameNectApp extends StatelessWidget {
 Future<void> _setupUserSession(BuildContext context, String uid) async {
   try {
     final fcmToken = await NotificationController().getFirebaseToken();
-    developer.log(
-      'FCM Token retrieved after login: $fcmToken',
-      name: 'Auth',
-    );
+    developer.log('FCM Token retrieved after login: $fcmToken', name: 'Auth');
 
     if (!context.mounted) return;
     final locationProvider = Provider.of<LocationProvider>(
@@ -649,18 +659,9 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
       context,
       listen: false,
     );
-    final chatProvider = Provider.of<ChatProvider>(
-      context,
-      listen: false,
-    );
-    final matchProvider = Provider.of<MatchProvider>(
-      context,
-      listen: false,
-    );
-    final momentProvider = Provider.of<MomentProvider>(
-      context,
-      listen: false,
-    );
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final matchProvider = Provider.of<MatchProvider>(context, listen: false);
+    final momentProvider = Provider.of<MomentProvider>(context, listen: false);
 
     await locationProvider.updateUserLocation(uid);
 
@@ -669,15 +670,14 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
     }
 
     if (profileProvider.userData != null) {
-      locationProvider.loadSettingsFromUser(
-        profileProvider.userData!,
-      );
+      locationProvider.loadSettingsFromUser(profileProvider.userData!);
     }
 
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId != null) {
-      final matches = await matchProvider
-          .fetchMatchedUsersWithMatchId(currentUserId);
+      final matches = await matchProvider.fetchMatchedUsersWithMatchId(
+        currentUserId,
+      );
       for (var match in matches) {
         final matchId = match['matchId'] as String;
         final peerUser = match['user'] as UserModel;
@@ -685,27 +685,54 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
       }
 
       // TẢI SẴN TIN NHẮN CỦA 10 CUỘC TRÒ CHUYỆN GẦN NHẤT (MỖI NGƯỜI 10 TIN NHẮN)
-      final topMatches = matches.take(10).map((m) => m['matchId'] as String).toList();
+      final topMatches = matches
+          .take(10)
+          .map((m) => m['matchId'] as String)
+          .toList();
       await chatProvider.preloadTopChatsMessages(topMatches);
-      developer.log('Preloaded last 10 messages for top 10 matches', name: 'Auth');
-
-
       developer.log(
-        'Starting moment reactions listener...',
+        'Preloaded last 10 messages for top 10 matches',
         name: 'Auth',
       );
+
+      developer.log('Starting moment reactions listener...', name: 'Auth');
       await momentProvider.listenMoments(currentUserId);
       developer.log('Moment listener started', name: 'Auth');
 
       // TẢI SẴN & PRECACHE ẢNH CỦA 10 MOMENTS ĐẦU TIÊN
       if (context.mounted) {
         final topMoments = momentProvider.moments.take(10);
-        for (var m in topMoments) {
-          final imageUrl = (m.isVideo && m.thumbnailUrl != null)
-              ? m.thumbnailUrl!
-              : m.mediaUrl;
+        for (var moment in topMoments) {
+          final imageUrl = moment.isVideo
+              ? (moment.thumbnailUrl ?? '')
+              : moment.mediaUrl;
           if (imageUrl.isNotEmpty) {
-            precacheImage(NetworkImage(toCdnUrl(imageUrl) ?? ''), context).catchError((_) => null);
+            precacheImage(
+              CachedNetworkImageProvider(imageUrl),
+              context,
+            ).catchError((_) => null);
+          }
+        }
+      }
+
+      // TẢI SẴN & PRECACHE ẢNH CỦA 10 MENTOR MEDIA ĐẦU TIÊN
+      final mentorMediaSnapshot = await FirebaseFirestore.instance
+          .collection('mentor_media')
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .get();
+      if (context.mounted) {
+        for (var doc in mentorMediaSnapshot.docs) {
+          final data = doc.data();
+          final isVideo = data['type'] == 'video';
+          final imageUrl = isVideo
+              ? (data['thumbnailUrl'] as String? ?? '')
+              : (data['url'] as String? ?? '');
+          if (imageUrl.isNotEmpty) {
+            precacheImage(
+              CachedNetworkImageProvider(imageUrl),
+              context,
+            ).catchError((_) => null);
           }
         }
       }
@@ -720,12 +747,18 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
           for (var rec in topRecs) {
             // Precache avatar
             if (rec.avatarUrl != null && rec.avatarUrl!.isNotEmpty) {
-              precacheImage(NetworkImage(toCdnUrl(rec.avatarUrl) ?? ''), context).catchError((_) => null);
+              precacheImage(
+                CachedNetworkImageProvider(rec.avatarUrl!),
+                context,
+              ).catchError((_) => null);
             }
             // Precache additional photos (tải trước ảnh phụ)
             for (var photo in rec.additionalPhotos.take(2)) {
               if (photo.isNotEmpty) {
-                precacheImage(NetworkImage(toCdnUrl(photo) ?? ''), context).catchError((_) => null);
+                precacheImage(
+                  CachedNetworkImageProvider(photo),
+                  context,
+                ).catchError((_) => null);
               }
             }
           }
@@ -744,11 +777,17 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
           for (var mentor in topMentors) {
             final avatarUrl = mentor['avatarUrl'] as String?;
             if (avatarUrl != null && avatarUrl.isNotEmpty) {
-              precacheImage(NetworkImage(toCdnUrl(avatarUrl) ?? ''), context).catchError((_) => null);
+              precacheImage(
+                CachedNetworkImageProvider(avatarUrl),
+                context,
+              ).catchError((_) => null);
             }
           }
         }
-        developer.log('Preloaded approved mentors list and precached top 10 avatar images', name: 'Auth');
+        developer.log(
+          'Preloaded approved mentors list and precached top 10 avatar images',
+          name: 'Auth',
+        );
       }
 
       // Bắt đầu lắng nghe khi mentor follow đang live
@@ -855,13 +894,31 @@ class AuthWrapper extends StatelessWidget {
           final uid = snapshot.data!.uid;
 
           // Kiểm tra xem user đã có thông tin cá nhân (username) được lưu ở local preference chưa
-          final isProfileCompleted = sharedPrefs.getBool('profile_completed_$uid') ?? false;
+          final isProfileCompleted =
+              sharedPrefs.getBool('profile_completed_$uid') ?? false;
+
+          int? initialIndex;
+          if (kIsWeb) {
+            final params = Uri.base.queryParameters;
+            if (params.isNotEmpty && params.containsKey('type')) {
+              final type = params['type'];
+              if (type == 'chat') {
+                initialIndex = 3;
+              } else if (type == 'moment_reaction') {
+                initialIndex = 1;
+              } else if (type == 'like') {
+                initialIndex = 2;
+              } else if (type == 'mentor_live') {
+                initialIndex = 1;
+              }
+            }
+          }
 
           if (isProfileCompleted) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _setupUserSession(context, uid);
             });
-            return const UserApp();
+            return UserApp(initialIndex: initialIndex);
           }
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -923,7 +980,7 @@ class AuthWrapper extends StatelessWidget {
 
               // Cả admin và user đều vào UserApp để xem profile cá nhân
               developer.log('User logged in (isAdmin: $isAdmin)', name: 'Auth');
-              return const UserApp();
+              return UserApp(initialIndex: initialIndex);
             },
           );
         } else {

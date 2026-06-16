@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:developer' as developer;
 import '../../../core/providers/moment_provider.dart';
 import 'moment_card.dart';
 import 'moment_grid_item.dart';
 import 'trending_games_page.dart';
 import 'discover_hub_page.dart';
+import 'mentor_post_preview_card.dart';
 import '../camera/camera_capture_screen.dart';
 import '../../../core/theme/theme_helper.dart';
 import '../mentor/all_mentor_media_screen.dart';
@@ -26,6 +27,23 @@ class MomentFeedTab extends StatefulWidget {
 class _MomentFeedTabState extends State<MomentFeedTab> {
   final PageController _pageController = PageController();
   bool isGridMode = false;
+
+  void _preloadNextMoments(int currentIndex, MomentProvider provider) {
+    final moments = provider.moments;
+    if (currentIndex >= moments.length - 1) return;
+
+    final endIndex = (currentIndex + 2).clamp(0, moments.length - 1);
+
+    for (var index = currentIndex + 1; index <= endIndex; index++) {
+      final moment = moments[index];
+      final url = moment.isVideo
+          ? (moment.thumbnailUrl ?? '')
+          : moment.mediaUrl;
+      if (url.isNotEmpty) {
+        precacheImage(CachedNetworkImageProvider(url), context);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -141,25 +159,50 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
 
             Widget content;
             if (isGridMode) {
+              final screenWidth = MediaQuery.sizeOf(context).width;
+              final mentorMediaSize = (screenWidth * 0.24).clamp(360.0, 620.0);
               content = CustomScrollView(
+                cacheExtent: 2500,
                 slivers: [
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, topPadding + 16, 16, 8),
+                      padding: EdgeInsets.fromLTRB(8, topPadding + 12, 8, 8),
                       child: Column(
                         children: [
-                          const TrendingGamesButton(),
+                          const Padding(
+                            padding: EdgeInsets.only(right: 68),
+                            child: TrendingGamesButton(),
+                          ),
                           const SizedBox(height: 12),
                           // Optional: we can add a button for mentor posts in grid mode, but the page handles itself nicely
                           // Actually let's make it a button as well
-                          GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AllMentorMediaScreen(),
+                          MentorPostPreviewCard(
+                            height: screenWidth >= 900
+                                ? mentorMediaSize + 58
+                                : 250,
+                            mediaAspectRatio: 1,
+                            splitEvenly: true,
+                            autoplayVideo: true,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AllMentorMediaScreen(),
+                                ),
+                              );
+                            },
+                            fallback: GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AllMentorMediaScreen(),
+                                ),
+                              ),
+                              child: _buildMentorButtonContent(
+                                context,
+                                isWeb: false,
                               ),
                             ),
-                            child: _buildMentorButtonContent(context, isWeb: false),
                           ),
                         ],
                       ),
@@ -196,10 +239,16 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                   controller: _pageController,
                   scrollDirection: Axis.vertical,
                   itemCount: hasMoments ? provider.moments.length + 1 : 2,
+                  onPageChanged: (pageIndex) {
+                    if (hasMoments && pageIndex >= 10) {
+                      _preloadNextMoments(pageIndex - 1, provider);
+                    }
+                  },
                   itemBuilder: (context, index) {
                     if (index == 0) return const DiscoverHubPage();
-                    if (!hasMoments && index == 1)
+                    if (!hasMoments && index == 1) {
                       return _buildEmptyState(context);
+                    }
                     return MomentCard(
                       key: ValueKey(provider.moments[index - 1].id),
                       moment: provider.moments[index - 1],
@@ -227,7 +276,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
 
         // Grid/Page mode toggle button
         Positioned(
-          top: topPadding + 12,
+          top: topPadding + 55,
           right: 16,
           child: GestureDetector(
             onTap: () => setState(() => isGridMode = !isGridMode),
@@ -238,10 +287,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.black, width: 3),
                 boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black,
-                    offset: Offset(4, 4),
-                  ),
+                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
                 ],
               ),
               child: Icon(
@@ -268,12 +314,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
         color: Colors.white, // White
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.black, width: 3),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black,
-            offset: Offset(4, 4),
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
       ),
       child: Row(
         children: [

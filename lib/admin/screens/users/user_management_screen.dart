@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gamenect_new/core/widgets/network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/profile_card.dart';
 import '../../../core/models/user_model.dart';
-import '../../../core/utils/cdn_helper.dart';
 import 'admin_test_users_screen.dart';
 
 enum Timeframe { day, week, month, quarter, year }
@@ -174,7 +174,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               ),
               title: const Text(
                 'Cập nhật tài khoản',
-                style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -187,8 +190,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Số Coin',
                         labelStyle: TextStyle(color: Colors.black54),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 1.5)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.black,
+                            width: 1.5,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black, width: 2),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -198,13 +208,26 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Lý do cập nhật',
                         labelStyle: TextStyle(color: Colors.black54),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 1.5)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.black,
+                            width: 1.5,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black, width: 2),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     SwitchListTile(
-                      title: const Text('Premium Status', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      title: const Text(
+                        'Premium Status',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       value: isPremium,
                       activeColor: const Color(0xFFFF6E40),
                       onChanged: (val) {
@@ -222,88 +245,136 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Số ngày Premium',
                           labelStyle: TextStyle(color: Colors.black54),
-                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 1.5)),
-                          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.black,
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.black,
+                              width: 2,
+                            ),
+                          ),
                         ),
                       ),
-                    ]
+                    ],
                   ],
                 ),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Hủy', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Hủy',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 Container(
                   decoration: BoxDecoration(
                     color: const Color(0xFF81C784),
                     border: Border.all(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                    ],
                   ),
                   child: TextButton(
                     onPressed: () async {
                       if (reasonController.text.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Vui lòng nhập lý do cập nhật!'), backgroundColor: Colors.red),
+                          const SnackBar(
+                            content: Text('Vui lòng nhập lý do cập nhật!'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
 
-                      final newCoins = int.tryParse(coinController.text) ?? currentCoins;
-                      final premiumDays = int.tryParse(premiumDaysController.text) ?? 30;
+                      final newCoins =
+                          int.tryParse(coinController.text) ?? currentCoins;
+                      final premiumDays =
+                          int.tryParse(premiumDaysController.text) ?? 30;
 
                       try {
                         final updates = <String, dynamic>{
                           'coinBalance': newCoins,
                           'isPremium': isPremium,
                         };
-                        
+
                         DateTime? endDate;
                         if (isPremium) {
-                          endDate = DateTime.now().add(Duration(days: premiumDays));
-                          updates['subscriptionEndDate'] = endDate.toIso8601String();
+                          endDate = DateTime.now().add(
+                            Duration(days: premiumDays),
+                          );
+                          updates['subscriptionEndDate'] = endDate
+                              .toIso8601String();
                           updates['subscriptionTier'] = 'monthly';
                           if (user['premiumStartDate'] == null) {
-                            updates['premiumStartDate'] = DateTime.now().toIso8601String();
+                            updates['premiumStartDate'] = DateTime.now()
+                                .toIso8601String();
                           }
                         } else {
                           updates['subscriptionTier'] = 'free';
                         }
-                        
-                        await FirebaseFirestore.instance.collection('users').doc(userId).update(updates);
-                        
-                        final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown_admin';
-                        await FirebaseFirestore.instance.collection('transactions').add({
-                          'userId': userId,
-                          'adminId': adminId,
-                          'type': 'admin_update',
-                          'reason': reasonController.text.trim(),
-                          'oldCoins': currentCoins,
-                          'newCoins': newCoins,
-                          'coinDiff': newCoins - currentCoins,
-                          'isPremium': isPremium,
-                          'premiumDaysAdded': isPremium ? premiumDays : 0,
-                          'endDate': endDate?.toIso8601String(),
-                          'timestamp': FieldValue.serverTimestamp(),
-                        });
+
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(userId)
+                            .update(updates);
+
+                        final adminId =
+                            FirebaseAuth.instance.currentUser?.uid ??
+                            'unknown_admin';
+                        await FirebaseFirestore.instance
+                            .collection('transactions')
+                            .add({
+                              'userId': userId,
+                              'adminId': adminId,
+                              'type': 'admin_update',
+                              'reason': reasonController.text.trim(),
+                              'oldCoins': currentCoins,
+                              'newCoins': newCoins,
+                              'coinDiff': newCoins - currentCoins,
+                              'isPremium': isPremium,
+                              'premiumDaysAdded': isPremium ? premiumDays : 0,
+                              'endDate': endDate?.toIso8601String(),
+                              'timestamp': FieldValue.serverTimestamp(),
+                            });
 
                         if (mounted) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Cập nhật tài khoản & ghi log thành công!'), backgroundColor: Colors.green),
+                            const SnackBar(
+                              content: Text(
+                                'Cập nhật tài khoản & ghi log thành công!',
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
                           );
                         }
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                            SnackBar(
+                              content: Text('Lỗi: $e'),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                         }
                       }
                     },
-                    child: const Text('Lưu', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900)),
+                    child: const Text(
+                      'Lưu',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -494,8 +565,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             child: CircleAvatar(
               radius: 22,
-              backgroundImage: cdnImageProvider(user['avatarUrl']),
               backgroundColor: Colors.grey.shade100,
+              child: (user['avatarUrl'] as String?)?.isNotEmpty == true
+                  ? ClipOval(
+                      child: GamenectNetworkImage(
+                        imageUrl: user['avatarUrl'],
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : const Icon(Icons.person, color: Colors.black54),
             ),
           ),
         ),
@@ -647,7 +727,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 final now = DateTime(
                   _selectedYear,
                   currentNow.month,
-                  (currentNow.month == 2 && currentNow.day == 29 && !(_selectedYear % 4 == 0 && (_selectedYear % 100 != 0 || _selectedYear % 400 == 0))) ? 28 : currentNow.day,
+                  (currentNow.month == 2 &&
+                          currentNow.day == 29 &&
+                          !(_selectedYear % 4 == 0 &&
+                              (_selectedYear % 100 != 0 ||
+                                  _selectedYear % 400 == 0)))
+                      ? 28
+                      : currentNow.day,
                   currentNow.hour,
                   currentNow.minute,
                   currentNow.second,
@@ -735,10 +821,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           createdAt.day == now.day) {
                         statVal1++;
                       }
-                      final isInWeek = (createdAt.isAfter(startOfWeek) ||
-                          (createdAt.year == startOfWeek.year &&
-                              createdAt.month == startOfWeek.month &&
-                              createdAt.day == startOfWeek.day)) && createdAt.isBefore(endOfWeek);
+                      final isInWeek =
+                          (createdAt.isAfter(startOfWeek) ||
+                              (createdAt.year == startOfWeek.year &&
+                                  createdAt.month == startOfWeek.month &&
+                                  createdAt.day == startOfWeek.day)) &&
+                          createdAt.isBefore(endOfWeek);
                       if (isInWeek) {
                         statVal2++;
                         for (int i = 0; i < 7; i++) {
@@ -772,10 +860,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     final user = doc.data() as Map<String, dynamic>;
                     final createdAt = _parseCreatedAt(user['createdAt']);
                     if (createdAt != null) {
-                      final isInWeek = (createdAt.isAfter(startOfWeek) ||
-                          (createdAt.year == startOfWeek.year &&
-                              createdAt.month == startOfWeek.month &&
-                              createdAt.day == startOfWeek.day)) && createdAt.isBefore(endOfWeek);
+                      final isInWeek =
+                          (createdAt.isAfter(startOfWeek) ||
+                              (createdAt.year == startOfWeek.year &&
+                                  createdAt.month == startOfWeek.month &&
+                                  createdAt.day == startOfWeek.day)) &&
+                          createdAt.isBefore(endOfWeek);
                       if (isInWeek) {
                         statVal1++;
                       }
@@ -1070,17 +1160,23 @@ class NeoGrowthChart extends StatelessWidget {
                       child: DropdownButton<int>(
                         value: selectedYear,
                         dropdownColor: Colors.white,
-                        icon: const Icon(Icons.arrow_drop_down, color: Colors.black, size: 16),
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          color: Colors.black,
+                          size: 16,
+                        ),
                         style: const TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.w900,
                           fontSize: 11,
                         ),
                         items: List.generate(6, (i) => DateTime.now().year - i)
-                            .map((y) => DropdownMenuItem<int>(
-                                  value: y,
-                                  child: Text('Năm $y'),
-                                ))
+                            .map(
+                              (y) => DropdownMenuItem<int>(
+                                value: y,
+                                child: Text('Năm $y'),
+                              ),
+                            )
                             .toList(),
                         onChanged: (y) {
                           if (y != null) onYearChanged(y);
@@ -1089,7 +1185,10 @@ class NeoGrowthChart extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black,
                       borderRadius: BorderRadius.circular(6),

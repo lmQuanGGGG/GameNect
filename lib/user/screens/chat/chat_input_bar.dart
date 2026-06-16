@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -21,6 +23,7 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback onCancelRecording;
   final void Function(String path, {required bool isVideo}) onSendMedia;
   final void Function(String text) onSendMessage;
+  final VoidCallback? onTextFieldFocus;
 
   const ChatInputBar({
     required this.controller,
@@ -33,6 +36,7 @@ class ChatInputBar extends StatefulWidget {
     required this.onCancelRecording,
     required this.onSendMedia,
     required this.onSendMessage,
+    this.onTextFieldFocus,
     super.key,
   });
 
@@ -116,10 +120,34 @@ class _ChatInputBarState extends State<ChatInputBar> {
     }
   }
 
+  KeyEventResult _handleTextFieldKey(FocusNode node, KeyEvent event) {
+    if (!kIsWeb || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event.logicalKey != LogicalKeyboardKey.enter ||
+        HardwareKeyboard.instance.isShiftPressed) {
+      return KeyEventResult.ignored;
+    }
+
+    final text = widget.controller.text.trim();
+    if (text.isEmpty) {
+      return KeyEventResult.handled;
+    }
+
+    widget.onSendMessage(text);
+    widget.controller.clear();
+    Provider.of<ChatProvider>(
+      context,
+      listen: false,
+    ).setTyping(widget.matchId, isTyping: false);
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = kIsWeb ? 0.0 : MediaQuery.of(context).padding.bottom;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -148,10 +176,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
                 color: Colors.white,
-                border: Border.all(
-                  color: Colors.black,
-                  width: 3,
-                ),
+                border: Border.all(color: Colors.black, width: 3),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -164,7 +189,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       margin: const EdgeInsets.only(bottom: 2, left: 2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: context.isDarkMode ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                        color: context.isDarkMode
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.05),
                       ),
                       child: IconButton(
                         icon: const Icon(
@@ -184,36 +211,40 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         ? _buildRecordingStatus()
                         : Container(
                             constraints: const BoxConstraints(maxHeight: 120),
-                            child: TextField(
-                              controller: widget.controller,
-                              focusNode: widget.focusNode,
-                              style: TextStyle(
-                                color: context.textColor,
-                                fontSize: 15,
-                              ),
-                              maxLines: null,
-                              textInputAction: TextInputAction.newline,
-                              decoration: InputDecoration(
-                                hintText: 'iMessage',
-                                hintStyle: TextStyle(
-                                  color: context.textTertiaryColor,
+                            child: Focus(
+                              onKeyEvent: _handleTextFieldKey,
+                              child: TextField(
+                                controller: widget.controller,
+                                focusNode: widget.focusNode,
+                                onTap: widget.onTextFieldFocus,
+                                style: TextStyle(
+                                  color: context.textColor,
                                   fontSize: 15,
                                 ),
-                                border: InputBorder.none,
-                                filled: false,
-                                fillColor: Colors.transparent,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 12,
+                                maxLines: null,
+                                textInputAction: TextInputAction.newline,
+                                decoration: InputDecoration(
+                                  hintText: 'iMessage',
+                                  hintStyle: TextStyle(
+                                    color: context.textTertiaryColor,
+                                    fontSize: 15,
+                                  ),
+                                  border: InputBorder.none,
+                                  filled: false,
+                                  fillColor: Colors.transparent,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 12,
+                                  ),
+                                  isDense: true,
                                 ),
-                                isDense: true,
+                                onChanged: (text) {
+                                  chatProvider.setTyping(
+                                    widget.matchId,
+                                    isTyping: text.isNotEmpty,
+                                  );
+                                },
                               ),
-                              onChanged: (text) {
-                                chatProvider.setTyping(
-                                  widget.matchId,
-                                  isTyping: text.isNotEmpty,
-                                );
-                              },
                             ),
                           ),
                   ),
@@ -238,10 +269,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             shape: BoxShape.circle,
                             gradient: LinearGradient(
                               colors: widget.isRecording
-                                  ? [
-                                      Colors.black,
-                                      const Color(0xFFBF360C),
-                                    ]
+                                  ? [Colors.black, const Color(0xFFBF360C)]
                                   : [
                                       const Color(
                                         0xFFFF6E40,
@@ -335,9 +363,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border(
-            top: BorderSide(color: Colors.black),
-          ),
+          border: Border(top: BorderSide(color: Colors.black)),
         ),
         child: SafeArea(
           child: Column(
@@ -353,10 +379,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 ),
               ),
               ListTile(
-                leading: const Icon(
-                  Icons.photo_rounded,
-                  color: Colors.black,
-                ),
+                leading: const Icon(Icons.photo_rounded, color: Colors.black),
                 title: Text(
                   'Chọn ảnh',
                   style: TextStyle(color: context.textColor),

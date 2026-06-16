@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../games/game_trending_screen.dart';
 import '../../../core/theme/theme_helper.dart';
@@ -15,8 +14,6 @@ class TrendingGamesPage extends StatelessWidget {
       color: context.scaffoldBackgroundColor,
       child: Stack(
         children: [
-
-
           // Content
           Center(
             child: Padding(
@@ -38,10 +35,7 @@ class TrendingGamesPage extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.black, width: 4),
           boxShadow: const [
-            BoxShadow(
-              color: Colors.black,
-              offset: Offset(8, 8),
-            ),
+            BoxShadow(color: Colors.black, offset: Offset(8, 8)),
           ],
         ),
         child: Column(
@@ -57,10 +51,7 @@ class TrendingGamesPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.black, width: 3),
                 boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black,
-                    offset: Offset(4, 4),
-                  ),
+                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
                 ],
               ),
               child: const Icon(
@@ -112,7 +103,10 @@ class TrendingGamesPage extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
               ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF00E676), // Bright green
                   borderRadius: BorderRadius.circular(12),
@@ -124,12 +118,21 @@ class TrendingGamesPage extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('KHÁM PHÁ NGAY',
-                        style: TextStyle(
-                            color: Colors.black, fontSize: 16,
-                            fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                    Text(
+                      'KHÁM PHÁ NGAY',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
                     SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 24),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.black,
+                      size: 24,
+                    ),
                   ],
                 ),
               ),
@@ -148,14 +151,20 @@ class TrendingGamesPage extends StatelessWidget {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.keyboard_double_arrow_up_rounded,
-                      color: Colors.black, size: 20),
+                  Icon(
+                    Icons.keyboard_double_arrow_up_rounded,
+                    color: Colors.black,
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
-                  Text('VUỐT LÊN ĐỂ XEM MOMENTS',
-                      style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900)),
+                  Text(
+                    'VUỐT LÊN ĐỂ XEM MOMENTS',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -172,87 +181,165 @@ class TrendingGamesButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
+    return LayoutBuilder(
+      builder: (context, constraints) => GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GameTrendingScreen()),
+        ),
+        child: _buildButtonContent(
+          isWeb: kIsWeb,
+          isLargeScreen: constraints.maxWidth >= 900,
+        ),
       ),
-      child: _buildButtonContent(isWeb: kIsWeb),
     );
   }
 
-  Widget _buildButtonContent({required bool isWeb}) {
+  Widget _buildButtonContent({
+    required bool isWeb,
+    required bool isLargeScreen,
+  }) {
     return Builder(
       builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isLargeScreen ? 18 : (isWeb ? 12 : 16)),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.black, width: 3),
           boxShadow: const [
-            BoxShadow(
-              color: Colors.black,
-              offset: Offset(4, 4),
-            ),
+            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
           ],
         ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black, width: 2),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(isLargeScreen ? 12 : (isWeb ? 8 : 12)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black, width: 2),
+              ),
+              child: Icon(
+                Icons.sports_esports_rounded,
+                color: Colors.black,
+                size: isLargeScreen ? 30 : (isWeb ? 20 : 28),
+              ),
             ),
-            child: const Icon(
-              Icons.sports_esports_rounded,
-              color: Colors.black,
-              size: 28,
+            const SizedBox(width: 12),
+            Expanded(
+              child: isWeb
+                  // Web: title + subtitle + button KHÁM PHÁ cùng 1 hàng
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'TRENDING GAMES',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: isLargeScreen ? 20 : 15,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              Text(
+                                'KHÁM PHÁ CÁC TRÒ CHƠI HOT NHẤT & TÌM BẠN CHƠI',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: isLargeScreen ? 14 : 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Button KHÁM PHÁ → cùng hàng
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isLargeScreen ? 20 : 14,
+                            vertical: isLargeScreen ? 12 : 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.black, width: 2),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black,
+                                offset: Offset(2, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'KHÁM PHÁ',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: isLargeScreen ? 15 : 12,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.black,
+                                size: isLargeScreen ? 19 : 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  // Mobile: giữ nguyên layout cũ
+                  : const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TRENDING GAMES',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Khám phá game đang hot nhất',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TRENDING GAMES',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.0,
-                  ),
+            if (!isWeb) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black, width: 2),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Khám phá game đang hot nhất',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.black,
+                  size: 16,
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.black, width: 2),
-            ),
-            child: const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.black,
-              size: 16,
-            ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
-      )
     );
   }
 }

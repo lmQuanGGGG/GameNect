@@ -19,6 +19,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual">
   <meta name="description" content="GameNect - Nền tảng mạng xã hội kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng.">
   <meta name="keywords" content="GameNect, game, mạng xã hội, kết nối game thủ, tìm bạn chơi game">
   <meta name="author" content="GameNect">
@@ -174,6 +175,64 @@
   <!-- Agora RTC Web SDK -->
   <script src="https://download.agora.io/sdk/release/iris-web-rtc_n450_w4220_0.8.6.js"></script>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    (function () {
+      let fullViewportHeight = 0;
+
+      function resetViewportBaseline() {
+        const viewport = window.visualViewport;
+        if (!viewport) return;
+        fullViewportHeight = Math.max(viewport.height, window.innerHeight);
+      }
+
+      function publishKeyboardInset() {
+        const viewport = window.visualViewport;
+        if (!viewport) return;
+
+        if (!fullViewportHeight) {
+          resetViewportBaseline();
+        }
+
+        // Không cập nhật baseline khi bàn phím đang mở.
+        if (viewport.height > fullViewportHeight - 40) {
+          fullViewportHeight = Math.max(
+            fullViewportHeight,
+            viewport.height,
+            window.innerHeight
+          );
+        }
+
+        const rawInset = Math.max(
+          0,
+          fullViewportHeight - viewport.height - viewport.offsetTop
+        );
+        const inset = rawInset >= 80 ? Math.round(rawInset) : 0;
+
+        window.__gamenectKeyboardInset = inset;
+        window.postMessage({
+          type: 'gamenectKeyboardInset',
+          inset: inset
+        }, '*');
+
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+      }
+
+      if (window.visualViewport) {
+        resetViewportBaseline();
+        window.visualViewport.addEventListener('resize', publishKeyboardInset);
+        window.visualViewport.addEventListener('scroll', publishKeyboardInset);
+        window.addEventListener('orientationchange', function () {
+          fullViewportHeight = 0;
+          setTimeout(function () {
+            resetViewportBaseline();
+            publishKeyboardInset();
+          }, 300);
+        });
+        publishKeyboardInset();
+      }
+    })();
+  </script>
 </body>
 
 </html>
