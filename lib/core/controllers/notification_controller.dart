@@ -8,7 +8,6 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../services/notification_service.dart';
 import '../providers/chat_provider.dart';
 import 'dart:math';
 
@@ -17,7 +16,8 @@ import 'dart:math';
 
 class NotificationController {
   // Singleton để đảm bảo chỉ có một instance NotificationController trong toàn bộ app.
-  static final NotificationController _instance = NotificationController._internal();
+  static final NotificationController _instance =
+      NotificationController._internal();
   factory NotificationController() => _instance;
   NotificationController._internal();
 
@@ -27,7 +27,9 @@ class NotificationController {
 
   // Hàm khởi tạo các kênh thông báo local (Awesome Notifications).
   // Mỗi kênh dùng cho một loại thông báo: tin nhắn, cuộc gọi, moment, thông báo cơ bản.
-  static Future<void> initializeLocalNotifications({required bool debug}) async {
+  static Future<void> initializeLocalNotifications({
+    required bool debug,
+  }) async {
     if (kIsWeb) return;
     await AwesomeNotifications().initialize(
       defaultTargetPlatform == TargetPlatform.android
@@ -95,7 +97,9 @@ class NotificationController {
 
   // Hàm khởi tạo nhận thông báo từ FCM (Firebase Cloud Messaging).
   // Đăng ký các callback xử lý khi nhận silent data, nhận token mới, nhận native token.
-  static Future<void> initializeRemoteNotifications({required bool debug}) async {
+  static Future<void> initializeRemoteNotifications({
+    required bool debug,
+  }) async {
     if (kIsWeb) return;
     await Firebase.initializeApp();
     await AwesomeNotificationsFcm().initialize(
@@ -124,13 +128,19 @@ class NotificationController {
       try {
         bool isSupported = await FirebaseMessaging.instance.isSupported();
         if (!isSupported) {
-          developer.log('Push notifications not supported on Web. Cannot get token.', name: 'FCM');
+          developer.log(
+            'Push notifications not supported on Web. Cannot get token.',
+            name: 'FCM',
+          );
           return null;
         }
-        
-        final resolvedVapidKey = vapidKey ??
-          const String.fromEnvironment('FCM_VAPID_KEY') ??
-          dotenv.env['FCM_VAPID_KEY'];
+
+        final envVapidKey = const String.fromEnvironment('FCM_VAPID_KEY');
+        final resolvedVapidKey =
+            vapidKey ??
+            (envVapidKey.isNotEmpty
+                ? envVapidKey
+                : dotenv.env['FCM_VAPID_KEY']);
         if (resolvedVapidKey == null || resolvedVapidKey.isEmpty) {
           developer.log('Missing FCM_VAPID_KEY for Web', name: 'FCM');
           return null;
@@ -157,12 +167,12 @@ class NotificationController {
       try {
         _fcmToken = await AwesomeNotificationsFcm().requestFirebaseAppToken();
         developer.log('FCM Token: $_fcmToken', name: 'FCM');
-        
+
         // Lưu token vào Firestore để backend có thể gửi thông báo đến user này.
         if (_fcmToken != null) {
           await _saveTokenToFirestore(_fcmToken!);
         }
-        
+
         return _fcmToken;
       } catch (e) {
         developer.log('Error getting FCM token: $e', name: 'FCM');
@@ -193,11 +203,39 @@ class NotificationController {
   // Xóa token khỏi Firestore để đảm bảo không gửi thông báo nhầm cho user cũ.
   Future<void> clearToken() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    String? tokenToRemove = _fcmToken;
+    if (tokenToRemove == null || tokenToRemove.isEmpty) {
+      try {
+        if (kIsWeb) {
+          final envVapidKey = const String.fromEnvironment('FCM_VAPID_KEY');
+          final resolvedVapidKey = envVapidKey.isNotEmpty
+              ? envVapidKey
+              : dotenv.env['FCM_VAPID_KEY'];
+          if (resolvedVapidKey != null && resolvedVapidKey.isNotEmpty) {
+            tokenToRemove = await FirebaseMessaging.instance.getToken(
+              vapidKey: resolvedVapidKey,
+            );
+          }
+        } else if (await AwesomeNotificationsFcm().isFirebaseAvailable) {
+          tokenToRemove = await AwesomeNotificationsFcm()
+              .requestFirebaseAppToken();
+        }
+      } catch (e) {
+        developer.log('Error resolving token for logout: $e', name: 'FCM');
+      }
+    }
+
     if (userId != null) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .update({'fcmToken': FieldValue.delete()});
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'fcmToken': FieldValue.delete(),
+      });
+      if (tokenToRemove != null && tokenToRemove.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update(
+          {
+            'fcmTokens': FieldValue.arrayRemove([tokenToRemove]),
+          },
+        );
+      }
     }
     _fcmToken = null;
     developer.log('Token cleared', name: 'FCM');
@@ -226,17 +264,20 @@ class NotificationController {
       return;
     }
 
-    // Các loại khác (chat/moment/like): 
+    // Các loại khác (chat/moment/like):
     // Khi background/killed → OS đã hiển thị từ FCM notification field
     // Khi foreground → tạo in-app notification
     if (silentData.createdLifeCycle != NotificationLifeCycle.Foreground) {
-      developer.log('Background/Killed + non-call → handled by OS', name: 'FCM');
+      developer.log(
+        'Background/Killed + non-call → handled by OS',
+        name: 'FCM',
+      );
       return;
     }
 
     // Foreground: tạo in-app notification có style đẹp hơn
     try {
-      if (type == 'chat') {
+      if (type == 'chat' || type == 'match') {
         final matchId = data['matchId'] ?? '';
         // Bỏ qua nếu user đang mở đúng màn hình chat đó
         if (ChatProvider.currentActiveMatchId == matchId) return;
@@ -245,13 +286,18 @@ class NotificationController {
           content: NotificationContent(
             id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
             channelKey: 'gamenect_channel',
-            title: data['peerUsername'] ?? 'User',
-            body: data['message'] ?? 'Tin nhắn mới',
+            title:
+                data['peerUsername'] ??
+                (type == 'match' ? 'Match mới!' : 'User'),
+            body:
+                data['message'] ??
+                (type == 'match' ? 'Nhấn để nhắn tin ngay' : 'Tin nhắn mới'),
             payload: {
-              'type': 'chat',
+              'type': type,
               'matchId': data['matchId'] ?? '',
               'peerUserId': data['peerUserId'] ?? '',
             },
+            actionType: ActionType.Default,
             notificationLayout: NotificationLayout.Messaging,
             category: NotificationCategory.Message,
             wakeUpScreen: true,
@@ -264,13 +310,15 @@ class NotificationController {
           content: NotificationContent(
             id: (data['momentId'] ?? '').hashCode,
             channelKey: 'moment_channel',
-            title: '${data['reactorUsername'] ?? 'Someone'} đã thả ${data['emoji'] ?? '❤️'}',
+            title:
+                '${data['reactorUsername'] ?? 'Someone'} đã thả ${data['emoji'] ?? '❤️'}',
             body: 'vào moment của bạn',
             payload: {
               'type': 'moment_reaction',
               'momentId': data['momentId'] ?? '',
               'reactorUserId': data['reactorUserId'] ?? '',
             },
+            actionType: ActionType.Default,
             notificationLayout: NotificationLayout.Default,
             category: NotificationCategory.Social,
             displayOnForeground: true,
@@ -304,12 +352,13 @@ class NotificationController {
             'matchId': matchId,
             'peerUserId': peerUserId,
           },
+          actionType: ActionType.Default,
           notificationLayout: NotificationLayout.Default,
           category: NotificationCategory.Call,
           wakeUpScreen: true,
-          fullScreenIntent: true,   // Hiển thị full screen khi màn hình khóa
-          criticalAlert: true,       // Vượt qua chế độ im lặng
-          locked: true,              // Không thể vuốt tắt
+          fullScreenIntent: true, // Hiển thị full screen khi màn hình khóa
+          criticalAlert: true, // Vượt qua chế độ im lặng
+          locked: true, // Không thể vuốt tắt
         ),
         // Nút Nghe và Từ chối hiển thị trực tiếp trên notification
         actionButtons: [
@@ -327,7 +376,10 @@ class NotificationController {
           ),
         ],
       );
-      developer.log('Call notification created with action buttons', name: 'FCM');
+      developer.log(
+        'Call notification created with action buttons',
+        name: 'FCM',
+      );
     } catch (e) {
       developer.log('Error creating call notification: $e', name: 'FCM');
     }
@@ -358,11 +410,9 @@ class NotificationController {
         return;
       }
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .update({
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'fcmToken': token,
+        'fcmTokens': FieldValue.arrayUnion([token]),
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -387,11 +437,8 @@ class NotificationController {
         channelKey: 'gamenect_channel',
         title: peerUsername,
         body: message,
-        payload: {
-          'type': 'chat',
-          'matchId': matchId,
-          'peerUserId': peerUserId,
-        },
+        payload: {'type': 'chat', 'matchId': matchId, 'peerUserId': peerUserId},
+        actionType: ActionType.Default,
         notificationLayout: NotificationLayout.Messaging,
         category: NotificationCategory.Message,
         wakeUpScreen: true,
@@ -414,11 +461,8 @@ class NotificationController {
         channelKey: 'call_channel',
         title: 'Cuộc gọi đến',
         body: '$peerUsername đang gọi cho bạn',
-        payload: {
-          'type': 'call',
-          'matchId': matchId,
-          'peerUserId': peerUserId,
-        },
+        payload: {'type': 'call', 'matchId': matchId, 'peerUserId': peerUserId},
+        actionType: ActionType.Default,
         notificationLayout: NotificationLayout.Default,
         category: NotificationCategory.Call,
         wakeUpScreen: true,
@@ -462,6 +506,7 @@ class NotificationController {
           'momentId': momentId,
           'reactorUserId': reactorUserId,
         },
+        actionType: ActionType.Default,
         notificationLayout: NotificationLayout.Default,
         category: NotificationCategory.Social,
       ),
@@ -478,13 +523,14 @@ class NotificationController {
     if (kIsWeb) return;
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
-        id: Random().nextInt(100000),  // Tạo id ngẫu nhiên cho notification
+        id: Random().nextInt(100000), // Tạo id ngẫu nhiên cho notification
         channelKey: 'basic_channel',
         title: title,
         body: body,
         payload: payload,
-        wakeUpScreen: true,  // Bật sáng màn hình khi nhận thông báo
-        fullScreenIntent: true,  // Hiện popup toàn màn hình nếu cần
+        actionType: ActionType.Default,
+        wakeUpScreen: true, // Bật sáng màn hình khi nhận thông báo
+        fullScreenIntent: true, // Hiện popup toàn màn hình nếu cần
         showWhen: true,
         displayOnForeground: true,
         displayOnBackground: true,

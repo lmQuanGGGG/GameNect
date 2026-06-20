@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:gamenect_new/core/widgets/network_image.dart';
 import 'package:provider/provider.dart';
@@ -7,14 +7,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import '../../../core/providers/match_provider.dart';
 import '../../../core/providers/profile_provider.dart';
-//import '../../../core/models/user_model.dart';
+import '../../../core/models/user_model.dart';
 import '../../../core/widgets/profile_card.dart'; // Thay vì user_card.dart
 import '../../../core/services/firestore_service.dart';
 import 'match_list_screen.dart';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
 import '../../../core/theme/theme_helper.dart';
-
 
 // Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 
@@ -31,6 +30,58 @@ class _MatchScreenState extends State<MatchScreen> {
   late MatchProvider matchProvider;
   final CardSwiperController controller = CardSwiperController();
   int _currentViewIndex = 0; // Track user hiện đang xem trên web
+  bool _needsLocation = false;
+
+  Future<List<UserModel>> _loadCandidates(
+    FirestoreService firestoreService,
+    UserModel userModel,
+  ) async {
+    final hasLocation =
+        userModel.latitude != null && userModel.longitude != null;
+
+    if (!hasLocation) {
+      if (mounted) {
+        setState(() => _needsLocation = true);
+      } else {
+        _needsLocation = true;
+      }
+      return [];
+    }
+
+    if (_needsLocation && mounted) {
+      setState(() => _needsLocation = false);
+    } else {
+      _needsLocation = false;
+    }
+
+    return firestoreService.getUsersWithinRadius(
+      latitude: userModel.latitude!,
+      longitude: userModel.longitude!,
+      radiusKm: userModel.maxDistance,
+      limit: 100,
+    );
+  }
+
+  Future<void> _reloadRecommendations({bool showLocationPrompt = false}) async {
+    final firestoreService = Provider.of<FirestoreService>(
+      context,
+      listen: false,
+    );
+    final userModel = await firestoreService.getCurrentUser();
+    if (userModel == null) return;
+
+    final candidateUsers = await _loadCandidates(firestoreService, userModel);
+
+    if (candidateUsers.isEmpty && _needsLocation) {
+      matchProvider.clearRecommendations();
+    } else {
+      await matchProvider.fetchRecommendations(userModel, candidateUsers);
+    }
+
+    if (mounted) {
+      setState(() => _currentViewIndex = 0);
+    }
+  }
 
   @override
   void initState() {
@@ -41,23 +92,8 @@ class _MatchScreenState extends State<MatchScreen> {
       if (matchProvider.recommendations.isNotEmpty) {
         return; // Đã tải sẵn từ lúc khởi động app
       }
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final firestoreService = Provider.of<FirestoreService>(
-          context,
-          listen: false,
-        );
-        // Lấy thông tin user hiện tại
-        final userModel = await firestoreService.getUser(firebaseUser.uid);
-        // Lấy danh sách tất cả user để tạo đề xuất
-        final candidateUsers = await firestoreService.getAllUsers();
-        if (userModel != null) {
-          // Tải danh sách đề xuất dựa trên user hiện tại và danh sách candidate
-          await matchProvider.fetchRecommendations(userModel, candidateUsers);
-          if (mounted) {
-            setState(() {});
-          }
-        }
+      if (FirebaseAuth.instance.currentUser != null) {
+        await _reloadRecommendations(showLocationPrompt: true);
       }
     });
   }
@@ -338,25 +374,7 @@ class _MatchScreenState extends State<MatchScreen> {
                   );
                   if (result == true) {
                     // Nếu có thay đổi, tải lại dữ liệu đề xuất
-                    final firebaseUser = FirebaseAuth.instance.currentUser;
-                    if (firebaseUser != null) {
-                      final firestoreService = Provider.of<FirestoreService>(
-                        context,
-                        listen: false,
-                      );
-                      final userModel = await firestoreService.getUser(
-                        firebaseUser.uid,
-                      );
-                      final candidateUsers = await firestoreService
-                          .getAllUsers();
-                      if (userModel != null) {
-                        await Provider.of<MatchProvider>(
-                          context,
-                          listen: false,
-                        ).fetchRecommendations(userModel, candidateUsers);
-                        setState(() {});
-                      }
-                    }
+                    await _reloadRecommendations(showLocationPrompt: true);
                   }
                 },
                 child: const Icon(
@@ -378,19 +396,7 @@ class _MatchScreenState extends State<MatchScreen> {
               backgroundColor: const Color(0xFF1A1A1E),
               displacement: 20,
               onRefresh: () async {
-                final firestoreService = Provider.of<FirestoreService>(
-                  context,
-                  listen: false,
-                );
-                final userModel = await firestoreService.getCurrentUser();
-                final candidateUsers = await firestoreService.getAllUsers();
-                if (userModel != null) {
-                  await Provider.of<MatchProvider>(
-                    context,
-                    listen: false,
-                  ).fetchRecommendations(userModel, candidateUsers);
-                  if (mounted) setState(() {});
-                }
+                await _reloadRecommendations(showLocationPrompt: true);
               },
               child: Listener(
                 // Dùng Listener thay GestureDetector vì CardSwiper nuốt hết gesture events.
@@ -417,276 +423,470 @@ class _MatchScreenState extends State<MatchScreen> {
                         ),
                       )
                     : users.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Không có đề xuất nào',
-                          style: TextStyle(color: context.textSecondaryColor),
-                        ),
+                    ? CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 64,
+                                    color: context.textSecondaryColor,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _needsLocation
+                                        ? 'Cập nhật vị trí để tìm người phù hợp'
+                                        : 'Bạn đã xem hết mọi người!',
+                                    style: TextStyle(
+                                      color: context.textColor,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _needsLocation
+                                        ? 'GAMENECT dùng vị trí đã lưu trong hồ sơ để gợi ý người chơi gần bạn.'
+                                        : 'Thử mở rộng bán kính hoặc thay đổi bộ lọc để tìm thêm người.',
+                                    style: TextStyle(
+                                      color: context.textSecondaryColor,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/location-settings',
+                                    ),
+                                    icon: Icon(
+                                      _needsLocation
+                                          ? Icons.location_on
+                                          : Icons.tune,
+                                    ),
+                                    label: Text(
+                                      _needsLocation
+                                          ? 'Cập nhật vị trí'
+                                          : 'Điều chỉnh bộ lọc',
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF6E40),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWideScreen =
-                              kIsWeb && constraints.maxWidth > 700;
-                          final screenHeight =
-                              MediaQuery.of(context).size.height -
-                              kToolbarHeight -
-                              20;
-                          final user =
-                              (_currentViewIndex >= 0 &&
-                                  _currentViewIndex < users.length)
-                              ? users[_currentViewIndex]
-                              : null;
+                    : Focus(
+                        autofocus: true,
+                        onKeyEvent: (node, event) {
+                          if (event is KeyDownEvent) {
+                            if (event.logicalKey ==
+                                LogicalKeyboardKey.arrowLeft) {
+                              controller.swipe(CardSwiperDirection.left);
+                              return KeyEventResult.handled;
+                            } else if (event.logicalKey ==
+                                LogicalKeyboardKey.arrowRight) {
+                              controller.swipe(CardSwiperDirection.right);
+                              return KeyEventResult.handled;
+                            }
+                          }
+                          return KeyEventResult.ignored;
+                        },
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWideScreen =
+                                kIsWeb && constraints.maxWidth > 700;
+                            final screenHeight =
+                                MediaQuery.of(context).size.height -
+                                kToolbarHeight;
+                            final user =
+                                (_currentViewIndex >= 0 &&
+                                    _currentViewIndex < users.length)
+                                ? users[_currentViewIndex]
+                                : null;
 
-                          // Widget CardSwiper dùng chung cho cả 2 layout
-                          final cardSwiperWidget = CardSwiper(
-                            controller: controller,
-                            cardsCount: users.length,
-                            cardBuilder: (context, index, hOff, vOff) {
-                              if (index < 0 || index >= users.length)
-                                return const SizedBox();
-                              return ProfileCard(user: users[index]);
-                            },
-                            padding: EdgeInsets.zero,
-                            numberOfCardsDisplayed: users.length < 3
-                                ? users.length
-                                : 3,
-                            isLoop: false,
-                            threshold: kIsWeb ? 30 : 50, // Nhạy hơn trên Web
-                            allowedSwipeDirection:
-                                const AllowedSwipeDirection.only(
-                                  left: true,
-                                  right: true,
-                                  up: false,
-                                  down: false,
-                                ),
-                            onSwipe:
-                                (
-                                  int previousIndex,
-                                  int? currentIndex,
-                                  CardSwiperDirection direction,
-                                ) async {
-                                  if (previousIndex < 0 ||
-                                      previousIndex >= users.length)
-                                    return true;
-                                  final swipedUser = users[previousIndex];
-                                  final currentUserId =
-                                      FirebaseAuth.instance.currentUser?.uid;
-                                  final firestoreService =
-                                      Provider.of<FirestoreService>(
-                                        context,
-                                        listen: false,
-                                      );
-
-                                  // Cập nhật index đang xem trên web
-                                  if (mounted &&
-                                      currentIndex != null &&
-                                      currentIndex < users.length) {
-                                    setState(
-                                      () => _currentViewIndex = currentIndex,
-                                    );
-                                  }
-
-                                  if (currentUserId != null) {
-                                    if (direction ==
-                                        CardSwiperDirection.right) {
-                                      await firestoreService.saveSwipeHistory(
-                                        userId: currentUserId,
-                                        targetUserId: swipedUser.id,
-                                        action: 'like',
-                                      );
-                                      final isMutual = await firestoreService
-                                          .checkMutualLike(
-                                            userId: currentUserId,
-                                            targetUserId: swipedUser.id,
-                                          );
-                                      if (isMutual) {
-                                        await firestoreService.createNewMatch(
-                                          userIds: [
-                                            currentUserId,
-                                            swipedUser.id,
-                                          ],
-                                          game: 'Tên game',
-                                          expiresAt: DateTime.now().add(
-                                            const Duration(hours: 24),
-                                          ),
+                            // Widget CardSwiper dùng chung cho cả 2 layout
+                            final cardSwiperWidget = CardSwiper(
+                              controller: controller,
+                              cardsCount: users.length,
+                              cardBuilder: (context, index, hOff, vOff) {
+                                if (index < 0 || index >= users.length) {
+                                  return const SizedBox();
+                                }
+                                return ProfileCard(user: users[index]);
+                              },
+                              padding: EdgeInsets.zero,
+                              numberOfCardsDisplayed: users.length < 3
+                                  ? users.length
+                                  : 3,
+                              isLoop: false,
+                              threshold: kIsWeb ? 30 : 50, // Nhạy hơn trên Web
+                              allowedSwipeDirection: kIsWeb
+                                  ? const AllowedSwipeDirection.none() // Tắt vuốt thẻ trên mọi phiên bản Web
+                                  : const AllowedSwipeDirection.only(
+                                      left: true,
+                                      right: true,
+                                      up: false,
+                                      down: false,
+                                    ),
+                              onSwipe:
+                                  (
+                                    int previousIndex,
+                                    int? currentIndex,
+                                    CardSwiperDirection direction,
+                                  ) async {
+                                    if (previousIndex < 0 ||
+                                        previousIndex >= users.length) {
+                                      return true;
+                                    }
+                                    final swipedUser = users[previousIndex];
+                                    final currentUserId =
+                                        FirebaseAuth.instance.currentUser?.uid;
+                                    final firestoreService =
+                                        Provider.of<FirestoreService>(
+                                          context,
+                                          listen: false,
                                         );
-                                        if (mounted) {
+
+                                    // Cập nhật index đang xem trên web
+                                    if (mounted &&
+                                        currentIndex != null &&
+                                        currentIndex < users.length) {
+                                      setState(
+                                        () => _currentViewIndex = currentIndex,
+                                      );
+                                    }
+
+                                    if (currentUserId != null) {
+                                      if (direction ==
+                                          CardSwiperDirection.right) {
+                                        await firestoreService.saveSwipeHistory(
+                                          userId: currentUserId,
+                                          targetUserId: swipedUser.id,
+                                          action: 'like',
+                                        );
+                                        final isMutual = await firestoreService
+                                            .checkMutualLike(
+                                              userId: currentUserId,
+                                              targetUserId: swipedUser.id,
+                                            );
+                                        if (isMutual) {
+                                          await firestoreService.createNewMatch(
+                                            userIds: [
+                                              currentUserId,
+                                              swipedUser.id,
+                                            ],
+                                            game: 'Tên game',
+                                            expiresAt: DateTime.now().add(
+                                              const Duration(hours: 24),
+                                            ),
+                                          );
                                           await Future.delayed(
                                             const Duration(milliseconds: 500),
                                           );
-                                          if (mounted)
-                                            _showMatchDialog(
-                                              context,
-                                              swipedUser.username,
-                                              swipedUser.avatarUrl ?? '',
-                                            );
+                                          if (!context.mounted) return true;
+                                          _showMatchDialog(
+                                            context,
+                                            swipedUser.username,
+                                            swipedUser.avatarUrl ?? '',
+                                          );
                                         }
+                                      } else if (direction ==
+                                          CardSwiperDirection.left) {
+                                        await firestoreService.saveSwipeHistory(
+                                          userId: currentUserId,
+                                          targetUserId: swipedUser.id,
+                                          action: 'dislike',
+                                        );
                                       }
-                                    } else if (direction ==
-                                        CardSwiperDirection.left) {
-                                      await firestoreService.saveSwipeHistory(
-                                        userId: currentUserId,
-                                        targetUserId: swipedUser.id,
-                                        action: 'dislike',
-                                      );
                                     }
-                                  }
-                                  return true;
-                                },
-                            onEnd: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Hết đề xuất!')),
-                              );
-                            },
-                          );
+                                    return true;
+                                  },
+                              onEnd: () async {
+                                // Tự động load lại khi vuốt hết thẻ
+                                await _reloadRecommendations(
+                                  showLocationPrompt: true,
+                                );
+                              },
+                            );
 
-                          if (isWideScreen) {
-                            // === LAYOUT 2 CỘT CHO WEB ===
-                            return Row(
-                              children: [
-                                // Cột trái: Card swipe (max 480px, căn giữa)
-                                SizedBox(
-                                  width: 480,
-                                  height: screenHeight,
-                                  child: cardSwiperWidget,
-                                ),
-                                // Divider
-                                Container(
-                                  width: 1,
-                                  height: screenHeight,
-                                  color: const Color(
-                                    0xFFFF6E40,
-                                  ).withValues(alpha: 0.2),
-                                ),
-                                // Cột phải: Info panel user đang xem
-                                Expanded(
-                                  child: user == null
-                                      ? Center(
-                                          child: Text(
-                                            'Vuốt card để xem thông tin',
-                                            style: TextStyle(
-                                              color: context.textTertiaryColor,
-                                            ),
+                            final actionButtonsRow = Padding(
+                              padding: const EdgeInsets.only(
+                                top: 12,
+                                bottom: 24,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Nút Dislike
+                                  GestureDetector(
+                                    onTap: () => controller.swipe(
+                                      CardSwiperDirection.left,
+                                    ),
+                                    child: Container(
+                                      width: 70,
+                                      height: 70,
+                                      decoration: BoxDecoration(
+                                        color: context.scaffoldBackgroundColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: context.textColor,
+                                          width: 3,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: context.textColor,
+                                            offset: const Offset(4, 4),
                                           ),
-                                        )
-                                      : SingleChildScrollView(
-                                          padding: const EdgeInsets.all(32),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // Avatar + tên
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      shape: BoxShape.circle,
-                                                      border: Border.all(
-                                                        color:
-                                                            context.textColor,
-                                                        width: 3,
-                                                      ),
-                                                      boxShadow: [
-                                                        BoxShadow(
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.close,
+                                          color: context.textColor,
+                                          size: 36,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 40),
+                                  // Nút Like
+                                  GestureDetector(
+                                    onTap: () => controller.swipe(
+                                      CardSwiperDirection.right,
+                                    ),
+                                    child: Container(
+                                      width: 70,
+                                      height: 70,
+                                      decoration: BoxDecoration(
+                                        color: context.scaffoldBackgroundColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: context.textColor,
+                                          width: 3,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: context.textColor,
+                                            offset: const Offset(4, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.favorite,
+                                          color: Color(0xFFFF6E40),
+                                          size: 36,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            final mobileLayout = kIsWeb
+                                ? Stack(
+                                    children: [
+                                      Positioned.fill(child: cardSwiperWidget),
+                                      Positioned(
+                                        bottom:
+                                            130, // Nâng cao lên để không đè lên Bottom Nav Bar
+                                        left: 0,
+                                        right: 0,
+                                        child: actionButtonsRow,
+                                      ),
+                                    ],
+                                  )
+                                : cardSwiperWidget;
+
+                            if (isWideScreen) {
+                              // === LAYOUT 2 CỘT CHO WEB ===
+                              return Row(
+                                children: [
+                                  // Cột trái: Card swipe (max 480px, căn giữa)
+                                  SizedBox(
+                                    width: 480,
+                                    height: screenHeight,
+                                    child: cardSwiperWidget,
+                                  ),
+                                  // Divider
+                                  Container(
+                                    width: 1,
+                                    height: screenHeight,
+                                    color: const Color(
+                                      0xFFFF6E40,
+                                    ).withValues(alpha: 0.2),
+                                  ),
+                                  // Cột phải: Info panel user đang xem
+                                  Expanded(
+                                    child: user == null
+                                        ? Center(
+                                            child: Text(
+                                              'Vuốt card để xem thông tin',
+                                              style: TextStyle(
+                                                color:
+                                                    context.textTertiaryColor,
+                                              ),
+                                            ),
+                                          )
+                                        : SingleChildScrollView(
+                                            padding: const EdgeInsets.all(32),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                // Avatar + tên
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(
                                                           color:
                                                               context.textColor,
-                                                          offset: const Offset(
-                                                            4,
-                                                            4,
+                                                          width: 3,
+                                                        ),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: context
+                                                                .textColor,
+                                                            offset:
+                                                                const Offset(
+                                                                  4,
+                                                                  4,
+                                                                ),
                                                           ),
+                                                        ],
+                                                      ),
+                                                      child: CircleAvatar(
+                                                        radius: 40,
+                                                        backgroundColor: context
+                                                            .scaffoldBackgroundColor,
+                                                        child:
+                                                            user
+                                                                    .avatarUrl
+                                                                    ?.isNotEmpty ==
+                                                                true
+                                                            ? ClipOval(
+                                                                child: GamenectNetworkImage(
+                                                                  imageUrl: user
+                                                                      .avatarUrl!,
+                                                                  width: 80,
+                                                                  height: 80,
+                                                                  fit: BoxFit
+                                                                      .cover,
+                                                                ),
+                                                              )
+                                                            : const Icon(
+                                                                Icons.person,
+                                                                size: 40,
+                                                                color: Color(
+                                                                  0xFFFF6E40,
+                                                                ),
+                                                              ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 16),
+                                                    Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          user.username,
+                                                          style: TextStyle(
+                                                            color: context
+                                                                .textColor,
+                                                            fontSize: 26,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          user.rank,
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Color(
+                                                                  0xFFFF6E40,
+                                                                ),
+                                                                fontSize: 16,
+                                                              ),
                                                         ),
                                                       ],
                                                     ),
-                                                    child: CircleAvatar(
-                                                      radius: 40,
-                                                      backgroundColor: context
-                                                          .scaffoldBackgroundColor,
-                                                      child:
-                                                          user
-                                                                  .avatarUrl
-                                                                  ?.isNotEmpty ==
-                                                              true
-                                                          ? ClipOval(
-                                                              child: GamenectNetworkImage(
-                                                                imageUrl: user
-                                                                    .avatarUrl!,
-                                                                width: 80,
-                                                                height: 80,
-                                                                fit: BoxFit
-                                                                    .cover,
-                                                              ),
-                                                            )
-                                                          : const Icon(
-                                                              Icons.person,
-                                                              size: 40,
-                                                              color: Color(
-                                                                0xFFFF6E40,
-                                                              ),
-                                                            ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Thông tin cơ bản
+                                                _infoTile(
+                                                  Icons.cake,
+                                                  'Tuổi',
+                                                  '${user.age} tuổi',
+                                                ),
+                                                _infoTile(
+                                                  Icons.person,
+                                                  'Giới tính',
+                                                  user.gender,
+                                                ),
+                                                if (user.distanceKm != null)
+                                                  _infoTile(
+                                                    Icons.location_on,
+                                                    'Khoảng cách',
+                                                    '${user.distanceKm!.toStringAsFixed(1)} km',
+                                                  ),
+                                                _infoTile(
+                                                  Icons.gamepad,
+                                                  'Phong cách',
+                                                  user.gameStyle,
+                                                ),
+                                                _infoTile(
+                                                  Icons.search,
+                                                  'Mục đích',
+                                                  user.lookingFor,
+                                                ),
+                                                const SizedBox(height: 16),
+                                                // Bio
+                                                if (user.bio.isNotEmpty) ...[
+                                                  Text(
+                                                    'Giới thiệu',
+                                                    style: TextStyle(
+                                                      color: context.textColor,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 18,
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 16),
-                                                  Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        user.username,
-                                                        style: TextStyle(
-                                                          color:
-                                                              context.textColor,
-                                                          fontSize: 26,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        user.rank,
-                                                        style: const TextStyle(
-                                                          color: Color(
-                                                            0xFFFF6E40,
-                                                          ),
-                                                          fontSize: 16,
-                                                        ),
-                                                      ),
-                                                    ],
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    user.bio,
+                                                    style: TextStyle(
+                                                      color: context
+                                                          .textSecondaryColor,
+                                                      fontSize: 15,
+                                                      height: 1.5,
+                                                    ),
                                                   ),
+                                                  const SizedBox(height: 16),
                                                 ],
-                                              ),
-                                              const SizedBox(height: 24),
-                                              // Thông tin cơ bản
-                                              _infoTile(
-                                                Icons.cake,
-                                                'Tuổi',
-                                                '${user.age} tuổi',
-                                              ),
-                                              _infoTile(
-                                                Icons.person,
-                                                'Giới tính',
-                                                user.gender,
-                                              ),
-                                              if (user.distanceKm != null)
-                                                _infoTile(
-                                                  Icons.location_on,
-                                                  'Khoảng cách',
-                                                  '${user.distanceKm!.toStringAsFixed(1)} km',
-                                                ),
-                                              _infoTile(
-                                                Icons.gamepad,
-                                                'Phong cách',
-                                                user.gameStyle,
-                                              ),
-                                              _infoTile(
-                                                Icons.search,
-                                                'Mục đích',
-                                                user.lookingFor,
-                                              ),
-                                              const SizedBox(height: 16),
-                                              // Bio
-                                              if (user.bio.isNotEmpty) ...[
+                                                // Game tags
                                                 Text(
-                                                  'Giới thiệu',
+                                                  'Game yêu thích',
                                                   style: TextStyle(
                                                     color: context.textColor,
                                                     fontWeight: FontWeight.bold,
@@ -694,49 +894,72 @@ class _MatchScreenState extends State<MatchScreen> {
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
-                                                Text(
-                                                  user.bio,
-                                                  style: TextStyle(
-                                                    color: context
-                                                        .textSecondaryColor,
-                                                    fontSize: 15,
-                                                    height: 1.5,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                              ],
-                                              // Game tags
-                                              Text(
-                                                'Game yêu thích',
-                                                style: TextStyle(
-                                                  color: context.textColor,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: user.favoriteGames
-                                                    .map(
-                                                      (g) => Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 14,
-                                                              vertical: 7,
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  children: user.favoriteGames
+                                                      .map(
+                                                        (g) => Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 14,
+                                                                vertical: 7,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: context
+                                                                .scaffoldBackgroundColor,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                            border: Border.all(
+                                                              color: context
+                                                                  .textColor,
+                                                              width: 2,
                                                             ),
+                                                            boxShadow: [
+                                                              BoxShadow(
+                                                                color: context
+                                                                    .textColor,
+                                                                offset:
+                                                                    const Offset(
+                                                                      2,
+                                                                      2,
+                                                                    ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          child: Text(
+                                                            g,
+                                                            style: TextStyle(
+                                                              color: context
+                                                                  .textColor,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w900,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                      .toList(),
+                                                ),
+                                                const SizedBox(height: 24),
+                                                // Nút like / dislike (Cho màn hình lớn)
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Container(
                                                         decoration: BoxDecoration(
                                                           color: context
                                                               .scaffoldBackgroundColor,
                                                           borderRadius:
                                                               BorderRadius.circular(
-                                                                8,
+                                                                12,
                                                               ),
                                                           border: Border.all(
                                                             color: context
                                                                 .textColor,
-                                                            width: 2,
+                                                            width: 3,
                                                           ),
                                                           boxShadow: [
                                                             BoxShadow(
@@ -744,184 +967,146 @@ class _MatchScreenState extends State<MatchScreen> {
                                                                   .textColor,
                                                               offset:
                                                                   const Offset(
-                                                                    2,
-                                                                    2,
+                                                                    4,
+                                                                    4,
                                                                   ),
                                                             ),
                                                           ],
                                                         ),
-                                                        child: Text(
-                                                          g,
-                                                          style: TextStyle(
-                                                            color: context
-                                                                .textColor,
-                                                            fontWeight:
-                                                                FontWeight.w900,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    )
-                                                    .toList(),
-                                              ),
-                                              const SizedBox(height: 24),
-                                              // Nút like / dislike
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Container(
-                                                      decoration: BoxDecoration(
-                                                        color: context
-                                                            .scaffoldBackgroundColor,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
-                                                        border: Border.all(
-                                                          color:
-                                                              context.textColor,
-                                                          width: 3,
-                                                        ),
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color: context
-                                                                .textColor,
-                                                            offset:
-                                                                const Offset(
-                                                                  4,
-                                                                  4,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: ElevatedButton.icon(
-                                                        onPressed: () =>
-                                                            controller.swipe(
-                                                              CardSwiperDirection
-                                                                  .left,
-                                                            ),
-                                                        icon: Icon(
-                                                          Icons.close,
-                                                          color:
-                                                              context.textColor,
-                                                        ),
-                                                        label: Text(
-                                                          'Bỏ qua',
-                                                          style: TextStyle(
-                                                            color: context
-                                                                .textColor,
-                                                            fontWeight:
-                                                                FontWeight.w900,
-                                                          ),
-                                                        ),
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor: context
-                                                              .scaffoldBackgroundColor,
-                                                          foregroundColor:
-                                                              context.textColor,
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                vertical: 14,
+                                                        child: ElevatedButton.icon(
+                                                          onPressed: () =>
+                                                              controller.swipe(
+                                                                CardSwiperDirection
+                                                                    .left,
                                                               ),
-                                                          elevation: 0,
-                                                          shadowColor: Colors
-                                                              .transparent,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  12,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Container(
-                                                      decoration: BoxDecoration(
-                                                        color:
-                                                            context.textColor,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
-                                                        border: Border.all(
-                                                          color:
-                                                              context.textColor,
-                                                          width: 3,
-                                                        ),
-                                                        boxShadow: [
-                                                          BoxShadow(
+                                                          icon: Icon(
+                                                            Icons.close,
                                                             color: context
                                                                 .textColor,
-                                                            offset:
-                                                                const Offset(
-                                                                  4,
-                                                                  4,
-                                                                ),
                                                           ),
-                                                        ],
-                                                      ),
-                                                      child: ElevatedButton.icon(
-                                                        onPressed: () =>
-                                                            controller.swipe(
-                                                              CardSwiperDirection
-                                                                  .right,
+                                                          label: Text(
+                                                            'Bỏ qua',
+                                                            style: TextStyle(
+                                                              color: context
+                                                                  .textColor,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w900,
                                                             ),
-                                                        icon: const Icon(
-                                                          Icons.favorite,
-                                                          color: Color(
-                                                            0xFFFF6E40,
                                                           ),
-                                                        ),
-                                                        label: Text(
-                                                          'Thích',
-                                                          style: TextStyle(
-                                                            color: context
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor: context
                                                                 .scaffoldBackgroundColor,
-                                                            fontWeight:
-                                                                FontWeight.w900,
-                                                          ),
-                                                        ),
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor:
-                                                              context.textColor,
-                                                          foregroundColor: context
-                                                              .scaffoldBackgroundColor,
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                vertical: 14,
-                                                              ),
-                                                          elevation: 0,
-                                                          shadowColor: Colors
-                                                              .transparent,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  12,
+                                                            foregroundColor:
+                                                                context
+                                                                    .textColor,
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  vertical: 14,
                                                                 ),
+                                                            elevation: 0,
+                                                            shadowColor: Colors
+                                                                .transparent,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    12,
+                                                                  ),
+                                                            ),
                                                           ),
                                                         ),
                                                       ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
+                                                    const SizedBox(width: 16),
+                                                    Expanded(
+                                                      child: Container(
+                                                        decoration: BoxDecoration(
+                                                          color:
+                                                              context.textColor,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: context
+                                                                .textColor,
+                                                            width: 3,
+                                                          ),
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: context
+                                                                  .textColor,
+                                                              offset:
+                                                                  const Offset(
+                                                                    4,
+                                                                    4,
+                                                                  ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        child: ElevatedButton.icon(
+                                                          onPressed: () =>
+                                                              controller.swipe(
+                                                                CardSwiperDirection
+                                                                    .right,
+                                                              ),
+                                                          icon: const Icon(
+                                                            Icons.favorite,
+                                                            color: Color(
+                                                              0xFFFF6E40,
+                                                            ),
+                                                          ),
+                                                          label: Text(
+                                                            'Thích',
+                                                            style: TextStyle(
+                                                              color: context
+                                                                  .scaffoldBackgroundColor,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w900,
+                                                            ),
+                                                          ),
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor:
+                                                                context
+                                                                    .textColor,
+                                                            foregroundColor: context
+                                                                .scaffoldBackgroundColor,
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  vertical: 14,
+                                                                ),
+                                                            elevation: 0,
+                                                            shadowColor: Colors
+                                                                .transparent,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    12,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                ),
-                              ],
-                            );
-                          }
+                                  ),
+                                ],
+                              );
+                            }
 
-                          // === LAYOUT MOBILE (giữ nguyên) ===
-                          return SizedBox(
-                            height: screenHeight,
-                            child: cardSwiperWidget,
-                          );
-                        },
-                      ),
+                            // === LAYOUT MOBILE (giữ nguyên) ===
+                            return SizedBox(
+                              height: screenHeight,
+                              child: mobileLayout,
+                            );
+                          },
+                        ),
+                      ), // đóng Focus
               ), // đóng Listener
             ),
           ), // đóng RefreshIndicator

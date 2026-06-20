@@ -17,6 +17,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/firestore_service.dart';
 import 'core/services/notification_handler.dart';
+import 'core/services/moment_notification_navigation.dart';
 import 'core/controllers/notification_controller.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/edit_profile_provider.dart';
@@ -256,9 +257,12 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
       }
 
       // Chỉ xử lý các type hợp lệ của Web
-      if (type == 'chat' || type == 'moment_reaction' || type == 'like') {
+      if (type == 'chat' ||
+          type == 'match' ||
+          type == 'moment_reaction' ||
+          type == 'like') {
         int targetIndex = 0;
-        if (type == 'chat') {
+        if (type == 'chat' || type == 'match') {
           targetIndex = 3; // MatchListScreen (Tin nhắn)
         } else if (type == 'moment_reaction') {
           targetIndex = 1; // MomentScreen (Feed)
@@ -269,7 +273,7 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
         navigatorKey.currentState?.popUntil((route) => route.isFirst);
         mainScreenTabIndex.value = targetIndex;
 
-        if (type == 'chat') {
+        if (type == 'chat' || type == 'match') {
           final matchId = data['matchId'] ?? '';
           final peerUserId = data['peerUserId'] ?? '';
           if (matchId.isNotEmpty && peerUserId.isNotEmpty) {
@@ -290,10 +294,7 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
         } else if (type == 'moment_reaction') {
           final momentId = data['momentId'] ?? '';
           if (momentId.isNotEmpty) {
-            navigatorKey.currentState?.pushNamed(
-              '/moments',
-              arguments: {'momentId': momentId},
-            );
+            pendingMomentIdToOpen.value = momentId;
           }
         } else if (type == 'like') {
           navigatorKey.currentState?.pushNamed('/liked-me');
@@ -330,6 +331,7 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
 
     switch (type) {
       case 'chat':
+      case 'match':
         final matchId = data['matchId'] ?? '';
         final peerUserId = data['peerUserId'] ?? '';
         final userDoc = await FirebaseFirestore.instance
@@ -343,19 +345,25 @@ Future<void> _handleFcmTap(Map<String, dynamic> data) async {
               builder: (_) => ChatScreen(matchId: matchId, peerUser: peerUser),
             ),
           );
-          developer.log('Navigated to ChatScreen', name: 'FCM-Tap');
+          developer.log('Navigated to ChatScreen for $type', name: 'FCM-Tap');
         }
         break;
       case 'moment_reaction':
-        navigatorKey.currentState?.pushNamed(
-          '/moments',
-          arguments: {'momentId': data['momentId'] ?? ''},
+        final momentId = data['momentId'] ?? '';
+        navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        mainScreenTabIndex.value = 1;
+        if (momentId.isNotEmpty) {
+          pendingMomentIdToOpen.value = momentId;
+        }
+        developer.log(
+          'Navigated to Moment feed tab with momentId=$momentId',
+          name: 'FCM-Tap',
         );
-        developer.log('Navigated to /moments', name: 'FCM-Tap');
         break;
       case 'like':
-        navigatorKey.currentState?.pushNamed('/liked-me');
-        developer.log('Navigated to /liked-me', name: 'FCM-Tap');
+        navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        mainScreenTabIndex.value = 2;
+        developer.log('Navigated to liked-me tab', name: 'FCM-Tap');
         break;
       case 'mentor_live':
         final streamId = data['streamId'] ?? '';
@@ -395,6 +403,7 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
   try {
     switch (type) {
       case 'chat':
+      case 'match':
         await AwesomeNotifications().createNotification(
           content: NotificationContent(
             id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
@@ -402,13 +411,17 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
             title:
                 data['peerUsername'] ??
                 message.notification?.title ??
-                'Tin nhắn mới',
-            body: data['message'] ?? message.notification?.body ?? '',
+                (type == 'match' ? 'Match mới!' : 'Tin nhắn mới'),
+            body:
+                data['message'] ??
+                message.notification?.body ??
+                (type == 'match' ? 'Nhấn để nhắn tin ngay' : ''),
             payload: {
-              'type': 'chat',
+              'type': type,
               'matchId': data['matchId'] ?? '',
               'peerUserId': data['peerUserId'] ?? '',
             },
+            actionType: ActionType.Default,
             notificationLayout: NotificationLayout.Messaging,
             category: NotificationCategory.Message,
             wakeUpScreen: true,
@@ -442,6 +455,7 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
               'momentId': data['momentId'] ?? '',
               'reactorUserId': data['reactorUserId'] ?? '',
             },
+            actionType: ActionType.Default,
             notificationLayout: NotificationLayout.Default,
             category: NotificationCategory.Social,
             displayOnForeground: true,
@@ -458,6 +472,7 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
             title: message.notification?.title ?? '💖 Có người thích bạn!',
             body: message.notification?.body ?? '',
             payload: {'type': 'like', 'likerUserId': data['likerUserId'] ?? ''},
+            actionType: ActionType.Default,
             notificationLayout: NotificationLayout.Default,
             category: NotificationCategory.Social,
             wakeUpScreen: true,
@@ -481,6 +496,7 @@ Future<void> _handleForegroundMessage(RemoteMessage message) async {
                   message.notification?.body ??
                   'Nhấn để xem ngay',
               payload: {'type': 'mentor_live', 'streamId': mlStreamId},
+              actionType: ActionType.Default,
               notificationLayout: NotificationLayout.Default,
               category: NotificationCategory.Reminder,
               wakeUpScreen: true,
@@ -663,10 +679,22 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
     final matchProvider = Provider.of<MatchProvider>(context, listen: false);
     final momentProvider = Provider.of<MomentProvider>(context, listen: false);
 
-    await locationProvider.updateUserLocation(uid);
-
-    if (profileProvider.userData == null) {
-      await profileProvider.loadUserProfile();
+    if (kIsWeb) {
+      await profileProvider.loadUserProfile(forceRefresh: true);
+      Future<void>(() async {
+        await locationProvider.requestLocationPermission();
+        final didUpdate = await locationProvider.updateUserLocation(uid);
+        if (!didUpdate) return;
+        await profileProvider.loadUserProfile(forceRefresh: true);
+        final refreshedUser = profileProvider.userData;
+        if (refreshedUser != null) {
+          locationProvider.loadSettingsFromUser(refreshedUser);
+        }
+      });
+    } else {
+      await locationProvider.requestLocationPermission();
+      await locationProvider.updateUserLocation(uid);
+      await profileProvider.loadUserProfile(forceRefresh: true);
     }
 
     if (profileProvider.userData != null) {
@@ -740,7 +768,19 @@ Future<void> _setupUserSession(BuildContext context, String uid) async {
       // TẢI SẴN ĐỀ XUẤT MATCH & PRECACHE ẢNH CỦA 10 NGƯỜI ĐẦU TIÊN
       if (profileProvider.userData != null) {
         final userModel = profileProvider.userData!;
-        final candidateUsers = await FirestoreService().getAllUsers();
+        if (userModel.latitude == null || userModel.longitude == null) {
+          developer.log(
+            'Bỏ qua preload match vì user chưa có tọa độ đã lưu',
+            name: 'AppPreload',
+          );
+          return;
+        }
+        final candidateUsers = await FirestoreService().getUsersWithinRadius(
+          latitude: userModel.latitude!,
+          longitude: userModel.longitude!,
+          radiusKm: userModel.maxDistance,
+          limit: 100,
+        );
         await matchProvider.fetchRecommendations(userModel, candidateUsers);
         if (context.mounted) {
           final topRecs = matchProvider.recommendations.take(10);
@@ -991,6 +1031,14 @@ class AuthWrapper extends StatelessWidget {
               listen: false,
             );
             chatProvider.clearAllSubscriptions();
+            Provider.of<ProfileProvider>(
+              context,
+              listen: false,
+            ).clearUserProfile();
+            Provider.of<MentorProvider>(
+              context,
+              listen: false,
+            ).clearMyMentorProfile();
           });
         }
 

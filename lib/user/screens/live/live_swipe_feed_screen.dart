@@ -16,8 +16,10 @@ import 'package:provider/provider.dart';
 import '../../../core/models/livestream_model.dart';
 import '../../../core/providers/livestream_provider.dart';
 import '../../../core/providers/profile_provider.dart';
-import '../../../core/utils/fullscreen_helper.dart' if (dart.library.html) '../../../core/utils/fullscreen_helper_web.dart';
+import '../../../core/utils/fullscreen_helper.dart'
+    if (dart.library.html) '../../../core/utils/fullscreen_helper_web.dart';
 import 'dart:developer' as developer;
+import 'live_stream_screen.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveBadge = Color(0xFFFF3B30);
@@ -63,6 +65,7 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
       if (uid != null) {
         context.read<LivestreamProvider>().loadUserCoins(uid);
       }
+      _openOwnedStreamAsMentorIfNeeded();
     });
   }
 
@@ -75,6 +78,24 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
 
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openOwnedStreamAsMentorIfNeeded(),
+    );
+  }
+
+  void _openOwnedStreamAsMentorIfNeeded() {
+    if (!mounted || _streams.isEmpty) return;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId.isEmpty) return;
+    final stream = _streams[_currentIndex];
+    if (stream.mentorId != currentUserId) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LiveStreamScreen(streamId: stream.id, isMentor: true),
+      ),
+    );
   }
 
   void _goNext() {
@@ -103,7 +124,10 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: Text('Không có stream nào', style: TextStyle(color: Colors.white)),
+          child: Text(
+            'Không có stream nào',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       );
     }
@@ -117,7 +141,8 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
           // để đảm bảo chính xác 1 trang/vuốt như TikTok
           GestureDetector(
             onVerticalDragStart: (details) {
-              if (MediaQuery.of(context).orientation == Orientation.landscape) return;
+              if (MediaQuery.of(context).orientation == Orientation.landscape)
+                return;
               _dragStart = details.globalPosition.dy;
               _isSwiping = false;
             },
@@ -125,7 +150,8 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
               // Chặn scroll tự do
             },
             onVerticalDragEnd: (details) {
-              if (MediaQuery.of(context).orientation == Orientation.landscape) return;
+              if (MediaQuery.of(context).orientation == Orientation.landscape)
+                return;
               if (_isSwiping) return;
               final dy = details.globalPosition.dy - _dragStart;
               final velocity = details.velocity.pixelsPerSecond.dy;
@@ -154,7 +180,9 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
                   stream: stream,
                   isActive: isActive,
                   shouldLoad: shouldLoad,
-                  onSwipeUp: _currentIndex < _streams.length - 1 ? _goNext : null,
+                  onSwipeUp: _currentIndex < _streams.length - 1
+                      ? _goNext
+                      : null,
                   onSwipeDown: _currentIndex > 0 ? _goPrev : null,
                   onClose: () => Navigator.of(context).pop(),
                 );
@@ -194,7 +222,10 @@ class _PageDots extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const maxVisible = 5;
-    final start = (current - maxVisible ~/ 2).clamp(0, max(0, count - maxVisible).toInt());
+    final start = (current - maxVisible ~/ 2).clamp(
+      0,
+      max(0, count - maxVisible).toInt(),
+    );
     final end = (start + maxVisible).clamp(0, count);
 
     return Column(
@@ -307,15 +338,23 @@ class _LivePageItemState extends State<_LivePageItem>
     _streamDocSub?.cancel();
     _giftSub?.cancel();
     // Khởi tạo lại frame video để tránh bị đứng hình
-    if (mounted) setState(() { _remoteUid = null; });
+    if (mounted)
+      setState(() {
+        _remoteUid = null;
+      });
     _joined = false;
   }
 
   Future<void> _initStream() async {
     if (_joined) return;
     try {
-      final envAppId = const String.fromEnvironment('AGORA_APP_ID', defaultValue: '');
-      final appId = envAppId.isNotEmpty ? envAppId.trim() : (dotenv.env['AGORA_APP_ID'] ?? '').trim();
+      final envAppId = const String.fromEnvironment(
+        'AGORA_APP_ID',
+        defaultValue: '',
+      );
+      final appId = envAppId.isNotEmpty
+          ? envAppId.trim()
+          : (dotenv.env['AGORA_APP_ID'] ?? '').trim();
       if (appId.isEmpty) return;
 
       _engine = createAgoraRtcEngine();
@@ -323,27 +362,29 @@ class _LivePageItemState extends State<_LivePageItem>
       await _engine!.setClientRole(role: ClientRoleType.clientRoleAudience);
       await _engine!.enableVideo();
 
-      _engine!.registerEventHandler(RtcEngineEventHandler(
-        onUserJoined: (conn, uid, elapsed) {
-          if (mounted) setState(() => _remoteUid = uid);
-        },
-        onUserOffline: (conn, uid, reason) {
-          if (mounted) setState(() => _remoteUid = null);
-        },
-        onError: (code, msg) {
-          developer.log('Agora error [$code]: $msg', name: 'LivePage');
-        },
-        onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
-          // Phát hiện video ngang để hiện nút fullscreen.
-          bool isLandscape = width > height;
-          if (rotation == 90 || rotation == 270) isLandscape = !isLandscape;
-          if (mounted && _isLandscapeVideo != isLandscape) {
-            setState(() => _isLandscapeVideo = isLandscape);
-          }
-          // Không dùng sourceType để detect screen share — không đáng tin cậy trên viewer.
-          // Dùng Firestore trong _listenStreamDoc() để biết broadcaster có đang share màn hình không.
-        },
-      ));
+      _engine!.registerEventHandler(
+        RtcEngineEventHandler(
+          onUserJoined: (conn, uid, elapsed) {
+            if (mounted) setState(() => _remoteUid = uid);
+          },
+          onUserOffline: (conn, uid, reason) {
+            if (mounted) setState(() => _remoteUid = null);
+          },
+          onError: (code, msg) {
+            developer.log('Agora error [$code]: $msg', name: 'LivePage');
+          },
+          onVideoSizeChanged: (connection, sourceType, uid, width, height, rotation) {
+            // Phát hiện video ngang để hiện nút fullscreen.
+            bool isLandscape = width > height;
+            if (rotation == 90 || rotation == 270) isLandscape = !isLandscape;
+            if (mounted && _isLandscapeVideo != isLandscape) {
+              setState(() => _isLandscapeVideo = isLandscape);
+            }
+            // Không dùng sourceType để detect screen share — không đáng tin cậy trên viewer.
+            // Dùng Firestore trong _listenStreamDoc() để biết broadcaster có đang share màn hình không.
+          },
+        ),
+      );
 
       await _engine!.joinChannel(
         token: '',
@@ -371,7 +412,6 @@ class _LivePageItemState extends State<_LivePageItem>
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   void _triggerGiftAnimation(String type, String username) {
     if (mounted) {
@@ -402,16 +442,19 @@ class _LivePageItemState extends State<_LivePageItem>
         .where('timestamp', isGreaterThanOrEqualTo: startTime)
         .snapshots()
         .listen((snap) {
-      if (!mounted) return;
-      for (var change in snap.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data()!;
-          if (data['userId'] != currentUserIdStr) {
-            _triggerGiftAnimation(data['giftType'] ?? 'heart', data['username'] ?? 'User');
+          if (!mounted) return;
+          for (var change in snap.docChanges) {
+            if (change.type == DocumentChangeType.added) {
+              final data = change.doc.data()!;
+              if (data['userId'] != currentUserIdStr) {
+                _triggerGiftAnimation(
+                  data['giftType'] ?? 'heart',
+                  data['username'] ?? 'User',
+                );
+              }
+            }
           }
-        }
-      }
-    });
+        });
   }
 
   void _listenMessages() {
@@ -423,20 +466,20 @@ class _LivePageItemState extends State<_LivePageItem>
         .limitToLast(60)
         .snapshots()
         .listen((snap) {
-      if (!mounted) return;
-      final msgs = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      setState(() => _messages = msgs);
-      // Scroll to bottom
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollCtrl.hasClients) {
-          _scrollCtrl.animateTo(
-            _scrollCtrl.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    });
+          if (!mounted) return;
+          final msgs = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+          setState(() => _messages = msgs);
+          // Scroll to bottom
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollCtrl.hasClients) {
+              _scrollCtrl.animateTo(
+                _scrollCtrl.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        });
   }
 
   void _listenStreamDoc() {
@@ -445,34 +488,36 @@ class _LivePageItemState extends State<_LivePageItem>
         .doc(widget.stream.id)
         .snapshots()
         .listen((doc) {
-      if (!doc.exists || !mounted) return;
-      final data = doc.data()!;
-      final viewerCount = (data['viewerCount'] ?? 0).toInt();
-      final isScreenSharing = data['isScreenSharing'] as bool? ?? false;
-      if (_streamEnded != (data['status'] == 'ended') ||
-          _viewerCount != viewerCount ||
-          _remoteIsScreenSharing != isScreenSharing) {
-        setState(() {
-          _viewerCount = viewerCount;
-          _remoteIsScreenSharing = isScreenSharing;
-          if (data['status'] == 'ended') _streamEnded = true;
+          if (!doc.exists || !mounted) return;
+          final data = doc.data()!;
+          final viewerCount = (data['viewerCount'] ?? 0).toInt();
+          final isScreenSharing = data['isScreenSharing'] as bool? ?? false;
+          if (_streamEnded != (data['status'] == 'ended') ||
+              _viewerCount != viewerCount ||
+              _remoteIsScreenSharing != isScreenSharing) {
+            setState(() {
+              _viewerCount = viewerCount;
+              _remoteIsScreenSharing = isScreenSharing;
+              if (data['status'] == 'ended') _streamEnded = true;
+            });
+          }
         });
-      }
-    });
   }
 
   void _incrementViewer() {
     FirebaseFirestore.instance
         .collection('livestreams')
         .doc(widget.stream.id)
-        .update({'viewerCount': FieldValue.increment(1)}).catchError((_) {});
+        .update({'viewerCount': FieldValue.increment(1)})
+        .catchError((_) {});
   }
 
   void _decrementViewer() {
     FirebaseFirestore.instance
         .collection('livestreams')
         .doc(widget.stream.id)
-        .update({'viewerCount': FieldValue.increment(-1)}).catchError((_) {});
+        .update({'viewerCount': FieldValue.increment(-1)})
+        .catchError((_) {});
   }
 
   @override
@@ -498,7 +543,7 @@ class _LivePageItemState extends State<_LivePageItem>
       if (kIsWeb) {
         toggleWebFullscreen(_isFullscreen);
       }
-      
+
       if (_isFullscreen) {
         SystemChrome.setPreferredOrientations([
           DeviceOrientation.landscapeRight,
@@ -506,9 +551,7 @@ class _LivePageItemState extends State<_LivePageItem>
         ]);
         _isUIHidden = true;
       } else {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-        ]);
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
         _isUIHidden = false;
       }
     });
@@ -516,16 +559,28 @@ class _LivePageItemState extends State<_LivePageItem>
 
   void _addLike() {
     final rng = Random();
-    final colors = [Colors.pinkAccent, Colors.redAccent, Colors.orangeAccent, Colors.purpleAccent];
-    final icons = [Icons.favorite, Icons.star, Icons.thumb_up_rounded, Icons.emoji_emotions_rounded];
+    final colors = [
+      Colors.pinkAccent,
+      Colors.redAccent,
+      Colors.orangeAccent,
+      Colors.purpleAccent,
+    ];
+    final icons = [
+      Icons.favorite,
+      Icons.star,
+      Icons.thumb_up_rounded,
+      Icons.emoji_emotions_rounded,
+    ];
     setState(() {
       _likeCounter++;
-      _likes.add(_FloatLike(
-        id: _likeCounter,
-        x: rng.nextDouble() * 80 + 20,
-        color: colors[rng.nextInt(colors.length)],
-        icon: icons[rng.nextInt(icons.length)],
-      ));
+      _likes.add(
+        _FloatLike(
+          id: _likeCounter,
+          x: rng.nextDouble() * 80 + 20,
+          color: colors[rng.nextInt(colors.length)],
+          icon: icons[rng.nextInt(icons.length)],
+        ),
+      );
     });
   }
 
@@ -541,13 +596,13 @@ class _LivePageItemState extends State<_LivePageItem>
         .doc(widget.stream.id)
         .collection('messages')
         .add({
-      'userId': user.uid,
-      'username': profile?.username ?? 'User',
-      'avatarUrl': profile?.avatarUrl ?? '',
-      'text': text,
-      'type': 'text',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+          'userId': user.uid,
+          'username': profile?.username ?? 'User',
+          'avatarUrl': profile?.avatarUrl ?? '',
+          'text': text,
+          'type': 'text',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -561,9 +616,13 @@ class _LivePageItemState extends State<_LivePageItem>
       onHorizontalDragEnd: (details) {
         if (details.primaryVelocity != null) {
           if (details.primaryVelocity! > 300) {
-            setState(() { _isUIHidden = true; });
+            setState(() {
+              _isUIHidden = true;
+            });
           } else if (details.primaryVelocity! < -300) {
-            setState(() { _isUIHidden = false; });
+            setState(() {
+              _isUIHidden = false;
+            });
           }
         }
       },
@@ -591,34 +650,53 @@ class _LivePageItemState extends State<_LivePageItem>
                     children: [
                       // ── Top bar ──────────────────────────────────────────────────────
                       Positioned(
-                        top: 0, left: 0, right: 0,
+                        top: 0,
+                        left: 0,
+                        right: 0,
                         child: _buildTopBar(context),
                       ),
 
                       // ── Swipe hint arrows ─────────────────────────────────────────────
                       if (widget.onSwipeUp != null)
                         Positioned(
-                          bottom: 220, right: 16,
-                          child: _SwipeHint(direction: AxisDirection.up, onTap: widget.onSwipeUp!),
+                          bottom: 220,
+                          right: 16,
+                          child: _SwipeHint(
+                            direction: AxisDirection.up,
+                            onTap: widget.onSwipeUp!,
+                          ),
                         ),
                       if (widget.onSwipeDown != null)
                         Positioned(
-                          bottom: 280, right: 16,
-                          child: _SwipeHint(direction: AxisDirection.down, onTap: widget.onSwipeDown!),
+                          bottom: 280,
+                          right: 16,
+                          child: _SwipeHint(
+                            direction: AxisDirection.down,
+                            onTap: widget.onSwipeDown!,
+                          ),
                         ),
 
                       // ── Floating likes ────────────────────────────────────────────────
                       Positioned.fill(
                         child: IgnorePointer(
                           child: Stack(
-                            children: _likes.map<Widget>((like) => _FloatingHeartWidget(
-                              key: ValueKey(like.id),
-                              like: like,
-                              screenSize: size,
-                              onComplete: () {
-                                if (mounted) setState(() => _likes.removeWhere((l) => l.id == like.id));
-                              },
-                            )).toList(),
+                            children: _likes
+                                .map<Widget>(
+                                  (like) => _FloatingHeartWidget(
+                                    key: ValueKey(like.id),
+                                    like: like,
+                                    screenSize: size,
+                                    onComplete: () {
+                                      if (mounted)
+                                        setState(
+                                          () => _likes.removeWhere(
+                                            (l) => l.id == like.id,
+                                          ),
+                                        );
+                                    },
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
                       ),
@@ -627,22 +705,32 @@ class _LivePageItemState extends State<_LivePageItem>
                       if (_giftTypeAnim != null)
                         Positioned(
                           top: size.height * 0.2,
-                          left: 0, right: 0,
+                          left: 0,
+                          right: 0,
                           child: TweenAnimationBuilder<double>(
                             tween: Tween(begin: 0.0, end: 1.0),
                             duration: const Duration(milliseconds: 600),
                             curve: Curves.elasticOut,
                             builder: (_, v, child) => Opacity(
                               opacity: v.clamp(0.0, 1.0),
-                              child: Transform.scale(scale: 0.5 + 0.5 * v, child: child),
+                              child: Transform.scale(
+                                scale: 0.5 + 0.5 * v,
+                                child: child,
+                              ),
                             ),
                             child: Center(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 16,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFFD54F),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.black, width: 4),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 4,
+                                  ),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black,
@@ -656,14 +744,22 @@ class _LivePageItemState extends State<_LivePageItem>
                                     _getGiftIcon(_giftTypeAnim!, 100),
                                     const SizedBox(height: 12),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: Colors.black,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        '${_giftUser ?? ''} TẶNG QUÀ!', 
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
+                                        '${_giftUser ?? ''} TẶNG QUÀ!',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 18,
+                                          letterSpacing: 1.5,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -678,18 +774,30 @@ class _LivePageItemState extends State<_LivePageItem>
                       if (_isLandscapeVideo && !kIsWeb)
                         Positioned(
                           right: 12,
-                          bottom: (MediaQuery.of(context).size.width <= 300 ? 80 : (MediaQuery.of(context).viewInsets.bottom > 0 ? 120 : 200)) + 70,
+                          bottom:
+                              (MediaQuery.of(context).size.width <= 300
+                                  ? 80
+                                  : (MediaQuery.of(context).viewInsets.bottom >
+                                            0
+                                        ? 120
+                                        : 200)) +
+                              70,
                           child: GestureDetector(
                             onTap: _toggleFullscreen,
                             child: Container(
-                              width: 36, height: 36,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.4),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                ),
                               ),
                               child: Icon(
-                                _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                _isFullscreen
+                                    ? Icons.fullscreen_exit
+                                    : Icons.fullscreen,
                                 color: Colors.white,
                                 size: 20,
                               ),
@@ -699,7 +807,8 @@ class _LivePageItemState extends State<_LivePageItem>
 
                       // ── Bottom overlay (chat + input) ─────────────────────────────────
                       Positioned(
-                        left: 0, right: 0,
+                        left: 0,
+                        right: 0,
                         bottom: MediaQuery.of(context).viewInsets.bottom,
                         child: SafeArea(
                           top: false,
@@ -711,7 +820,7 @@ class _LivePageItemState extends State<_LivePageItem>
                 ),
               ),
             ),
-            
+
             if (kIsWeb)
               Positioned(
                 right: 12,
@@ -719,11 +828,14 @@ class _LivePageItemState extends State<_LivePageItem>
                 child: GestureDetector(
                   onTap: _toggleFullscreen,
                   child: Container(
-                    width: 36, height: 36,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.4),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Icon(
                       _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
@@ -778,9 +890,7 @@ class _LivePageItemState extends State<_LivePageItem>
     if (_remoteUid == null) {
       return Container(
         color: const Color(0xFF0D0D10),
-        child: const Center(
-          child: CircularProgressIndicator(color: _kAccent),
-        ),
+        child: const Center(child: CircularProgressIndicator(color: _kAccent)),
       );
     }
 
@@ -814,23 +924,35 @@ class _LivePageItemState extends State<_LivePageItem>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.black, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 28, height: 28,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF6E40),
                       border: Border.all(color: Colors.black, width: 2),
                       image: widget.stream.mentorAvatarUrl.isNotEmpty
-                          ? DecorationImage(image: NetworkImage(widget.stream.mentorAvatarUrl), fit: BoxFit.cover)
+                          ? DecorationImage(
+                              image: NetworkImage(
+                                widget.stream.mentorAvatarUrl,
+                              ),
+                              fit: BoxFit.cover,
+                            )
                           : null,
                     ),
                     alignment: Alignment.center,
                     child: widget.stream.mentorAvatarUrl.isEmpty
-                        ? const Icon(Icons.person, size: 16, color: Colors.white)
+                        ? const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.white,
+                          )
                         : null,
                   ),
                   const SizedBox(width: 8),
@@ -839,7 +961,11 @@ class _LivePageItemState extends State<_LivePageItem>
                     child: Text(
                       widget.stream.mentorUsername,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -853,11 +979,18 @@ class _LivePageItemState extends State<_LivePageItem>
                 color: const Color(0xFF2979FF),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.black, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                ],
               ),
               child: Text(
-                widget.stream.game.toUpperCase(), 
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                widget.stream.game.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.0,
+                ),
               ),
             ),
             const Spacer(),
@@ -868,18 +1001,42 @@ class _LivePageItemState extends State<_LivePageItem>
                 color: const Color(0xFFFF3B30),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.black, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.sensors_rounded, color: Colors.white, size: 14),
+                  const Icon(
+                    Icons.sensors_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
-                  const Text('LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10)),
+                  const Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.remove_red_eye, color: Colors.white, size: 14),
+                  const Icon(
+                    Icons.remove_red_eye,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
-                  Text('$_viewerCount', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+                  Text(
+                    '$_viewerCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -888,12 +1045,15 @@ class _LivePageItemState extends State<_LivePageItem>
             GestureDetector(
               onTap: widget.onClose,
               child: Container(
-                width: 36, height: 36,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.black, width: 2),
-                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                  ],
                 ),
                 child: const Icon(Icons.close, color: Colors.black, size: 20),
               ),
@@ -926,36 +1086,61 @@ class _LivePageItemState extends State<_LivePageItem>
                   children: [
                     if ((msg['avatarUrl'] as String? ?? '').isNotEmpty)
                       Container(
-                        width: 18, height: 18,
+                        width: 18,
+                        height: 18,
                         margin: const EdgeInsets.only(right: 6),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          image: DecorationImage(image: NetworkImage(msg['avatarUrl']), fit: BoxFit.cover),
+                          image: DecorationImage(
+                            image: NetworkImage(msg['avatarUrl']),
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: isGift ? const Color(0xFFFFD54F) : Colors.white,
+                          color: isGift
+                              ? const Color(0xFFFFD54F)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.black, width: 2),
-                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
                         ),
                         child: RichText(
-                          text: TextSpan(children: [
-                            TextSpan(
-                              text: '${msg['username'] ?? 'User'} ',
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w900, fontSize: 13,
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${msg['username'] ?? 'User'} ',
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                ),
                               ),
-                            ),
-                            TextSpan(
-                              text: isGift ? 'TẶNG ${msg['giftType']}!' : msg['text'] ?? '',
-                              style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: isGift ? FontWeight.w900 : FontWeight.w600),
-                            ),
-                          ]),
+                              TextSpan(
+                                text: isGift
+                                    ? 'TẶNG ${msg['giftType']}!'
+                                    : msg['text'] ?? '',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 13,
+                                  fontWeight: isGift
+                                      ? FontWeight.w900
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -977,17 +1162,31 @@ class _LivePageItemState extends State<_LivePageItem>
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.black, width: 2),
-                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                    ],
                   ),
                   child: TextField(
                     controller: _msgCtrl,
-                    style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'BÌNH LUẬN...',
-                      hintStyle: const TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                      hintStyle: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                      ),
                       filled: true,
                       fillColor: Colors.transparent,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       border: InputBorder.none,
                     ),
                     onSubmitted: (_) => _sendMessage(),
@@ -995,11 +1194,23 @@ class _LivePageItemState extends State<_LivePageItem>
                 ),
               ),
               const SizedBox(width: 8),
-              _ActionBtn(icon: Icons.send_rounded, color: _kAccent, onTap: _sendMessage),
+              _ActionBtn(
+                icon: Icons.send_rounded,
+                color: _kAccent,
+                onTap: _sendMessage,
+              ),
               const SizedBox(width: 8),
-              _ActionBtn(emoji: '🎁', color: Colors.amber.shade700, onTap: _showGiftSheet),
+              _ActionBtn(
+                emoji: '🎁',
+                color: Colors.amber.shade700,
+                onTap: _showGiftSheet,
+              ),
               const SizedBox(width: 8),
-              _ActionBtn(icon: Icons.favorite, color: Colors.pink, onTap: _addLike),
+              _ActionBtn(
+                icon: Icons.favorite,
+                color: Colors.pink,
+                onTap: _addLike,
+              ),
             ],
           ),
         ),
@@ -1016,13 +1227,23 @@ class _LivePageItemState extends State<_LivePageItem>
           children: [
             const Icon(Icons.live_tv_rounded, color: Colors.white38, size: 64),
             const SizedBox(height: 12),
-            const Text('Stream đã kết thúc', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Stream đã kết thúc',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             if (widget.onSwipeUp != null)
               TextButton.icon(
                 onPressed: widget.onSwipeUp,
                 icon: const Icon(Icons.expand_less, color: _kAccent),
-                label: const Text('Xem stream khác ↑', style: TextStyle(color: _kAccent)),
+                label: const Text(
+                  'Xem stream khác ↑',
+                  style: TextStyle(color: _kAccent),
+                ),
               ),
           ],
         ),
@@ -1034,27 +1255,37 @@ class _LivePageItemState extends State<_LivePageItem>
     switch (type) {
       case 'heart':
         return ShaderMask(
-          shaderCallback: (b) => const LinearGradient(colors: [Colors.pinkAccent, Colors.red]).createShader(b),
+          shaderCallback: (b) => const LinearGradient(
+            colors: [Colors.pinkAccent, Colors.red],
+          ).createShader(b),
           child: Icon(Icons.favorite, size: size, color: Colors.white),
         );
       case 'star':
         return ShaderMask(
-          shaderCallback: (b) => const LinearGradient(colors: [Colors.amberAccent, Colors.orange]).createShader(b),
+          shaderCallback: (b) => const LinearGradient(
+            colors: [Colors.amberAccent, Colors.orange],
+          ).createShader(b),
           child: Icon(Icons.star_rounded, size: size, color: Colors.white),
         );
       case 'diamond':
         return ShaderMask(
-          shaderCallback: (b) => const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]).createShader(b),
+          shaderCallback: (b) => const LinearGradient(
+            colors: [Colors.cyanAccent, Colors.blueAccent],
+          ).createShader(b),
           child: Icon(Icons.diamond, size: size, color: Colors.white),
         );
       case 'crown':
         return ShaderMask(
-          shaderCallback: (b) => const LinearGradient(colors: [Colors.yellowAccent, Colors.orangeAccent]).createShader(b),
+          shaderCallback: (b) => const LinearGradient(
+            colors: [Colors.yellowAccent, Colors.orangeAccent],
+          ).createShader(b),
           child: Icon(Icons.workspace_premium, size: size, color: Colors.white),
         );
       default:
         return ShaderMask(
-          shaderCallback: (b) => const LinearGradient(colors: [Colors.purpleAccent, Colors.deepPurple]).createShader(b),
+          shaderCallback: (b) => const LinearGradient(
+            colors: [Colors.purpleAccent, Colors.deepPurple],
+          ).createShader(b),
           child: Icon(Icons.card_giftcard, size: size, color: Colors.white),
         );
     }
@@ -1081,100 +1312,154 @@ class _LivePageItemState extends State<_LivePageItem>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('TẶNG QUÀ', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: 2.0)),
+            const Text(
+              'TẶNG QUÀ',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 24,
+                letterSpacing: 2.0,
+              ),
+            ),
             const SizedBox(height: 24),
             GridView.count(
               shrinkWrap: true,
               crossAxisCount: 4,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 0.75, // Thêm dòng này để fix lỗi overflow (tỉ lệ chiều ngang/dọc)
-              children: gifts.map((g) => GestureDetector(
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final provider = context.read<LivestreamProvider>();
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user == null) return;
-                  final profileProvider = context.read<ProfileProvider>();
-                  final profile = profileProvider.userData;
-                  final mentorId = widget.stream.mentorId;
-                  
-                  if (provider.myCoins < (g['coins'] as int)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('KHÔNG ĐỦ COIN! HÃY NẠP THÊM.', style: TextStyle(fontWeight: FontWeight.w900)), 
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: const BorderSide(color: Colors.black, width: 2),
-                        ),
-                      ),
-                    );
-                    return;
-                  }
+              childAspectRatio:
+                  0.75, // Thêm dòng này để fix lỗi overflow (tỉ lệ chiều ngang/dọc)
+              children: gifts
+                  .map(
+                    (g) => GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        final provider = context.read<LivestreamProvider>();
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) return;
+                        final profileProvider = context.read<ProfileProvider>();
+                        final profile = profileProvider.userData;
+                        final mentorId = widget.stream.mentorId;
 
-                  final ok = await provider.sendGift(
-                    streamId: widget.stream.id,
-                    fromUserId: user.uid,
-                    toMentorId: mentorId,
-                    fromUsername: profile?.username ?? 'User',
-                    fromAvatarUrl: profile?.avatarUrl ?? '',
-                    giftType: g['type'] as String,
-                    coinValue: g['coins'] as int,
-                  );
+                        if (provider.myCoins < (g['coins'] as int)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'KHÔNG ĐỦ COIN! HÃY NẠP THÊM.',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: const BorderSide(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          );
+                          return;
+                        }
 
-                  if (!mounted) return;
-                  if (ok) {
-                    profileProvider.deductCoins(g['coins'] as int);
-                    setState(() {
-                      _giftTypeAnim = g['type'] as String;
-                      _giftUser = profile?.username ?? 'User';
-                    });
-                    _giftTimer?.cancel();
-                    _giftTimer = Timer(const Duration(seconds: 3), () {
-                      if (mounted) setState(() { _giftTypeAnim = null; _giftUser = null; });
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('KHÔNG ĐỦ COIN!', style: TextStyle(fontWeight: FontWeight.w900)), 
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: const BorderSide(color: Colors.black, width: 2),
-                        ),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD54F),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black, width: 2),
-                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _getGiftIcon(g['type'] as String, 40),
-                      const SizedBox(height: 8),
-                      Text(g['name'] as String, style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        final ok = await provider.sendGift(
+                          streamId: widget.stream.id,
+                          fromUserId: user.uid,
+                          toMentorId: mentorId,
+                          fromUsername: profile?.username ?? 'User',
+                          fromAvatarUrl: profile?.avatarUrl ?? '',
+                          giftType: g['type'] as String,
+                          coinValue: g['coins'] as int,
+                        );
+
+                        if (!mounted) return;
+                        if (ok) {
+                          profileProvider.deductCoins(g['coins'] as int);
+                          setState(() {
+                            _giftTypeAnim = g['type'] as String;
+                            _giftUser = profile?.username ?? 'User';
+                          });
+                          _giftTimer?.cancel();
+                          _giftTimer = Timer(const Duration(seconds: 3), () {
+                            if (mounted)
+                              setState(() {
+                                _giftTypeAnim = null;
+                                _giftUser = null;
+                              });
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'KHÔNG ĐỦ COIN!',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: const BorderSide(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(4),
+                          color: const Color(0xFFFFD54F),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(4, 4),
+                            ),
+                          ],
                         ),
-                        child: Text('${g['coins']} COIN', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _getGiftIcon(g['type'] as String, 40),
+                            const SizedBox(height: 8),
+                            Text(
+                              g['name'] as String,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${g['coins']} COIN',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              )).toList(),
+                    ),
+                  )
+                  .toList(),
             ),
             const SizedBox(height: 12),
           ],
@@ -1195,18 +1480,22 @@ class _SwipeHint extends StatefulWidget {
   State<_SwipeHint> createState() => _SwipeHintState();
 }
 
-class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMixin {
+class _SwipeHintState extends State<_SwipeHint>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(duration: const Duration(milliseconds: 800), vsync: this)
-      ..repeat(reverse: true);
-    _anim = Tween<double>(begin: 0, end: 6).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    )..repeat(reverse: true);
+    _anim = Tween<double>(
+      begin: 0,
+      end: 6,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -1234,8 +1523,11 @@ class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMi
             border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
           ),
           child: Icon(
-            isUp ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-            color: Colors.white70, size: 22,
+            isUp
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.keyboard_arrow_down_rounded,
+            color: Colors.white70,
+            size: 22,
           ),
         ),
       ),
@@ -1251,14 +1543,20 @@ class _ActionBtn extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionBtn({this.icon, this.emoji, required this.color, required this.onTap});
+  const _ActionBtn({
+    this.icon,
+    this.emoji,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40, height: 40,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         child: icon != null
             ? Icon(icon, color: Colors.white, size: 18)
@@ -1275,7 +1573,12 @@ class _FloatLike {
   final double x;
   final Color color;
   final IconData icon;
-  _FloatLike({required this.id, required this.x, required this.color, required this.icon});
+  _FloatLike({
+    required this.id,
+    required this.x,
+    required this.color,
+    required this.icon,
+  });
 }
 
 class _FloatingHeartWidget extends StatefulWidget {
@@ -1283,7 +1586,12 @@ class _FloatingHeartWidget extends StatefulWidget {
   final Size screenSize;
   final VoidCallback onComplete;
 
-  const _FloatingHeartWidget({super.key, required this.like, required this.screenSize, required this.onComplete});
+  const _FloatingHeartWidget({
+    super.key,
+    required this.like,
+    required this.screenSize,
+    required this.onComplete,
+  });
 
   @override
   State<_FloatingHeartWidget> createState() => _FloatingHeartWidgetState();
@@ -1297,8 +1605,14 @@ class _FloatingHeartWidgetState extends State<_FloatingHeartWidget>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(duration: const Duration(milliseconds: 1800), vsync: this);
-    _yAnim = Tween<double>(begin: 0, end: 320).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    );
+    _yAnim = Tween<double>(
+      begin: 0,
+      end: 320,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _xAnim = Tween<double>(begin: 0, end: 1).animate(_ctrl);
     _scaleAnim = TweenSequence([
       TweenSequenceItem(tween: Tween<double>(begin: 0, end: 1.2), weight: 15),
@@ -1314,7 +1628,10 @@ class _FloatingHeartWidgetState extends State<_FloatingHeartWidget>
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1325,13 +1642,23 @@ class _FloatingHeartWidgetState extends State<_FloatingHeartWidget>
         final xPos = widget.screenSize.width - widget.like.x + wiggle - 40;
         final yPos = widget.screenSize.height - _yAnim.value - 120;
         return Positioned(
-          left: xPos, top: yPos,
+          left: xPos,
+          top: yPos,
           child: Opacity(
             opacity: _opacityAnim.value,
             child: Transform.scale(
               scale: _scaleAnim.value,
-              child: Icon(widget.like.icon, color: widget.like.color, size: 28,
-                shadows: [Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 5)]),
+              child: Icon(
+                widget.like.icon,
+                color: widget.like.color,
+                size: 28,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
             ),
           ),
         );

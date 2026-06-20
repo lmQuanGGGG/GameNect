@@ -19,6 +19,8 @@ class MentorProvider extends ChangeNotifier {
   MentorModel? _myMentorProfile;
   String? _error;
   String? _selectedGameFilter;
+  String? _loadedMyMentorUserId;
+  Future<void>? _myMentorLoadFuture;
 
   // Listener cho mentor live notifications
   StreamSubscription? _mentorLiveSub;
@@ -37,6 +39,14 @@ class MentorProvider extends ChangeNotifier {
   bool get isRejected => _myMentorProfile?.status == 'rejected';
 
   // ─── Actions ──────────────────────────────────────────────────────────────
+
+  void clearMyMentorProfile() {
+    _myMentorProfile = null;
+    _loadedMyMentorUserId = null;
+    _myMentorLoadFuture = null;
+    _error = null;
+    notifyListeners();
+  }
 
   /// Load danh sách approved mentors, có thể lọc theo game.
   Future<void> loadApprovedMentors({String? gameFilter}) async {
@@ -59,9 +69,38 @@ class MentorProvider extends ChangeNotifier {
   }
 
   /// Load mentor profile của bản thân.
-  Future<void> loadMyMentorProfile(String userId) async {
+  Future<void> loadMyMentorProfile(String userId, {bool forceRefresh = false}) {
+    if (userId.isEmpty) {
+      clearMyMentorProfile();
+      return Future.value();
+    }
+
+    if (_loadedMyMentorUserId != null && _loadedMyMentorUserId != userId) {
+      _myMentorProfile = null;
+      _error = null;
+      _myMentorLoadFuture = null;
+      notifyListeners();
+    }
+
+    if (!forceRefresh &&
+        _loadedMyMentorUserId == userId &&
+        _myMentorLoadFuture != null) {
+      return _myMentorLoadFuture!;
+    }
+    if (!forceRefresh && _loadedMyMentorUserId == userId) {
+      return Future.value();
+    }
+
+    _loadedMyMentorUserId = userId;
+    _myMentorLoadFuture = _loadMyMentorProfileInternal(userId);
+    return _myMentorLoadFuture!.whenComplete(() => _myMentorLoadFuture = null);
+  }
+
+  Future<void> _loadMyMentorProfileInternal(String userId) async {
     try {
-      _myMentorProfile = await _service.getMentorProfile(userId);
+      final mentorProfile = await _service.getMentorProfile(userId);
+      if (_loadedMyMentorUserId != userId) return;
+      _myMentorProfile = mentorProfile;
       notifyListeners();
     } catch (e) {
       developer.log('loadMyMentorProfile error: $e', name: 'MentorProvider');
@@ -89,6 +128,7 @@ class MentorProvider extends ChangeNotifier {
         appliedAt: DateTime.now(),
       );
       await _service.applyForMentor(userId, mentor);
+      _loadedMyMentorUserId = userId;
       _myMentorProfile = mentor;
       _isLoading = false;
       notifyListeners();
@@ -109,7 +149,8 @@ class MentorProvider extends ChangeNotifier {
       final idx = _approvedMentors.indexWhere((m) => m['userId'] == mentorId);
       if (idx != -1) {
         final updated = Map<String, dynamic>.from(_approvedMentors[idx]);
-        updated['followerCount'] = ((updated['followerCount'] as int? ?? 0) + 1);
+        updated['followerCount'] =
+            ((updated['followerCount'] as int? ?? 0) + 1);
         _approvedMentors[idx] = updated;
         notifyListeners();
       }
@@ -219,47 +260,64 @@ class MentorProvider extends ChangeNotifier {
         .collection('livestreams')
         .where('status', isEqualTo: 'live')
         .snapshots()
-        .listen((snap) async {
-      for (final change in snap.docChanges) {
-        // Chỉ xử lý document MỚI được thêm (mentor vừa bắt đầu live)
-        if (change.type != DocumentChangeType.added) continue;
+        .listen(
+          (snap) async {
+            for (final change in snap.docChanges) {
+              // Chỉ xử lý document MỚI được thêm (mentor vừa bắt đầu live)
+              if (change.type != DocumentChangeType.added) continue;
 
-        final streamId = change.doc.id;
-        if (_notifiedStreamIds.contains(streamId)) continue;
+              final streamId = change.doc.id;
+              if (_notifiedStreamIds.contains(streamId)) continue;
 
-        final data = change.doc.data();
-        if (data == null) continue;
+              final data = change.doc.data();
+              if (data == null) continue;
 
-        // Kiểm tra stream này mới tạo sau khi user login (tránh notify cho stream cũ)
-        final startedAt = data['startedAt'] as Timestamp?;
-        if (startedAt != null && startedAt.compareTo(startedAfter) <= 0) continue;
+              // Kiểm tra stream này mới tạo sau khi user login (tránh notify cho stream cũ)
+              final startedAt = data['startedAt'] as Timestamp?;
+              if (startedAt != null && startedAt.compareTo(startedAfter) <= 0) {
+                continue;
+              }
 
-        final mentorId = data['mentorId'] as String? ?? '';
-        final mentorUsername = data['mentorUsername'] as String? ?? 'Mentor';
-        final title = data['title'] as String? ?? '';
-        if (mentorId.isEmpty || mentorId == userId) continue; // không tự notify chính mình
+              final mentorId = data['mentorId'] as String? ?? '';
+              final mentorUsername =
+                  data['mentorUsername'] as String? ?? 'Mentor';
+              final title = data['title'] as String? ?? '';
+              if (mentorId.isEmpty || mentorId == userId) {
+                continue; // không tự notify chính mình
+              }
 
-        // Kiểm tra user có follow mentor này không
-        final isFollowing = await _service.isFollowingMentor(mentorId, userId);
-        if (!isFollowing) continue;
+              // Kiểm tra user có follow mentor này không
+              final isFollowing = await _service.isFollowingMentor(
+                mentorId,
+                userId,
+              );
+              if (!isFollowing) continue;
 
-        _notifiedStreamIds.add(streamId);
-        developer.log(
-          'Mentor live notification: mentorId=$mentorId streamId=$streamId',
-          name: 'MentorProvider',
+              _notifiedStreamIds.add(streamId);
+              developer.log(
+                'Mentor live notification: mentorId=$mentorId streamId=$streamId',
+                name: 'MentorProvider',
+              );
+
+              await _showMentorLiveNotification(
+                mentorUsername: mentorUsername,
+                streamTitle: title,
+                streamId: streamId,
+              );
+            }
+          },
+          onError: (e) {
+            developer.log(
+              'startMentorLiveListener error: $e',
+              name: 'MentorProvider',
+            );
+          },
         );
 
-        await _showMentorLiveNotification(
-          mentorUsername: mentorUsername,
-          streamTitle: title,
-          streamId: streamId,
-        );
-      }
-    }, onError: (e) {
-      developer.log('startMentorLiveListener error: $e', name: 'MentorProvider');
-    });
-
-    developer.log('Mentor live listener started for userId=$userId', name: 'MentorProvider');
+    developer.log(
+      'Mentor live listener started for userId=$userId',
+      name: 'MentorProvider',
+    );
   }
 
   /// Dừng listener khi user logout.
@@ -285,10 +343,8 @@ class MentorProvider extends ChangeNotifier {
           channelKey: 'mentor_live_channel',
           title: '🔴 $mentorUsername đang LIVE!',
           body: streamTitle.isNotEmpty ? streamTitle : 'Nhấn để xem ngay',
-          payload: {
-            'type': 'mentor_live',
-            'streamId': streamId,
-          },
+          payload: {'type': 'mentor_live', 'streamId': streamId},
+          actionType: ActionType.Default,
           notificationLayout: NotificationLayout.Default,
           category: NotificationCategory.Reminder,
           wakeUpScreen: true,
@@ -297,7 +353,10 @@ class MentorProvider extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      developer.log('_showMentorLiveNotification error: $e', name: 'MentorProvider');
+      developer.log(
+        '_showMentorLiveNotification error: $e',
+        name: 'MentorProvider',
+      );
     }
   }
 

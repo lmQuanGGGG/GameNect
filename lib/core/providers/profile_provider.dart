@@ -14,6 +14,8 @@ class ProfileProvider extends ChangeNotifier {
   bool _isLoading = true;
   // Biến lưu thông báo lỗi nếu có
   String? _error;
+  Future<void>? _loadingFuture;
+  String? _loadedUserId;
 
   // Getter trả về dữ liệu người dùng
   UserModel? get userData => _userData;
@@ -22,17 +24,48 @@ class ProfileProvider extends ChangeNotifier {
   // Getter trả về thông báo lỗi
   String? get error => _error;
 
+  void clearUserProfile() {
+    _userData = null;
+    _loadedUserId = null;
+    _loadingFuture = null;
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
+  }
+
   void deductCoins(int amount) {
     if (_userData != null) {
       _userData = _userData!.copyWith(
-        coinBalance: (_userData!.coinBalance ?? 0) - amount,
+        coinBalance: _userData!.coinBalance - amount,
       );
       notifyListeners();
     }
   }
 
   // Hàm lấy dữ liệu hồ sơ người dùng hiện tại từ Firestore
-  Future<void> loadUserProfile() async {
+  Future<void> loadUserProfile({bool forceRefresh = false}) {
+    final authUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (authUserId == null || authUserId.isEmpty) {
+      clearUserProfile();
+      return Future.value();
+    }
+
+    if (_loadedUserId != null && _loadedUserId != authUserId) {
+      _userData = null;
+      _error = null;
+      _loadingFuture = null;
+      notifyListeners();
+    }
+    _loadedUserId = authUserId;
+
+    if (_loadingFuture != null && !forceRefresh) {
+      return _loadingFuture!;
+    }
+    _loadingFuture = _loadUserProfileInternal(authUserId);
+    return _loadingFuture!.whenComplete(() => _loadingFuture = null);
+  }
+
+  Future<void> _loadUserProfileInternal(String expectedUserId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -40,10 +73,15 @@ class ProfileProvider extends ChangeNotifier {
     try {
       // Lấy dữ liệu người dùng hiện tại
       _userData = await _firestoreService.getCurrentUser();
+      if (FirebaseAuth.instance.currentUser?.uid != expectedUserId) {
+        return;
+      }
 
       // Cập nhật createdAt từ Firebase Auth Metadata cho các người dùng cũ bị thiếu
       final authUser = FirebaseAuth.instance.currentUser;
-      if (_userData != null && _userData!.createdAt == null && authUser != null) {
+      if (_userData != null &&
+          _userData!.createdAt == null &&
+          authUser != null) {
         final creationTime = authUser.metadata.creationTime;
         if (creationTime != null) {
           await FirebaseFirestore.instance
@@ -88,6 +126,7 @@ class ProfileProvider extends ChangeNotifier {
       await _firestoreService.updateUser(updatedUser);
       // Cập nhật lại dữ liệu local
       _userData = updatedUser;
+      _loadedUserId = updatedUser.id;
     } catch (e) {
       // Nếu có lỗi thì lưu lại thông báo lỗi
       _error = e.toString();

@@ -7,6 +7,7 @@ import '../../../core/widgets/network_image.dart';
 import 'dart:ui';
 import '../chat/video_player_bubble.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/video_warmup_service.dart';
 import 'mentor_profile_screen.dart';
 import '../../../core/theme/theme_helper.dart';
 
@@ -53,10 +54,7 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
     }).toList();
   }
 
-  void _preloadNextMedia(
-    int currentIndex,
-    List<DocumentSnapshot> docs,
-  ) {
+  void _preloadNextMedia(int currentIndex, List<DocumentSnapshot> docs) {
     if (currentIndex >= docs.length - 1) return;
 
     final endIndex = (currentIndex + 2).clamp(0, docs.length - 1);
@@ -70,13 +68,14 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
       if (url.isNotEmpty) {
         precacheImage(CachedNetworkImageProvider(url), context);
       }
+      final videoUrl = data['url'] as String? ?? '';
+      if (isVideo && videoUrl.isNotEmpty) {
+        VideoWarmupService.warmUp(videoUrl);
+      }
     }
   }
 
-  Future<void> _markPostSeen(
-    int index,
-    List<DocumentSnapshot> docs,
-  ) async {
+  Future<void> _markPostSeen(int index, List<DocumentSnapshot> docs) async {
     if (index < 0 || index >= docs.length) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -92,14 +91,8 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
     _pageController = PageController(initialPage: widget.initialIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markPostSeen(widget.initialIndex, filteredDocs);
+      _preloadNextMedia(widget.initialIndex, filteredDocs);
     });
-    if (widget.initialIndex >= 9) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _preloadNextMedia(widget.initialIndex, filteredDocs);
-        }
-      });
-    }
   }
 
   @override
@@ -188,6 +181,7 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                           if (_pageController.hasClients) {
                             _pageController.jumpToPage(i);
                           }
+                          _preloadNextMedia(i, docsToDisplay);
                         });
                       },
                     );
@@ -199,9 +193,7 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                   itemCount: docsToDisplay.length,
                   onPageChanged: (index) {
                     _markPostSeen(index, docsToDisplay);
-                    if (index >= 9) {
-                      _preloadNextMedia(index, docsToDisplay);
-                    }
+                    _preloadNextMedia(index, docsToDisplay);
                   },
                   itemBuilder: (context, index) {
                     return MentorMediaFeedCard(doc: docsToDisplay[index]);
@@ -310,10 +302,11 @@ class _MentorGridItemState extends State<MentorGridItem>
     final mentorId = widget.data['mentorId'] as String? ?? '';
     if (mentorId.isNotEmpty) {
       if (MentorMediaFeedScreen.mentorCache.containsKey(mentorId)) {
-        if (mounted)
+        if (mounted) {
           setState(
             () => mentorData = MentorMediaFeedScreen.mentorCache[mentorId],
           );
+        }
         return;
       }
       final doc = await FirebaseFirestore.instance
@@ -537,10 +530,11 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard>
     final mentorId = data['mentorId'] as String? ?? '';
     if (mentorId.isNotEmpty) {
       if (MentorMediaFeedScreen.mentorCache.containsKey(mentorId)) {
-        if (mounted)
+        if (mounted) {
           setState(
             () => mentorData = MentorMediaFeedScreen.mentorCache[mentorId],
           );
+        }
         return;
       }
       final doc = await FirebaseFirestore.instance

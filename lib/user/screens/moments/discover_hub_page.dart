@@ -3,11 +3,19 @@ import '../games/game_trending_screen.dart';
 import '../mentor/all_mentor_media_screen.dart';
 import 'mentor_post_preview_card.dart';
 import 'trending_games_page.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// Trang Hub khám phá kết hợp cả "Trending Games" và "Mentor Posts" trên một màn hình duy nhất
 /// giúp tối ưu hành trình vuốt dọc xem Moments (chỉ cần vuốt 1 lần thay vì 2 lần).
-class DiscoverHubPage extends StatelessWidget {
+class DiscoverHubPage extends StatefulWidget {
   const DiscoverHubPage({super.key});
+
+  @override
+  State<DiscoverHubPage> createState() => _DiscoverHubPageState();
+}
+
+class _DiscoverHubPageState extends State<DiscoverHubPage> {
+  bool _isVisible = false;
 
   @override
   Widget build(BuildContext context) {
@@ -22,107 +30,121 @@ class DiscoverHubPage extends StatelessWidget {
           360.0,
           620.0,
         );
-        final mentorCardHeight = isLargeScreen ? mentorMediaSize + 58 : 250.0;
+        final mentorCardHeight = isLargeScreen ? mentorMediaSize + 58 : 265.0;
 
-        return Container(
-          color: hubBgColor,
-          child: SafeArea(
-            top: false,
-            bottom: false,
-            child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isLargeScreen ? 12 : 8,
-                  isLargeScreen ? 12 : 20,
-                  isLargeScreen ? 12 : 8,
-                  120,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(right: isLargeScreen ? 80 : 68),
-                      child: isLargeScreen
-                          ? const TrendingGamesButton()
-                          : _buildDiscoverCard(
-                              context,
-                              title: 'TRENDING GAMES',
-                              description:
-                                  'KHÁM PHÁ CÁC TRÒ CHƠI HOT NHẤT & TÌM BẠN CHƠI',
-                              icon: Icons.sports_esports_rounded,
-                              buttonText: 'KHÁM PHÁ',
-                              onTap: () => Navigator.push(
+        return VisibilityDetector(
+          key: const Key('discover-hub-page'),
+          onVisibilityChanged: (info) {
+            final visible = info.visibleFraction > 0.6;
+
+            if (_isVisible != visible) {
+              setState(() {
+                _isVisible = visible;
+              });
+            }
+          },
+          child: Container(
+            color: hubBgColor,
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isLargeScreen ? 12 : 8,
+                    isLargeScreen ? 12 : 20,
+                    isLargeScreen ? 12 : 8,
+                    120,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right: isLargeScreen ? 80 : 68,
+                        ),
+                        child: isLargeScreen
+                            ? const TrendingGamesButton()
+                            : _buildDiscoverCard(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (_) => const GameTrendingScreen(),
+                                title: 'TRENDING GAMES',
+                                description:
+                                    'KHÁM PHÁ CÁC TRÒ CHƠI HOT NHẤT & TÌM BẠN CHƠI',
+                                icon: Icons.sports_esports_rounded,
+                                buttonText: 'KHÁM PHÁ',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const GameTrendingScreen(),
+                                  ),
                                 ),
                               ),
+                      ),
+                      SizedBox(height: isLargeScreen ? 12 : 20),
+                      MentorPostPreviewCard(
+                        height: mentorCardHeight,
+                        mediaAspectRatio: 1,
+                        autoplayVideo: _isVisible,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AllMentorMediaScreen(),
                             ),
-                    ),
-                    SizedBox(height: isLargeScreen ? 12 : 20),
-                    MentorPostPreviewCard(
-                      height: mentorCardHeight,
-                      mediaAspectRatio: 1,
-                      autoplayVideo: true,
-                      onTap: () async {
-                        await Navigator.push(
+                          );
+                        },
+                        fallback: _buildDiscoverCard(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const AllMentorMediaScreen(),
-                          ),
-                        );
-                      },
-                      fallback: _buildDiscoverCard(
-                        context,
-                        title: 'MENTOR POSTS',
-                        description:
-                            'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
-                        icon: Icons.auto_awesome_mosaic_rounded,
-                        buttonText: 'XEM NGAY',
-                        isLargeScreen: isLargeScreen,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AllMentorMediaScreen(),
+                          title: 'MENTOR POSTS',
+                          description:
+                              'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
+                          icon: Icons.auto_awesome_mosaic_rounded,
+                          buttonText: 'XEM NGAY',
+                          isLargeScreen: isLargeScreen,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AllMentorMediaScreen(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: isLargeScreen ? 32 : 28),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isLargeScreen ? 22 : 16,
-                        vertical: isLargeScreen ? 11 : 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF1E1E24)
-                            : const Color.fromARGB(255, 242, 227, 230),
-                        border: Border.all(color: borderColor, width: 2),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.keyboard_double_arrow_up_rounded,
-                            color: isDark ? Colors.white : Colors.black,
-                            size: isLargeScreen ? 24 : 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'VUỐT LÊN ĐỂ XEM MOMENTS',
-                            style: TextStyle(
+                      SizedBox(height: isLargeScreen ? 32 : 28),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isLargeScreen ? 22 : 16,
+                          vertical: isLargeScreen ? 11 : 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1E1E24)
+                              : const Color.fromARGB(255, 242, 227, 230),
+                          border: Border.all(color: borderColor, width: 2),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.keyboard_double_arrow_up_rounded,
                               color: isDark ? Colors.white : Colors.black,
-                              fontSize: isLargeScreen ? 15 : 12,
-                              fontWeight: FontWeight.w900,
+                              size: isLargeScreen ? 24 : 20,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              'VUỐT LÊN ĐỂ XEM MOMENTS',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black,
+                                fontSize: isLargeScreen ? 15 : 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -4,6 +4,7 @@ import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'dart:async';
 import 'package:logging/logging.dart'; // { changed code }
 import 'package:flutter/foundation.dart';
+import '../controllers/notification_controller.dart';
 
 // Quản lý số lần gửi OTP
 class OTPAttempt {
@@ -55,8 +56,8 @@ class AuthService {
       } else {
         // Trên Mobile: Sử dụng nguyên code cũ
         await _ensureGoogleSignInInitialized();
-        final GoogleSignInAccount googleUser =
-            await GoogleSignIn.instance.authenticate();
+        final GoogleSignInAccount googleUser = await GoogleSignIn.instance
+            .authenticate();
 
         final GoogleSignInAuthentication googleAuth =
             await googleUser.authentication;
@@ -64,9 +65,12 @@ class AuthService {
           idToken: googleAuth.idToken,
         );
 
-        final UserCredential userCredential =
-            await _auth.signInWithCredential(credential);
-        _logger.info('Đăng nhập Google Mobile thành công: ${userCredential.user?.uid}');
+        final UserCredential userCredential = await _auth.signInWithCredential(
+          credential,
+        );
+        _logger.info(
+          'Đăng nhập Google Mobile thành công: ${userCredential.user?.uid}',
+        );
         return userCredential.user;
       }
     } catch (e) {
@@ -97,6 +101,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    await NotificationController().clearToken();
     await _auth.signOut();
     await _ensureGoogleSignInInitialized();
     await GoogleSignIn.instance.signOut();

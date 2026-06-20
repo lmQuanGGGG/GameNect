@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/video_warmup_service.dart';
 import '../../../core/widgets/network_image.dart';
 import 'video_player_widget.dart';
 
@@ -49,6 +50,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
   Future<void> _loadSeenPostIds() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+
     setState(() {
       _seenPostIds = prefs.getStringList(_seenPostsKey)?.toSet() ?? {};
       _seenPostIdsLoaded = true;
@@ -58,6 +60,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
   Future<void> _openPost(String postId) async {
     await _markPostSeen(postId);
     if (!mounted) return;
+
     await widget.onTap();
     await _loadSeenPostIds();
   }
@@ -78,6 +81,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
         .collection('users')
         .doc(mentorId)
         .get();
+
     final data = snapshot.data();
     if (data != null) _mentorCache[mentorId] = data;
     return data;
@@ -95,6 +99,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
           .snapshots(),
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
+
         final validDocs = docs.where((doc) {
           final data = doc.data();
           final isVideo = data['type'] == 'video';
@@ -109,9 +114,11 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
         final unseenDocs = validDocs
             .where((doc) => !_seenPostIds.contains(doc.id))
             .toList();
+
         final previewDoc = unseenDocs.isNotEmpty
             ? unseenDocs.first
             : validDocs.first;
+
         final stackCount = unseenDocs.isEmpty
             ? 1
             : unseenDocs.length.clamp(1, 3);
@@ -121,7 +128,12 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
         final previewUrl = isVideo
             ? data['thumbnailUrl'] as String
             : data['url'] as String;
+
         final videoUrl = data['url'] as String? ?? '';
+        if (isVideo && videoUrl.isNotEmpty) {
+          VideoWarmupService.warmUp(videoUrl);
+        }
+
         final mentorId = data['mentorId'] as String? ?? '';
         final caption = data['caption'] as String? ?? '';
         final likes = List<String>.from(data['likes'] as List? ?? const []);
@@ -174,6 +186,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
     final borderColor = isDark ? Colors.white : Colors.black;
     final cardColor = isDark ? const Color(0xFF1E1E24) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
+
     final advancePost = hasMoreUnseenPosts
         ? () => _markPostSeen(postId)
         : () => _openPost(postId);
@@ -211,6 +224,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                   begin: const Offset(-0.18, -0.05),
                   end: Offset.zero,
                 ).animate(animation);
+
                 return FadeTransition(
                   opacity: animation,
                   child: SlideTransition(position: slide, child: child),
@@ -235,7 +249,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                 hasUnseenPosts:
                     stackCount > 1 || !_seenPostIds.contains(postId),
                 onImageTap: advancePost,
-                onButtonTap: advancePost,
+                onButtonTap: () => _openPost(postId),
               ),
             ),
           ),
@@ -292,9 +306,11 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
           final gridRatioWidth = mediaHeight * widget.mediaAspectRatio;
           final maxMediaWidth =
               constraints.maxWidth * (isWideLayout ? 0.36 : 0.62);
+
           final mediaWidth = widget.splitEvenly && !isWideLayout
               ? (constraints.maxWidth - 4) / 2
               : gridRatioWidth.clamp(0.0, maxMediaWidth);
+
           final unseenLabel = unseenCount > 99 ? '99+' : '$unseenCount';
 
           return Stack(
@@ -338,7 +354,6 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                                         fit: BoxFit.cover,
                                         width: mediaWidth,
                                       ),
-
                                     if (isVideo && !widget.autoplayVideo)
                                       const Center(
                                         child: Icon(
@@ -356,7 +371,6 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                                   ],
                                 ),
                               ),
-
                               GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: onImageTap,
@@ -472,6 +486,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                             onButtonTap,
                             isWideLayout: isWideLayout,
                           );
+
                           final likeButton = _buildLikeButton(
                             postId: postId,
                             likeCount: likeCount,
@@ -481,53 +496,47 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                             textColor: textColor,
                           );
 
+                          final unseenBadge = _buildUnseenBadge(
+                            unseenLabel: unseenLabel,
+                            borderColor: borderColor,
+                            onTap: onButtonTap,
+                            isWideLayout: isWideLayout,
+                          );
+
                           return Padding(
                             padding: EdgeInsets.fromLTRB(
                               isWideLayout ? 20 : 12,
+                              isWideLayout ? 16 : 10,
                               isWideLayout ? 20 : 12,
-                              isWideLayout ? 20 : 12,
-                              5,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: isWideLayout
-                            ? CrossAxisAlignment.center
-                            : CrossAxisAlignment.start,
-                        children: [
-                                SizedBox(height: isWideLayout ? 18 : 12),
-                          Text(
-                            isWideLayout ? 'MENTOR POSTS' : 'MENTOR\nPOSTS',
-                            textAlign: isWideLayout
-                                ? TextAlign.center
-                                : TextAlign.left,
+                              isWideLayout ? 20 : 2, // Bỏ bottom padding trên mobile theo yêu cầu
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start, // Căn trái toàn bộ cho gọn gàng
+                              children: [
+                                if (unseenCount > 0) ...[
+                                  unseenBadge,
+                                  SizedBox(height: isWideLayout ? 14 : 10),
+                                ],
+
+                                Text(
+                                  isWideLayout
+                                      ? 'MENTOR POSTS'
+                                      : 'MENTOR\nPOSTS',
+                                  textAlign: TextAlign.left,
                                   style: TextStyle(
                                     color: textColor,
                                     fontSize: isLargeDesktop
                                         ? 34
-                                        : (isWideLayout ? 28 : 18),
+                                        : (isWideLayout ? 28 : 20),
                                     height: 1.15,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.8,
                                   ),
                                 ),
-                                SizedBox(height: isWideLayout ? 18 : 12),
-                          Text(
-                            'Khám phá những bài viết mới của Mentor',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: isWideLayout
-                                ? TextAlign.center
-                                : TextAlign.left,
-                                  style: TextStyle(
-                                    color: textColor.withValues(alpha: 0.75),
-                                    fontSize: isLargeDesktop
-                                        ? 17
-                                        : (isWideLayout ? 14 : 10),
-                                    height: 1.3,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+
+                                SizedBox(height: isWideLayout ? 12 : 8),
+
                                 if (hasUnseenPosts) ...[
-                                  SizedBox(height: isWideLayout ? 16 : 10),
                                   GestureDetector(
                                     onTap: onButtonTap,
                                     child: Container(
@@ -537,7 +546,9 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFF3E0),
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(
+                                          20,
+                                        ),
                                         border: Border.all(
                                           color: borderColor,
                                           width: 2,
@@ -547,12 +558,14 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
-                                      unseenCount > 1
-                                          ? 'Chạm ảnh để xem tiếp'
-                                          : 'Chạm XEM để mở Mentor Posts',
+                                            unseenCount > 1
+                                                ? 'Chạm ảnh để xem'
+                                                : 'Bấm Xem vào Post',
                                             style: TextStyle(
                                               color: Colors.black,
-                                              fontSize: isWideLayout ? 13 : 10,
+                                              fontSize: isWideLayout
+                                                  ? 13
+                                                  : 10,
                                               fontWeight: FontWeight.w900,
                                             ),
                                           ),
@@ -567,17 +580,9 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                                     ),
                                   ),
                                 ],
-                                if (isWideLayout)
-                                  Expanded(
-                                    child: Center(
-                                      child: _buildMentorHighlights(
-                                        borderColor: borderColor,
-                                        isLargeDesktop: isLargeDesktop,
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  const Spacer(),
+                                SizedBox(height: isWideLayout ? 16 : 6),
+                                const Spacer(),
+
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
@@ -586,7 +591,7 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                                       width: double.infinity,
                                       child: button,
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 10),
                                     likeButton,
                                   ],
                                 ),
@@ -599,69 +604,67 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
                   ],
                 ),
               ),
-              if (unseenCount > 0)
-                Positioned(
-                  top: isWideLayout ? 18 : 10,
-                  right: isWideLayout ? 18 : 10,
-                  child: GestureDetector(
-                    onTap: onButtonTap,
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxWidth: isWideLayout ? 150 : 104,
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isWideLayout ? 14 : 10,
-                        vertical: isWideLayout ? 10 : 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF2D55),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: borderColor, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: borderColor,
-                            offset: const Offset(4, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                unseenLabel,
-                                maxLines: 1,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: isWideLayout ? 24 : 18,
-                                  height: 1,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: isWideLayout ? 7 : 5),
-                          Text(
-                            'CHƯA XEM',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isWideLayout ? 11 : 8,
-                              height: 1,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildUnseenBadge({
+    required String unseenLabel,
+    required Color borderColor,
+    required Future<void> Function() onTap,
+    required bool isWideLayout,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: isWideLayout ? 150 : 112),
+        padding: EdgeInsets.symmetric(
+          horizontal: isWideLayout ? 14 : 10,
+          vertical: isWideLayout ? 10 : 7,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF2D55),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor, width: 3),
+          boxShadow: [
+            BoxShadow(color: borderColor, offset: const Offset(4, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  unseenLabel,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isWideLayout ? 24 : 18,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: isWideLayout ? 7 : 5),
+            Text(
+              'CHƯA XEM',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isWideLayout ? 11 : 8,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -710,84 +713,6 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMentorHighlights({
-    required Color borderColor,
-    required bool isLargeDesktop,
-  }) {
-    const highlights = [
-      (Icons.photo_library_rounded, 'Ảnh & video'),
-      (Icons.sports_esports_rounded, 'Kinh nghiệm thực chiến'),
-      (Icons.auto_awesome_rounded, 'Bài mới từ Mentor'),
-    ];
-
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(maxWidth: 680),
-      padding: EdgeInsets.all(isLargeDesktop ? 18 : 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7F2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 3),
-        boxShadow: [BoxShadow(color: borderColor, offset: const Offset(4, 4))],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.workspace_premium_rounded,
-            color: const Color(0xFFFF6E40),
-            size: isLargeDesktop ? 34 : 28,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'NỘI DUNG TỪ CÁC MENTOR NỔI BẬT',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: isLargeDesktop ? 14 : 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: highlights.map((highlight) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: borderColor, width: 2),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(highlight.$1, color: Colors.black, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      highlight.$2,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: isLargeDesktop ? 12 : 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
       ),
     );
   }

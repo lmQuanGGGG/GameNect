@@ -140,21 +140,40 @@ class MatchProvider with ChangeNotifier {
 
         for (var e in recs) {
           final String userId = e['user_id'];
-          debugPrint('---');
-          debugPrint('User ID from API: $userId');
+          // Lấy điểm từ AI (hỗ trợ nhiều format key)
+          // Nếu không có key nào → null (không lọc theo score, chấp nhận tất cả)
+          final num? rawScore =
+              e['score'] ?? e['match_score'] ?? e['compatibility_score'];
+          final double? score = rawScore?.toDouble();
 
-          // TỐI ƯU: Tìm trực tiếp trong danh sách filteredCandidates đã lọc
-          // Tránh lỗi N+1 Query: Không gọi Firestore lại vì candidate đã đầy đủ thông tin
-          // và đã thoả mãn 100% điều kiện khoảng cách, tuổi, giới tính,...
-          try {
-            final user = filteredCandidates.firstWhere((u) => u.id == userId);
-            temp.add(user);
+          debugPrint('---');
+          debugPrint('User ID from API: $userId, Score: $score');
+
+          // Nếu API không trả score → chấp nhận luôn (không lọc)
+          // Nếu có score: hệ 1 (0.0–1.0) thì ngưỡng 0.5, hệ 100 thì ngưỡng 50.0
+          bool passScore = true;
+          if (score != null) {
+            final double threshold = (score <= 1.0) ? 0.5 : 50.0;
+            passScore = score >= threshold;
+          }
+
+          if (passScore) {
+            // TỐI ƯU: Tìm trực tiếp trong danh sách filteredCandidates đã lọc
+            try {
+              final user = filteredCandidates.firstWhere((u) => u.id == userId);
+              temp.add(user);
+              debugPrint(
+                'ADDED to recommendations: ${user.username} - Distance: ${user.distanceKm?.toStringAsFixed(1)} km',
+              );
+            } catch (_) {
+              debugPrint(
+                'REJECTED: User $userId không tìm thấy trong filteredCandidates',
+              );
+            }
+          } else {
+            final double threshold = (score! <= 1.0) ? 0.5 : 50.0;
             debugPrint(
-              'ADDED to recommendations: ${user.username} - Distance: ${user.distanceKm?.toStringAsFixed(1)} km',
-            );
-          } catch (_) {
-            debugPrint(
-              'REJECTED: User $userId không tìm thấy trong filteredCandidates',
+              'REJECTED: User $userId bị loại vì điểm số quá thấp ($score < $threshold)',
             );
           }
         }
@@ -219,7 +238,10 @@ class MatchProvider with ChangeNotifier {
       if (isMutual) {
         if (currentUserId != targetUser.id) {
           // Kiem tra xem da co match ton tai chua de tranh bug bam 2 lan tao ra 2 cuoc hoi thoai
-          final existingMatch = await FirestoreService().getMatchBetweenUsers(currentUserId, targetUser.id);
+          final existingMatch = await FirestoreService().getMatchBetweenUsers(
+            currentUserId,
+            targetUser.id,
+          );
           if (existingMatch == null) {
             await FirestoreService().createNewMatch(
               userIds: [currentUserId, targetUser.id],
@@ -238,14 +260,30 @@ class MatchProvider with ChangeNotifier {
   // Lấy danh sách người dùng chưa bị swipe bởi currentUser
   Future<List<UserModel>> fetchFilteredUsers(String currentUserId) async {
     try {
-      // Lấy danh sách tất cả người dùng từ Firestore
-      final allUsers = await FirestoreService().getAllUsers();
+      final currentUser = await FirestoreService().getUser(currentUserId);
+      if (currentUser == null) return [];
+
+      if (currentUser.latitude == null || currentUser.longitude == null) {
+        developer.log(
+          'Bỏ qua fetchFilteredUsers vì user chưa có tọa độ đã lưu',
+          name: 'MatchProvider',
+        );
+        return [];
+      }
+
+      final candidateUsers = await FirestoreService().getUsersWithinRadius(
+        latitude: currentUser.latitude!,
+        longitude: currentUser.longitude!,
+        radiusKm: currentUser.maxDistance,
+        excludeUserId: currentUserId,
+        limit: 100,
+      );
 
       // Lọc những người dùng đã vuốt (swiped) bởi người dùng hiện tại
       final swipedUserIds = await FirestoreService().getSwipedUserIds(
         currentUserId,
       );
-      final filteredUsers = allUsers
+      final filteredUsers = candidateUsers
           .where((u) => u.id != currentUserId && !swipedUserIds.contains(u.id))
           .toList();
 
@@ -454,8 +492,11 @@ class MatchProvider with ChangeNotifier {
         }
 
         // Xử lý ẩn chat nếu user đã xóa hội thoại
-        final clearedAt = (data['clearedAt_$currentUserId'] as Timestamp?)?.toDate();
-        if (clearedAt != null && lastMessageTime != null && !lastMessageTime.isAfter(clearedAt)) {
+        final clearedAt = (data['clearedAt_$currentUserId'] as Timestamp?)
+            ?.toDate();
+        if (clearedAt != null &&
+            lastMessageTime != null &&
+            !lastMessageTime.isAfter(clearedAt)) {
           lastMessage = null;
         }
 

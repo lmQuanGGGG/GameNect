@@ -91,7 +91,12 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
   /// Refresh location hiện tại
   Future<void> _refreshLocation() async {
     final locationProvider = context.read<LocationProvider>();
-    await locationProvider.getCurrentLocation();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      await locationProvider.updateUserLocation(userId);
+    } else {
+      await locationProvider.getCurrentLocation();
+    }
   }
 
   @override

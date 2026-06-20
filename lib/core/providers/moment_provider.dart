@@ -23,10 +23,10 @@ class MomentProvider with ChangeNotifier {
 
   // Biến lưu subscription stream realtime moments
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _momentsSub;
-  
+
   // Map lưu lại các reaction đã gửi thông báo để tránh gửi lặp lại
   final Map<String, Set<String>> _notifiedReactions = {};
-  
+
   // Biến cờ để bỏ qua snapshot đầu tiên khi vừa đăng nhập (tránh gửi thông báo cũ)
   bool _isFirstSnapshot = true;
 
@@ -37,7 +37,7 @@ class MomentProvider with ChangeNotifier {
         .where('userIds', arrayContains: userId)
         .where('status', isEqualTo: 'confirmed')
         .get();
-    
+
     List<String> matchedUserIds = [];
     for (var doc in snap.docs) {
       final userIds = List<String>.from(doc.data()['userIds'] ?? []);
@@ -59,101 +59,111 @@ class MomentProvider with ChangeNotifier {
         .orderBy('createdAt', descending: true)
         .limit(200)
         .snapshots()
-        .listen((snap) async {
-          final newMoments = snap.docs
-              .map((d) => MomentModel.fromMap(d.data(), d.id))
-              .toList();
+        .listen(
+          (snap) async {
+            final newMoments = snap.docs
+                .map((d) => MomentModel.fromMap(d.data(), d.id))
+                .toList();
 
-          // Bỏ qua snapshot đầu tiên để không gửi thông báo cho các reaction cũ
-          if (_isFirstSnapshot) {
-            //_logger.i('🔇 Skipping first snapshot (initial load)', name: 'MomentProvider');
-            _isFirstSnapshot = false;
-            // Lưu lại tất cả reaction hiện có để không thông báo lại
+            // Bỏ qua snapshot đầu tiên để không gửi thông báo cho các reaction cũ
+            if (_isFirstSnapshot) {
+              //_logger.i('🔇 Skipping first snapshot (initial load)', name: 'MomentProvider');
+              _isFirstSnapshot = false;
+              // Lưu lại tất cả reaction hiện có để không thông báo lại
+              for (var moment in newMoments) {
+                if (moment.userId != userId) continue;
+                _notifiedReactions[moment.id] ??= {};
+                for (var reaction in moment.reactions) {
+                  final reactorUserId = reaction['userId'] as String?;
+                  final emoji = reaction['emoji'] as String?;
+                  if (reactorUserId != null &&
+                      emoji != null &&
+                      reactorUserId != userId) {
+                    final reactionKey =
+                        '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
+                    _notifiedReactions[moment.id]!.add(reactionKey);
+                  }
+                }
+              }
+
+              _moments = newMoments;
+              _isLoading = false;
+              notifyListeners();
+              return;
+            }
+
+            // Kiểm tra các reaction mới (chỉ thực hiện từ snapshot thứ hai trở đi)
             for (var moment in newMoments) {
+              // Chỉ kiểm tra moment của chính mình
               if (moment.userId != userId) continue;
+
+              // Khởi tạo set reaction nếu chưa có
               _notifiedReactions[moment.id] ??= {};
+
+              // Duyệt qua các reaction
               for (var reaction in moment.reactions) {
                 final reactorUserId = reaction['userId'] as String?;
                 final emoji = reaction['emoji'] as String?;
-                if (reactorUserId != null && emoji != null && reactorUserId != userId) {
-                  final reactionKey = '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
+
+                if (reactorUserId == null || emoji == null) continue;
+
+                // Bỏ qua reaction của chính mình
+                if (reactorUserId == userId) continue;
+
+                // Tạo key duy nhất cho mỗi reaction
+                final reactionKey =
+                    '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
+
+                // Nếu chưa gửi thông báo cho reaction này thì gửi thông báo
+                if (!_notifiedReactions[moment.id]!.contains(reactionKey)) {
                   _notifiedReactions[moment.id]!.add(reactionKey);
+
+                  // Lấy thông tin người đã react
+                  try {
+                    final userDoc = await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(reactorUserId)
+                        .get();
+
+                    final reactorUsername =
+                        userDoc.data()?['username'] ?? 'Người dùng';
+
+                    // Gửi thông báo cho chủ moment
+                    await showMomentReactionNotification(
+                      momentOwnerId: userId,
+                      reactorUsername: reactorUsername,
+                      reactorUserId: reactorUserId,
+                      momentId: moment.id,
+                      emoji: emoji,
+                    );
+
+                    _logger.i(
+                      'Sent reaction notification: $reactorUsername reacted $emoji to moment ${moment.id}',
+                    );
+                  } catch (e) {
+                    _logger.e('Error sending reaction notification: $e');
+                  }
                 }
               }
             }
-            
+
             _moments = newMoments;
             _isLoading = false;
             notifyListeners();
-            return;
-          }
-
-          // Kiểm tra các reaction mới (chỉ thực hiện từ snapshot thứ hai trở đi)
-          for (var moment in newMoments) {
-            // Chỉ kiểm tra moment của chính mình
-            if (moment.userId != userId) continue;
-
-            // Khởi tạo set reaction nếu chưa có
-            _notifiedReactions[moment.id] ??= {};
-
-            // Duyệt qua các reaction
-            for (var reaction in moment.reactions) {
-              final reactorUserId = reaction['userId'] as String?;
-              final emoji = reaction['emoji'] as String?;
-
-              if (reactorUserId == null || emoji == null) continue;
-              
-              // Bỏ qua reaction của chính mình
-              if (reactorUserId == userId) continue;
-
-              // Tạo key duy nhất cho mỗi reaction
-              final reactionKey = '$reactorUserId-$emoji-${reaction['reactedAt']?.seconds ?? 0}';
-
-              // Nếu chưa gửi thông báo cho reaction này thì gửi thông báo
-              if (!_notifiedReactions[moment.id]!.contains(reactionKey)) {
-                _notifiedReactions[moment.id]!.add(reactionKey);
-
-                // Lấy thông tin người đã react
-                try {
-                  final userDoc = await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(reactorUserId)
-                      .get();
-                  
-                  final reactorUsername = userDoc.data()?['username'] ?? 'Người dùng';
-
-                  // Gửi thông báo cho chủ moment
-                  await showMomentReactionNotification(
-                    momentOwnerId: userId,
-                    reactorUsername: reactorUsername,
-                    reactorUserId: reactorUserId,
-                    momentId: moment.id,
-                    emoji: emoji,
-                  );
-                  
-                  _logger.i('Sent reaction notification: $reactorUsername reacted $emoji to moment ${moment.id}');
-                } catch (e) {
-                  _logger.e('Error sending reaction notification: $e');
-                }
-              }
-            }
-          }
-
-          _moments = newMoments;
-          _isLoading = false;
-          notifyListeners();
-        }, onError: (e) {
-          _logger.e('listenMoments error: $e');
-          _isLoading = false;
-          notifyListeners();
-        });
+          },
+          onError: (e) {
+            _logger.e('listenMoments error: $e');
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   // Hàm lấy moments của user và các user đã match
   Future<void> fetchMoments(String userId, List<String> matchIds) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       _moments = await FirestoreService().getMomentsForUser(userId, matchIds);
       _logger.i('Fetched ${_moments.length} moments');
@@ -161,9 +171,16 @@ class MomentProvider with ChangeNotifier {
       _logger.e('Error fetching moments: $e');
       _moments = [];
     }
-    
+
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<bool> canPostMoment({
+    required String userId,
+    required bool isVideo,
+  }) async {
+    return FirestoreService().canPostMoment(userId, isVideo: isVideo);
   }
 
   // Hàm đăng moment mới (ảnh/video)
@@ -191,22 +208,28 @@ class MomentProvider with ChangeNotifier {
   }
 
   // Hàm thêm reaction vào moment
-  Future<void> reactToMoment(String momentId, String userId, String emoji) async {
+  Future<void> reactToMoment(
+    String momentId,
+    String userId,
+    String emoji,
+  ) async {
     // 1. Cập nhật offline cục bộ (Optimistic local update) để UI hiển thị lập tức
     final index = _moments.indexWhere((m) => m.id == momentId);
     if (index != -1) {
       final moment = _moments[index];
       final newReactions = List<Map<String, dynamic>>.from(moment.reactions);
-      
+
       // Kiểm tra xem user đã thả reaction này chưa để tránh add trùng cục bộ
-      final exists = newReactions.any((r) => r['userId'] == userId && r['emoji'] == emoji);
+      final exists = newReactions.any(
+        (r) => r['userId'] == userId && r['emoji'] == emoji,
+      );
       if (!exists) {
         newReactions.add({
           'userId': userId,
           'emoji': emoji,
           'reactedAt': Timestamp.now(),
         });
-        
+
         _moments[index] = MomentModel(
           id: moment.id,
           userId: moment.userId,
@@ -234,7 +257,11 @@ class MomentProvider with ChangeNotifier {
   }
 
   // Hàm trả lời (reply) vào moment
-  Future<void> replyToMoment(String momentId, String userId, String text) async {
+  Future<void> replyToMoment(
+    String momentId,
+    String userId,
+    String text,
+  ) async {
     try {
       await FirestoreService().addReplyToMoment(momentId, userId, text);
       final index = _moments.indexWhere((m) => m.id == momentId);
@@ -242,7 +269,7 @@ class MomentProvider with ChangeNotifier {
         _moments[index].replies.add({
           'userId': userId,
           'text': text,
-          'repliedAt': Timestamp.now()
+          'repliedAt': Timestamp.now(),
         });
         notifyListeners();
       }

@@ -16,7 +16,7 @@ import 'dart:developer' as developer;
 import '../../../core/services/firestore_service.dart';
 import 'camera_preview_view.dart';
 import 'package:camerawesome/camerawesome_plugin.dart';
-import 'package:camerawesome/pigeon.dart' show PreviewSize, VideoOptions;
+import 'package:camerawesome/pigeon.dart' show PreviewSize, VideoOptions, VideoRecordingQuality;
 import 'camera_dialogs.dart';
 
 const _kNeoAccent = Color(0xFFFF6E40);
@@ -98,7 +98,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     if (label == 0.5) {
       // Cam sau: có lens siêu rộng thật thì dùng
       if (!_isFrontCamera && _sensorDeviceData?.ultraWideAngle != null) {
-        state.setSensorType(0, SensorType.ultraWideAngle, _sensorDeviceData!.ultraWideAngle!.uid);
+        state.setSensorType(
+          0,
+          SensorType.ultraWideAngle,
+          _sensorDeviceData!.ultraWideAngle!.uid,
+        );
       } else {
         // Cam trước (hoặc cam sau k có lens): góc rộng nhất là mức zoom 0.0
         await state.sensorConfig.setZoom(0.0);
@@ -107,7 +111,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       if (!_isFrontCamera) {
         // Cam sau: về wide-angle chính nếu có
         if (_sensorDeviceData?.wideAngle != null) {
-          state.setSensorType(0, SensorType.wideAngle, _sensorDeviceData!.wideAngle!.uid);
+          state.setSensorType(
+            0,
+            SensorType.wideAngle,
+            _sensorDeviceData!.wideAngle!.uid,
+          );
         }
         await state.sensorConfig.setZoom(0.0);
       } else {
@@ -116,7 +124,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       }
     } else if (label == 2.0) {
       if (!_isFrontCamera && _sensorDeviceData?.telephoto != null) {
-        state.setSensorType(0, SensorType.telephoto, _sensorDeviceData!.telephoto!.uid);
+        state.setSensorType(
+          0,
+          SensorType.telephoto,
+          _sensorDeviceData!.telephoto!.uid,
+        );
       } else {
         await state.sensorConfig.setZoom(0.3);
       }
@@ -131,9 +143,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   // ── Capture actions ───────────────────────────────────────────────────────────
   void _takePicture(CameraState state) {
     _shutterController.forward(from: 0);
-    state.when(
-      onPhotoMode: (photoState) => photoState.takePhoto(),
-    );
+    state.when(onPhotoMode: (photoState) => photoState.takePhoto());
   }
 
   Future<void> _startRecording(CameraState state) async {
@@ -146,10 +156,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               _isRecording = true;
               _recordingSeconds = 0;
             });
-            _recordingTimer =
-                Timer.periodic(const Duration(seconds: 1), (timer) {
+            _recordingTimer = Timer.periodic(const Duration(seconds: 1), (
+              timer,
+            ) {
               setState(() => _recordingSeconds++);
-              if (_recordingSeconds >= 15) _stopRecording(state);
+              if (_recordingSeconds >= 5) _stopRecording(state);
             });
           }
         },
@@ -384,16 +395,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       } else {
         pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
         if (pickedFile != null) {
-          final vc =
-              VideoPlayerController.file(File(pickedFile.path));
+          final vc = VideoPlayerController.file(File(pickedFile.path));
           await vc.initialize();
           final dur = vc.value.duration.inSeconds;
           await vc.dispose();
-          if (dur > 15) {
+          if (dur > 5) {
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Video phải ngắn hơn hoặc bằng 15 giây!'),
-                backgroundColor: Colors.red));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Video phải ngắn hơn hoặc bằng 5 giây!'),
+                backgroundColor: Colors.red,
+              ),
+            );
             return;
           }
           setState(() {
@@ -411,17 +424,52 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   // ── Upload & post ─────────────────────────────────────────────────────────────
   Future<void> _uploadAndPost() async {
     if (_capturedMedia == null) return;
+
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
+    final mp = Provider.of<MomentProvider>(context, listen: false);
+
+    // Check quota TRƯỚC KHI upload lên Storage
     try {
-      final canPost = await FirestoreService().canPostMoment(userId);
+      final canPost = await mp.canPostMoment(userId: userId, isVideo: _isVideo);
+
       if (!canPost) {
-        await showCameraPremiumUpsellDialog();
+        if (!mounted) return;
+
+        if (_isVideo) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Bạn chỉ được đăng tối đa 2 video/tháng hoặc đã hết 20 moment/tháng!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              backgroundColor: _kNeoRed,
+            ),
+          );
+        } else {
+          await showCameraPremiumUpsellDialog();
+        }
+
         return;
       }
     } catch (e) {
       developer.log('Check limit error: $e', name: 'Camera');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Không kiểm tra được giới hạn đăng moment. Vui lòng thử lại!',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          ),
+          backgroundColor: _kNeoRed,
+        ),
+      );
+      return;
     }
 
     final caption = await showCameraCaptionDialog();
@@ -431,9 +479,13 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) =>
-          const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.deepOrange),
+      ),
     );
+
+    Reference? uploadedMediaRef;
+    Reference? uploadedThumbRef;
 
     try {
       String? mediaUrl;
@@ -442,10 +494,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       if (kIsWeb) {
         // === WEB: dùng putData(bytes) thay vì putFile(File) ===
         var bytes = await _capturedMedia!.readAsBytes();
+
         if (_isVideo) {
-          final ref = FirebaseStorage.instance
-              .ref()
-              .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+          final ref = FirebaseStorage.instance.ref().child(
+            'moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4',
+          );
+
+          uploadedMediaRef = ref;
+
           await ref.putData(
             bytes,
             SettableMetadata(
@@ -453,18 +509,24 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               cacheControl: 'public, max-age=31536000',
             ),
           );
+
           mediaUrl = await ref.getDownloadURL();
           thumbnailUrl = null;
         } else {
-          final imageRef = FirebaseStorage.instance
-              .ref()
-              .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          final imageRef = FirebaseStorage.instance.ref().child(
+            'moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+
+          uploadedMediaRef = imageRef;
+
           if (_isFrontCamera) {
             bytes = await compute(_applyBeautyFilterIsolate, bytes);
           }
+
           if (_isMirrored) {
             bytes = await compute(_applyMirrorIsolate, bytes);
           }
+
           await imageRef.putData(
             bytes,
             SettableMetadata(
@@ -473,14 +535,18 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               customMetadata: {'quality': 'high'},
             ),
           );
+
           mediaUrl = await imageRef.getDownloadURL();
         }
       } else {
         // === MOBILE: dùng putFile như cũ ===
         if (_isVideo) {
-          final ref = FirebaseStorage.instance
-              .ref()
-              .child('moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+          final ref = FirebaseStorage.instance.ref().child(
+            'moments/$userId/video_${DateTime.now().millisecondsSinceEpoch}.mp4',
+          );
+
+          uploadedMediaRef = ref;
+
           await ref.putFile(
             File(_capturedMedia!.path),
             SettableMetadata(
@@ -488,12 +554,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               cacheControl: 'public, max-age=31536000',
             ),
           );
+
           mediaUrl = await ref.getDownloadURL();
 
           if (_localThumbnailPath != null) {
-            final thumbRef = FirebaseStorage.instance
-                .ref()
-                .child('moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            final thumbRef = FirebaseStorage.instance.ref().child(
+              'moments/$userId/thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            );
+
+            uploadedThumbRef = thumbRef;
+
             await thumbRef.putFile(
               File(_localThumbnailPath!),
               SettableMetadata(
@@ -501,29 +571,33 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                 cacheControl: 'public, max-age=31536000',
               ),
             );
+
             thumbnailUrl = await thumbRef.getDownloadURL();
           }
         } else {
-          final imageRef = FirebaseStorage.instance
-              .ref()
-              .child('moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          final imageRef = FirebaseStorage.instance.ref().child(
+            'moments/$userId/image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+
+          uploadedMediaRef = imageRef;
+
           final metadata = SettableMetadata(
             contentType: 'image/jpeg',
             cacheControl: 'public, max-age=31536000',
             customMetadata: {'quality': 'high'},
           );
 
-          if (_isFrontCamera || _isMirrored) {
-            final file = File(_capturedMedia!.path);
-            var bytes = await file.readAsBytes();
-            if (_isFrontCamera) {
-              bytes = await compute(_applyBeautyFilterIsolate, bytes);
-            }
-            if (_isMirrored) {
-              bytes = await compute(_applyMirrorIsolate, bytes);
-            }
-            await file.writeAsBytes(bytes);
+          // Nén cho TẤT CẢ các ảnh để tiết kiệm dung lượng
+          final file = File(_capturedMedia!.path);
+          var bytes = await file.readAsBytes();
+
+          bytes = await compute(_applyBeautyFilterIsolate, bytes);
+
+          if (_isMirrored) {
+            bytes = await compute(_applyMirrorIsolate, bytes);
           }
+
+          await file.writeAsBytes(bytes);
 
           await imageRef.putFile(File(_capturedMedia!.path), metadata);
           mediaUrl = await imageRef.getDownloadURL();
@@ -531,8 +605,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       }
 
       if (!mounted) return;
-      final mp = Provider.of<MomentProvider>(context, listen: false);
+
       final matchedIds = await mp.getMatchedUserIds(userId);
+
       await mp.postMoment(
         userId: userId,
         mediaUrl: mediaUrl,
@@ -543,20 +618,69 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       );
 
       if (!mounted) return;
+
       Navigator.of(context, rootNavigator: true).pop();
       Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('ĐÃ ĐĂNG LÊN FEED!', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)), backgroundColor: Colors.green));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'ĐÃ ĐĂNG LÊN FEED!',
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       developer.log('Upload error: $e', name: 'Camera', error: e);
+
+      // Nếu upload lên Storage rồi nhưng tạo moment thất bại thì xóa file rác
+      try {
+        if (uploadedThumbRef != null) {
+          await uploadedThumbRef!.delete();
+        }
+      } catch (_) {}
+
+      try {
+        if (uploadedMediaRef != null) {
+          await uploadedMediaRef!.delete();
+        }
+      } catch (_) {}
+
       if (!mounted) return;
+
       Navigator.of(context, rootNavigator: true).pop();
+
       final msg = e.toString();
-      if (msg.contains('LIMIT_EXCEEDED')) {
+
+      if (msg.contains('VIDEO_LIMIT_EXCEEDED')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Bạn chỉ được đăng tối đa 2 video/tháng!',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            backgroundColor: _kNeoRed,
+          ),
+        );
+      } else if (msg.contains('LIMIT_EXCEEDED')) {
         await showCameraPremiumUpsellDialog();
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('LỖI: $e', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)), backgroundColor: _kNeoRed));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'LỖI: $e',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            backgroundColor: _kNeoRed,
+          ),
+        );
       }
     }
   }
@@ -572,11 +696,17 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             if (mounted) {
               // Set correct aspect ratio on launch
               state.sensorConfig.setAspectRatio(
-                _isVideoMode ? CameraAspectRatios.ratio_16_9 : CameraAspectRatios.ratio_4_3,
+                _isVideoMode
+                    ? CameraAspectRatios.ratio_16_9
+                    : CameraAspectRatios.ratio_4_3,
               );
               // Fix orientation and set default sensor to wideAngle immediately on launch
               if (!_isFrontCamera && data.wideAngle != null) {
-                state.setSensorType(0, SensorType.wideAngle, data.wideAngle!.uid);
+                state.setSensorType(
+                  0,
+                  SensorType.wideAngle,
+                  data.wideAngle!.uid,
+                );
               }
               state.sensorConfig.setZoom(0.0);
               state.sensorConfig.setBrightness(_brightnessValue);
@@ -586,8 +716,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       });
     }
 
-    final isFront = state.sensorConfig.sensors.first.position ==
-        SensorPosition.front;
+    final isFront =
+        state.sensorConfig.sensors.first.position == SensorPosition.front;
     if (isFront != _isFrontCamera) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -596,7 +726,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             _currentZoomLabel = 1.0; // reset zoom label on switch
           });
           state.sensorConfig.setAspectRatio(
-            _isVideoMode ? CameraAspectRatios.ratio_16_9 : CameraAspectRatios.ratio_4_3,
+            _isVideoMode
+                ? CameraAspectRatios.ratio_16_9
+                : CameraAspectRatios.ratio_4_3,
           );
           state.sensorConfig.setZoom(0.0);
           state.sensorConfig.setBrightness(_brightnessValue);
@@ -627,10 +759,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               color: Colors.black,
               border: Border.all(color: borderColor, width: 3),
               boxShadow: [
-                BoxShadow(
-                  color: shadowColor,
-                  offset: const Offset(0, 4),
-                ),
+                BoxShadow(color: shadowColor, offset: const Offset(0, 4)),
               ],
             ),
             padding: EdgeInsets.only(
@@ -647,7 +776,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                   bgColor: Colors.white,
                   onTap: () {
                     if (_localThumbnailPath != null) {
-                      try { File(_localThumbnailPath!).deleteSync(); } catch (_) {}
+                      try {
+                        File(_localThumbnailPath!).deleteSync();
+                      } catch (_) {}
                     }
                     Navigator.pop(context);
                   },
@@ -701,17 +832,14 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               // Zoom presets (Floats above the card, outside of it!)
               _buildZoomPresets(state),
               const SizedBox(height: 4),
-              
+
               // The Floating Neo Card
               Container(
                 decoration: BoxDecoration(
                   color: Colors.black,
                   border: Border.all(color: borderColor, width: 3),
                   boxShadow: [
-                    BoxShadow(
-                      color: shadowColor,
-                      offset: const Offset(0, -4),
-                    ),
+                    BoxShadow(color: shadowColor, offset: const Offset(0, -4)),
                   ],
                 ),
                 padding: EdgeInsets.only(
@@ -733,7 +861,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                             bgColor: Colors.white,
                             onTap: _pickFromGallery,
                           ),
-                          
+
                           // Shutter
                           _buildCaptureButton(state),
 
@@ -757,7 +885,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                         color: Colors.black,
                         border: Border.all(color: borderColor, width: 3),
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: shadowColor,
+                            offset: const Offset(4, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -765,41 +898,77 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                           GestureDetector(
                             onTap: () async {
                               if (_isVideoMode) {
-                                await state.sensorConfig.setAspectRatio(CameraAspectRatios.ratio_4_3);
+                                await state.sensorConfig.setAspectRatio(
+                                  CameraAspectRatios.ratio_4_3,
+                                );
                                 state.when(
-                                  onVideoMode: (vs) => vs.setState(CaptureMode.photo),
+                                  onVideoMode: (vs) =>
+                                      vs.setState(CaptureMode.photo),
                                   onVideoRecordingMode: (_) {},
                                 );
                                 setState(() => _isVideoMode = false);
                               }
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
-                                color: !_isVideoMode ? _kNeoAccent : Colors.transparent,
+                                color: !_isVideoMode
+                                    ? _kNeoAccent
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text('ẢNH', style: TextStyle(color: !_isVideoMode ? Colors.black : Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1)),
+                              child: Text(
+                                'ẢNH',
+                                style: TextStyle(
+                                  color: !_isVideoMode
+                                      ? Colors.black
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 4),
                           GestureDetector(
                             onTap: () async {
                               if (!_isVideoMode) {
-                                await state.sensorConfig.setAspectRatio(CameraAspectRatios.ratio_16_9);
+                                await state.sensorConfig.setAspectRatio(
+                                  CameraAspectRatios.ratio_16_9,
+                                );
                                 state.when(
-                                  onPhotoMode: (ps) => ps.setState(CaptureMode.video),
+                                  onPhotoMode: (ps) =>
+                                      ps.setState(CaptureMode.video),
                                 );
                                 setState(() => _isVideoMode = true);
                               }
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
-                                color: _isVideoMode ? _kNeoAccent : Colors.transparent,
+                                color: _isVideoMode
+                                    ? _kNeoAccent
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text('VIDEO', style: TextStyle(color: _isVideoMode ? Colors.black : Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1)),
+                              child: Text(
+                                'VIDEO',
+                                style: TextStyle(
+                                  color: _isVideoMode
+                                      ? Colors.black
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -826,22 +995,21 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   Widget _buildZoomPresets(CameraState state) {
     // Cam sau: 0.5, 1, 2, 5 — Cam trước: 1, 2
-    final labels = _isFrontCamera
-        ? [1.0, 2.0]
-        : [0.5, 1.0, 2.0, 5.0];
+    final labels = _isFrontCamera ? [1.0, 2.0] : [0.5, 1.0, 2.0, 5.0];
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: labels.map((label) {
           final isActive = _currentZoomLabel == label;
-          final labelStr =
-              label == 1.0 ? '1×' : label == 0.5 ? '0.5×' : '${label.toInt()}×';
+          final labelStr = label == 1.0
+              ? '1×'
+              : label == 0.5
+              ? '0.5×'
+              : '${label.toInt()}×';
           return GestureDetector(
             onTap: () => _setZoomPreset(label, state),
             child: Container(
@@ -895,12 +1063,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 8,
-                thumbShape: const RoundSliderThumbShape(
-                  enabledThumbRadius: 10,
-                ),
-                overlayShape: const RoundSliderOverlayShape(
-                  overlayRadius: 18,
-                ),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
                 activeTrackColor: _kNeoAccent,
                 inactiveTrackColor: Colors.black12,
                 thumbColor: _kNeoAccent,
@@ -935,7 +1099,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               color: Colors.white,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.black, width: 4),
-              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+              boxShadow: const [
+                BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+              ],
             ),
             child: Center(
               child: Container(
@@ -975,7 +1141,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               color: Colors.white,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.black, width: 4),
-              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+              boxShadow: const [
+                BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+              ],
             ),
             child: Center(
               child: AnimatedContainer(
@@ -1002,7 +1170,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         decoration: BoxDecoration(
           color: _kNeoRed,
           border: Border.all(color: Colors.black, width: 3),
-          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+          boxShadow: const [
+            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+          ],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -1097,7 +1267,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     if (kIsWeb) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.deepOrange),
+        ),
       );
     }
 
@@ -1107,17 +1279,23 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         children: [
           CameraAwesomeBuilder.custom(
             saveConfig: SaveConfig.photoAndVideo(
-              initialCaptureMode: _isVideoMode ? CaptureMode.video : CaptureMode.photo,
-              mirrorFrontCamera: true, // Natively mirror front camera photo and video
-              videoOptions: VideoOptions(enableAudio: true),
+              initialCaptureMode: _isVideoMode
+                  ? CaptureMode.video
+                  : CaptureMode.photo,
+              mirrorFrontCamera:
+                  true, // Natively mirror front camera photo and video
+              videoOptions: VideoOptions(enableAudio: true, quality: VideoRecordingQuality.sd),
             ),
             sensorConfig: SensorConfig.single(
               sensor: Sensor.position(SensorPosition.back),
               flashMode: FlashMode.none,
-              aspectRatio: _isVideoMode ? CameraAspectRatios.ratio_16_9 : CameraAspectRatios.ratio_4_3,
+              aspectRatio: _isVideoMode
+                  ? CameraAspectRatios.ratio_16_9
+                  : CameraAspectRatios.ratio_4_3,
               zoom: 0.0,
             ),
-            previewFit: CameraPreviewFit.contain, // Show entire sensor viewport without cropping
+            previewFit: CameraPreviewFit
+                .contain, // Show entire sensor viewport without cropping
             onPreviewTapBuilder: (state) => OnPreviewTap(
               onTap: (position, flutterPreviewSize, pixelPreviewSize) {
                 _focusOnPreviewTap(
@@ -1162,7 +1340,9 @@ class _NeoCircleBtn extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.black, width: 3),
-          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+          boxShadow: const [
+            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+          ],
         ),
         child: Icon(icon, color: Colors.black, size: 26),
       ),
@@ -1201,10 +1381,7 @@ class _NeoDialogButton extends StatelessWidget {
           border: Border.all(color: borderColor, width: 3),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(
-              color: shadowColor,
-              offset: const Offset(4, 4),
-            ),
+            BoxShadow(color: shadowColor, offset: const Offset(4, 4)),
           ],
         ),
         child: Row(
@@ -1239,12 +1416,20 @@ Uint8List _applyBeautyFilterIsolate(Uint8List bytes) {
   // 2. Resize immediately to feed-ready resolution (max 1440px) using high-quality average interpolation to smooth noise/grain
   img.Image resized;
   if (oriented.width > oriented.height) {
-    resized = oriented.width > 1440 
-        ? img.copyResize(oriented, width: 1440, interpolation: img.Interpolation.average) 
+    resized = oriented.width > 1440
+        ? img.copyResize(
+            oriented,
+            width: 1440,
+            interpolation: img.Interpolation.average,
+          )
         : oriented;
   } else {
-    resized = oriented.height > 1440 
-        ? img.copyResize(oriented, height: 1440, interpolation: img.Interpolation.average) 
+    resized = oriented.height > 1440
+        ? img.copyResize(
+            oriented,
+            height: 1440,
+            interpolation: img.Interpolation.average,
+          )
         : oriented;
   }
 
@@ -1255,7 +1440,7 @@ Uint8List _applyBeautyFilterIsolate(Uint8List bytes) {
     pixel.b = (pixel.b * 1.10 + 40.0).round().clamp(0, 255);
   }
 
-  return img.encodeJpg(resized, quality: 95);
+  return img.encodeJpg(resized, quality: 80);
 }
 
 // ── Mirror Filter Helper (Runs in isolate via compute) ──
@@ -1265,4 +1450,3 @@ Uint8List _applyMirrorIsolate(Uint8List bytes) {
   final flipped = img.copyFlip(image, direction: img.FlipDirection.horizontal);
   return img.encodeJpg(flipped, quality: 95);
 }
-

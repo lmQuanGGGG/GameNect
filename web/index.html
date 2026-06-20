@@ -19,8 +19,10 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual">
-  <meta name="description" content="GameNect - Nền tảng mạng xã hội kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng.">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual">
+  <meta name="description"
+    content="GameNect - Nền tảng mạng xã hội kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng.">
   <meta name="keywords" content="GameNect, game, mạng xã hội, kết nối game thủ, tìm bạn chơi game">
   <meta name="author" content="GameNect">
 
@@ -35,7 +37,8 @@
   <meta property="twitter:card" content="summary">
   <meta property="twitter:url" content="https://gamenect.space/">
   <meta property="twitter:title" content="GameNect - Mạng xã hội Game thủ">
-  <meta property="twitter:description" content="Kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng GameNect.">
+  <meta property="twitter:description"
+    content="Kết nối game thủ, chia sẻ khoảnh khắc và tìm bạn chơi game cùng GameNect.">
   <meta property="twitter:image" content="https://gamenect.space/favicon.png">
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -56,7 +59,8 @@
       background-color: #000000 !important;
     }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -79,7 +83,7 @@
     let touchStartY = 0;
     let isLeftEdgeTouch = false;
 
-    window.addEventListener('touchstart', function(e) {
+    window.addEventListener('touchstart', function (e) {
       if (e.touches && e.touches.length === 1) {
         const touch = e.touches[0];
         const edgeThreshold = 25; // Vùng nhận diện chạm mép
@@ -99,14 +103,14 @@
       }
     }, { passive: false });
 
-    window.addEventListener('touchmove', function(e) {
+    window.addEventListener('touchmove', function (e) {
       if (isLeftEdgeTouch && e.touches && e.touches.length === 1) {
         // Tiếp tục chặn chuyển trang của trình duyệt trong quá trình vuốt
         e.preventDefault();
       }
     }, { passive: false });
 
-    window.addEventListener('touchend', function(e) {
+    window.addEventListener('touchend', function (e) {
       if (isLeftEdgeTouch && e.changedTouches && e.changedTouches.length === 1) {
         const touch = e.changedTouches[0];
         const deltaX = touch.clientX - touchStartX;
@@ -171,10 +175,145 @@
         }
       });
     }
+
+    // Xin persistent storage để PWA ít bị browser dọn cache media hơn.
+    // Không phải browser nào cũng cho, nhưng nếu được thì cache ảnh/video bền hơn rõ.
+    if (navigator.storage && navigator.storage.persist) {
+      setTimeout(function () {
+        navigator.storage.persist().catch(function () { });
+      }, 1500);
+    }
   </script>
   <!-- Agora RTC Web SDK -->
-  <script src="https://download.agora.io/sdk/release/iris-web-rtc_n450_w4220_0.8.6.js"></script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    (function () {
+      const today = new Date().toISOString().slice(0, 10);
+
+      const reloadKey = 'gamenect_reload_count_' + today;
+      const hardReloadKey = 'gamenect_hard_reload_count_' + today;
+      const blockKey = 'gamenect_reload_block_until';
+
+      const reloadLimit = 25;      // reload thường quá 25 lần/ngày thì chặn
+      const hardReloadLimit = 7;   // hard reload quá 7 lần/ngày thì chặn
+      const blockMs = 24 * 60 * 60 * 1000; // chặn 1 ngày
+
+      const now = Date.now();
+
+      function showBlockedScreen(reason) {
+        document.body.innerHTML = `
+        <div style="
+          height:100vh;
+          width:100vw;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:#fff;
+          color:#111;
+          font-family:Arial,sans-serif;
+          text-align:center;
+          padding:24px;
+          box-sizing:border-box;
+        ">
+          <div style="
+            max-width:380px;
+            border:3px solid #111;
+            border-radius:16px;
+            padding:24px;
+            box-shadow:6px 6px 0 #111;
+          ">
+            <div style="font-size:44px;margin-bottom:12px;">🛑</div>
+            <h2 style="margin:0 0 10px;font-size:22px;">Tải lại quá nhiều</h2>
+            <p style="margin:0 0 12px;font-size:15px;line-height:1.45;">
+              ${reason}
+            </p>
+            <p style="margin:0;font-size:14px;font-weight:700;">
+              Vui lòng quay lại sau.
+            </p>
+          </div>
+        </div>
+      `;
+      }
+
+      function getCount(key) {
+        return Number(localStorage.getItem(key) || '0');
+      }
+
+      function setCount(key, value) {
+        localStorage.setItem(key, String(value));
+      }
+
+      function addBlockDay(reason) {
+        const currentBlockUntil = Number(localStorage.getItem(blockKey) || '0');
+
+        // Nếu đang bị chặn thì cộng tiếp từ hạn chặn cũ.
+        // Nếu chưa bị chặn thì cộng từ hiện tại.
+        const baseTime = Math.max(currentBlockUntil, Date.now());
+        const newBlockUntil = baseTime + blockMs;
+
+        localStorage.setItem(blockKey, String(newBlockUntil));
+        showBlockedScreen(reason);
+      }
+
+      try {
+        const blockUntil = Number(localStorage.getItem(blockKey) || '0');
+
+        // Nếu còn hạn chặn thì không load app
+        if (blockUntil > now) {
+          showBlockedScreen(
+            'Bạn đã reload quá giới hạn trong hôm nay để tránh app tải media liên tục.'
+          );
+          return;
+        }
+
+        const navEntry = performance.getEntriesByType('navigation')[0];
+        const isReload = navEntry && navEntry.type === 'reload';
+
+        // Chỉ tính khi user reload trang
+        if (isReload) {
+          const reloadCount = getCount(reloadKey) + 1;
+          setCount(reloadKey, reloadCount);
+
+          // Đoán hard reload: cache bị bypass / service worker chưa control / bootstrap tải network
+          const isLikelyHardReload =
+            !navigator.serviceWorker.controller ||
+            (navEntry && navEntry.transferSize > 0);
+
+          if (isLikelyHardReload) {
+            const hardReloadCount = getCount(hardReloadKey) + 1;
+            setCount(hardReloadKey, hardReloadCount);
+
+            if (hardReloadCount > hardReloadLimit) {
+              addBlockDay(
+                'Bạn đã hard reload quá 7 lần trong hôm nay. Thời gian chặn đã được cộng thêm 1 ngày.'
+              );
+              return;
+            }
+          }
+
+          if (reloadCount > reloadLimit) {
+            addBlockDay(
+              'Bạn đã reload quá 25 lần trong hôm nay. Thời gian chặn đã được cộng thêm 1 ngày.'
+            );
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Reload guard failed:', e);
+      }
+
+      // Không bị chặn thì mới load Agora
+      const agoraScript = document.createElement('script');
+      agoraScript.src =
+        'https://download.agora.io/sdk/release/iris-web-rtc_n450_w4220_0.8.6.js';
+      document.body.appendChild(agoraScript);
+
+      // Không bị chặn thì mới load Flutter app
+      const flutterScript = document.createElement('script');
+      flutterScript.src = 'flutter_bootstrap.js';
+      flutterScript.async = true;
+      document.body.appendChild(flutterScript);
+    })();
+  </script>
   <script>
     (function () {
       let fullViewportHeight = 0;

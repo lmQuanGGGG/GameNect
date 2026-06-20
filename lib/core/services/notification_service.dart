@@ -20,19 +20,19 @@ Future<void> showMessageNotification({
       title: peerUsername,
       body: message,
       // Payload chứa dữ liệu để xử lý khi user tap vào notification
-      payload: {
-        'type': 'chat',
-        'matchId': matchId,
-        'peerUserId': peerUserId,
-      },
+      payload: {'type': 'chat', 'matchId': matchId, 'peerUserId': peerUserId},
+      actionType: ActionType.Default,
       notificationLayout: NotificationLayout.Messaging,
       category: NotificationCategory.Message,
       // Đánh thức màn hình khi có notification
       wakeUpScreen: true,
     ),
   );
-  
-  developer.log('Message notification sent: $peerUsername', name: 'Notification');
+
+  developer.log(
+    'Message notification sent: $peerUsername',
+    name: 'Notification',
+  );
 }
 
 // Hiển thị thông báo cuộc gọi đến với action buttons
@@ -50,11 +50,8 @@ Future<void> showCallNotification({
       channelKey: 'call_channel',
       title: '📞 Cuộc gọi đến',
       body: '$peerUsername đang gọi cho bạn',
-      payload: {
-        'type': 'call',
-        'matchId': matchId,
-        'peerUserId': peerUserId,
-      },
+      payload: {'type': 'call', 'matchId': matchId, 'peerUserId': peerUserId},
+      actionType: ActionType.Default,
       notificationLayout: NotificationLayout.Default,
       category: NotificationCategory.Call,
       wakeUpScreen: true,
@@ -81,7 +78,7 @@ Future<void> showCallNotification({
       ),
     ],
   );
-  
+
   developer.log('Call notification sent: $peerUsername', name: 'Notification');
 }
 
@@ -106,11 +103,12 @@ Future<void> showMomentReactionNotification({
         'momentId': momentId,
         'reactorUserId': reactorUserId,
       },
+      actionType: ActionType.Default,
       notificationLayout: NotificationLayout.Default,
       category: NotificationCategory.Social,
     ),
   );
-  
+
   developer.log('Moment reaction notification sent', name: 'Notification');
 }
 

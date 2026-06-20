@@ -29,25 +29,41 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
   bool _isSubmitting = false;
 
   final List<String> _hotGames = [
-    "League of Legends", "Arena of Valor", "Free Fire", "Genshin Impact",
-    "PUBG Mobile", "Valorant", "Call of Duty: Mobile", "FIFA Online 4",
-    "Minecraft", "Mobile Legends",
+    "League of Legends",
+    "Arena of Valor",
+    "Free Fire",
+    "Genshin Impact",
+    "PUBG Mobile",
+    "Valorant",
+    "Call of Duty: Mobile",
+    "FIFA Online 4",
+    "Minecraft",
+    "Mobile Legends",
   ];
 
   Future<List<String>> _searchGamesAsync(String query) async {
-    final apiKey = dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
+    final apiKey =
+        dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
     if (query.isEmpty) {
       return _hotGames;
     }
     try {
-      final response = await http.get(Uri.parse('https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=10'));
+      final response = await http.get(
+        Uri.parse(
+          'https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=10',
+        ),
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final games = data['results'] as List;
         return games.map((game) => game['name'] as String).toList();
       }
     } catch (e) {
-      dev.log('Error search games in mentor apply', name: 'MentorApply', error: e);
+      dev.log(
+        'Error search games in mentor apply',
+        name: 'MentorApply',
+        error: e,
+      );
     }
     return [];
   }
@@ -75,15 +91,9 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
       decoration: BoxDecoration(
         color: context.dialogBgColor,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: context.textColor,
-          width: 2.5,
-        ),
+        border: Border.all(color: context.textColor, width: 2.5),
         boxShadow: [
-          BoxShadow(
-            color: context.textColor,
-            offset: const Offset(6, 6),
-          ),
+          BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
         ],
       ),
       child: child,
@@ -120,10 +130,12 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
   }
 
   void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red : Colors.green,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
   }
 
   void _showSuccessDialog() {
@@ -135,11 +147,13 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: context.cardBorderColor),
         ),
-        title: Row(children: [
-          const Icon(Icons.check_circle, color: _kAccent),
-          const SizedBox(width: 8),
-          Text('Đã gửi đơn!', style: TextStyle(color: context.textColor)),
-        ]),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: _kAccent),
+            const SizedBox(width: 8),
+            Text('Đã gửi đơn!', style: TextStyle(color: context.textColor)),
+          ],
+        ),
         content: Text(
           'Đơn đăng ký Mentor của bạn đã được gửi.\nAdmin sẽ xem xét và phản hồi sớm nhất có thể.',
           style: TextStyle(color: context.textSecondaryColor),
@@ -192,11 +206,8 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
           ),
           body: Stack(
             children: [
-
               // Content
-              SafeArea(
-                child: _buildContent(mentor, provider),
-              ),
+              SafeArea(child: _buildContent(mentor, provider)),
             ],
           ),
         );
@@ -206,14 +217,15 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
 
   Widget _buildContent(dynamic mentor, MentorProvider provider) {
     final isDark = context.isDarkMode;
-    
+
     // Đang pending
     if (mentor?.status == 'pending') {
       return _buildStatusView(
         icon: Icons.hourglass_top_rounded,
         iconColor: Colors.amber,
         title: 'Đơn đang chờ duyệt',
-        subtitle: 'Admin đang xem xét đơn đăng ký của bạn.\nVui lòng chờ phản hồi.',
+        subtitle:
+            'Admin đang xem xét đơn đăng ký của bạn.\nVui lòng chờ phản hồi.',
       );
     }
 
@@ -255,29 +267,54 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                     Text(
                       'Chia sẻ kiến thức gaming của bạn,\nhướng dẫn người chơi qua livestream và nhận gift từ người hâm mộ.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: context.textSecondaryColor, fontSize: 14),
+                      style: TextStyle(
+                        color: context.textSecondaryColor,
+                        fontSize: 14,
+                      ),
                     ),
 
                     // Lý do từ chối (nếu có)
-                    if (mentor?.status == 'rejected' && mentor?.rejectReason != null) ...[
+                    if (mentor?.status == 'rejected' &&
+                        mentor?.rejectReason != null) ...[
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info_outline, color: Colors.red, size: 20),
+                            const Icon(
+                              Icons.info_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Đơn trước đã bị từ chối:', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  Text(mentor!.rejectReason!, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13)),
+                                  const Text(
+                                    'Đơn trước đã bị từ chối:',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    mentor!.rejectReason!,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -312,8 +349,14 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                       hintText: "Chọn game chuyên môn...",
                       hintStyle: TextStyle(color: context.textTertiaryColor),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      prefixIcon: const Icon(Icons.sports_esports, color: _kAccent),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.sports_esports,
+                        color: _kAccent,
+                      ),
                     ),
                   ),
                   popupProps: PopupPropsMultiSelection.dialog(
@@ -328,15 +371,24 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                         fillColor: context.dialogBgColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: context.textColor, width: 2),
+                          borderSide: BorderSide(
+                            color: context.textColor,
+                            width: 2,
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: context.textColor, width: 2),
+                          borderSide: BorderSide(
+                            color: context.textColor,
+                            width: 2,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: _kAccent, width: 2.5),
+                          borderSide: const BorderSide(
+                            color: _kAccent,
+                            width: 2.5,
+                          ),
                         ),
                       ),
                     ),
@@ -352,28 +404,47 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                       decoration: BoxDecoration(
                         color: context.scaffoldBackgroundColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.textColor, width: 2.5),
-                        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(8, 8))],
+                        border: Border.all(
+                          color: context.textColor,
+                          width: 2.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: context.textColor,
+                            offset: const Offset(8, 8),
+                          ),
+                        ],
                       ),
                       child: widget,
                     ),
                     itemBuilder: (context, item, isSelected, isDisabled) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         child: Row(
                           children: [
                             Expanded(
                               child: Text(
                                 item,
                                 style: TextStyle(
-                                  color: isSelected ? _kAccent : context.textColor,
+                                  color: isSelected
+                                      ? _kAccent
+                                      : context.textColor,
                                   fontSize: 15,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                 ),
                               ),
                             ),
                             if (isSelected)
-                              const Icon(Icons.check_circle, color: _kAccent, size: 18),
+                              const Icon(
+                                Icons.check_circle,
+                                color: _kAccent,
+                                size: 18,
+                              ),
                           ],
                         ),
                       );
@@ -382,8 +453,9 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                   onChanged: (results) {
                     setState(() => _selectedGames = results);
                   },
-                  validator: (values) =>
-                      values == null || values.isEmpty ? "Chọn ít nhất 1 game" : null,
+                  validator: (values) => values == null || values.isEmpty
+                      ? "Chọn ít nhất 1 game"
+                      : null,
                 ),
               ),
             ),
@@ -391,7 +463,10 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             const SizedBox(height: 20),
 
             // Bio
-            _buildSectionLabel('Giới thiệu bản thân', Icons.person_outline_rounded),
+            _buildSectionLabel(
+              'Giới thiệu bản thân',
+              Icons.person_outline_rounded,
+            ),
             const SizedBox(height: 8),
             _buildNeoContainer(
               radius: 16,
@@ -400,7 +475,8 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                 maxLines: 4,
                 style: TextStyle(color: context.textColor),
                 decoration: InputDecoration(
-                  hintText: 'Hãy kể về bản thân, phong cách chơi, kinh nghiệm...',
+                  hintText:
+                      'Hãy kể về bản thân, phong cách chơi, kinh nghiệm...',
                   hintStyle: TextStyle(color: context.textTertiaryColor),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
@@ -417,7 +493,10 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             const SizedBox(height: 20),
 
             // Achievements
-            _buildSectionLabel('Thành tích / Kinh nghiệm', Icons.emoji_events_rounded),
+            _buildSectionLabel(
+              'Thành tích / Kinh nghiệm',
+              Icons.emoji_events_rounded,
+            ),
             const SizedBox(height: 8),
             _buildNeoContainer(
               radius: 16,
@@ -426,7 +505,8 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                 maxLines: 4,
                 style: TextStyle(color: context.textColor),
                 decoration: InputDecoration(
-                  hintText: 'Rank cao nhất đạt được, giải thưởng, số năm kinh nghiệm...',
+                  hintText:
+                      'Rank cao nhất đạt được, giải thưởng, số năm kinh nghiệm...',
                   hintStyle: TextStyle(color: context.textTertiaryColor),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
@@ -450,7 +530,8 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kAccent,
-                  foregroundColor: Colors.white, // Cố định chữ trắng trên nền màu chủ đạo
+                  foregroundColor:
+                      Colors.white, // Cố định chữ trắng trên nền màu chủ đạo
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                     side: BorderSide(color: context.textColor, width: 2.5),
@@ -459,12 +540,19 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                 ),
                 child: _isSubmitting
                     ? const SizedBox(
-                        width: 24, height: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
                       )
                     : const Text(
                         'Gửi đơn đăng ký',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ),

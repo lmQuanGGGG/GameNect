@@ -5,23 +5,36 @@ part of '../firestore_service.dart';
 
 extension MomentServiceExtension on FirestoreService {
   // Kiểm tra user có đủ quota để đăng moment không (free: 20/tháng)
-  Future<bool> canPostMoment(String userId) async {
+  Future<bool> canPostMoment(String userId, {required bool isVideo}) async {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
 
-    // Premium users không bị giới hạn
     final user = await getUser(userId);
     if (user?.isPremium ?? false) return true;
 
     try {
-      final query = _db
+      final baseQuery = _db
           .collection('moments')
           .where('userId', isEqualTo: userId)
           .where('createdAt', isGreaterThanOrEqualTo: startOfMonth);
 
-      final agg = await query.count().get();
-      final total = agg.count ?? 0;
-      return total < 20;
+      // Tổng moment/tháng: tối đa 20
+      final totalAgg = await baseQuery.count().get();
+      final total = totalAgg.count ?? 0;
+      if (total >= 20) return false;
+
+      // Nếu là video thì check thêm quota video/tháng: tối đa 2
+      if (isVideo) {
+        final videoAgg = await baseQuery
+            .where('isVideo', isEqualTo: true)
+            .count()
+            .get();
+
+        final videoTotal = videoAgg.count ?? 0;
+        if (videoTotal >= 2) return false;
+      }
+
+      return true;
     } catch (e) {
       developer.log(
         'canPostMoment error: $e',
@@ -41,8 +54,8 @@ extension MomentServiceExtension on FirestoreService {
     String? caption,
     String? thumbnailUrl,
   }) async {
-    if (!await canPostMoment(userId)) {
-      throw Exception('LIMIT_EXCEEDED');
+    if (!await canPostMoment(userId, isVideo: isVideo)) {
+      throw Exception(isVideo ? 'VIDEO_LIMIT_EXCEEDED' : 'LIMIT_EXCEEDED');
     }
 
     // Moment hiển thị cho chính user và tất cả matched users

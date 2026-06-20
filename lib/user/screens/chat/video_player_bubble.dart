@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:ui';
+import '../../../core/services/video_warmup_service.dart';
 
 /// Widget video player bubble
 /// Hiển thị video với nút play/pause overlay trong tin nhắn
 class VideoPlayerBubble extends StatefulWidget {
   final String videoUrl;
-  
+
   const VideoPlayerBubble({super.key, required this.videoUrl});
 
   @override
@@ -20,13 +21,18 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
   @override
   void initState() {
     super.initState();
-    // Initialize video player từ URL
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _isReady = true);
-        }
-      });
+    // Initialize video player từ URL, ưu tiên controller đã warm-up.
+    _controller =
+        VideoWarmupService.take(widget.videoUrl) ??
+        VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+    final initFuture = _controller.value.isInitialized
+        ? Future<void>.value()
+        : _controller.initialize();
+    initFuture.then((_) {
+      if (mounted) {
+        setState(() => _isReady = true);
+      }
+    });
   }
 
   @override
@@ -44,7 +50,7 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
         ),
       );
     }
-    
+
     return AspectRatio(
       aspectRatio: _controller.value.aspectRatio,
       child: Stack(

@@ -91,6 +91,7 @@ dependencies:
   wakelock_plus: ^1.5.2
   flutter_linkify: ^6.0.0
   any_link_preview: ^3.0.1
+  visibility_detector: ^0.4.0+2
 dev_dependencies:
   flutter_test:
     sdk: flutter

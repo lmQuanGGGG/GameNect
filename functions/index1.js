@@ -47,6 +47,31 @@ async function sendFcmNotification({ token, title, body, channelId, androidPrior
   });
 }
 
+function getUserFcmTokens(userData = {}) {
+  const tokens = new Set();
+  if (userData.fcmToken) tokens.add(userData.fcmToken);
+  if (Array.isArray(userData.fcmTokens)) {
+    userData.fcmTokens.filter(Boolean).forEach(token => tokens.add(token));
+  }
+  return [...tokens];
+}
+
+async function sendFcmNotificationToTokens({ tokens, title, body, channelId, androidPriority = 'high', data = {} }) {
+  if (!tokens.length) return [];
+  return Promise.allSettled(
+    tokens.map(token =>
+      sendFcmNotification({ token, title, body, channelId, androidPriority, data })
+    )
+  );
+}
+
+async function sendCallFcmNotificationToTokens({ tokens, title, body, data = {} }) {
+  if (!tokens.length) return [];
+  return Promise.allSettled(
+    tokens.map(token => sendCallFcmNotification({ token, title, body, data }))
+  );
+}
+
 // Helper riêng cho Call notification: dùng 'voip' push type để bypass DND
 // và luôn hiển thị ngay cả khi app bị kill
 async function sendCallFcmNotification({ token, title, body, data = {} }) {
@@ -114,8 +139,8 @@ exports.sendMessageNotification = onDocumentCreated(
       // Lấy FCM token người nhận
       const receiverDoc = await db.collection('users').doc(receiverId).get();
       if (!receiverDoc.exists) return console.log('Receiver not found');
-      const fcmToken = receiverDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token for receiver');
+      const tokens = getUserFcmTokens(receiverDoc.data());
+      if (!tokens.length) return console.log('No FCM token for receiver');
 
       // Lấy tên người gửi
       const senderDoc = await db.collection('users').doc(message.senderId).get();
@@ -127,8 +152,8 @@ exports.sendMessageNotification = onDocumentCreated(
       else if (message.audioUrl) body = 'Đã gửi tin nhắn thoại 🎤';
       else if (message.type === 'call') body = 'Cuộc gọi nhỡ 📞';
 
-      const response = await sendFcmNotification({
-        token: fcmToken,
+      const response = await sendFcmNotificationToTokens({
+        tokens,
         title: senderName,
         body,
         channelId: 'gamenect_channel',
@@ -170,8 +195,8 @@ exports.sendCallNotification = onDocumentWritten(
       // Lấy FCM token người nhận
       const receiverDoc = await db.collection('users').doc(afterData.receiverId).get();
       if (!receiverDoc.exists) return console.log('Receiver not found');
-      const fcmToken = receiverDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token for receiver');
+      const tokens = getUserFcmTokens(receiverDoc.data());
+      if (!tokens.length) return console.log('No FCM token for receiver');
 
       // Lấy tên người gọi
       const callerDoc = await db.collection('users').doc(afterData.callerId).get();
@@ -181,8 +206,8 @@ exports.sendCallNotification = onDocumentWritten(
 
       // CALL dùng helper riêng để đảm bảo iOS nhận push ngay cả khi app bị kill
       // content-available: 1 → iOS wake app → mySilentDataHandle tạo notification với Nghe/Từ chối
-      const response = await sendCallFcmNotification({
-        token: fcmToken,
+      const response = await sendCallFcmNotificationToTokens({
+        tokens,
         title: `📞 Cuộc gọi ${callType} đến`,
         body: `${callerName} đang gọi cho bạn`,
         data: { type: 'call', matchId, callType, peerUserId: afterData.callerId, peerUsername: callerName },
@@ -225,16 +250,16 @@ exports.sendMomentReactionNotification = onDocumentUpdated(
       // Lấy FCM token chủ moment
       const ownerDoc = await db.collection('users').doc(momentOwnerId).get();
       if (!ownerDoc.exists) return console.log('Moment owner not found');
-      const fcmToken = ownerDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token for owner');
+      const tokens = getUserFcmTokens(ownerDoc.data());
+      if (!tokens.length) return console.log('No FCM token for owner');
 
       // Lấy tên người react
       const reactorDoc = await db.collection('users').doc(newReaction.userId).get();
       const reactorName = reactorDoc.exists ? reactorDoc.data()?.username || 'Someone' : 'Someone';
 
       const emoji = newReaction.emoji || '❤️';
-      const response = await sendFcmNotification({
-        token: fcmToken,
+      const response = await sendFcmNotificationToTokens({
+        tokens,
         title: `${reactorName} đã thả ${emoji}`,
         body: 'vào moment của bạn',
         channelId: 'moment_channel',
@@ -274,18 +299,23 @@ exports.sendLikeNotification = onDocumentCreated(
 
       const db = admin.firestore();
 
+      const reverseLikeDoc = await db.collection('swipe_latest').doc(`${targetUserId}_${likerUserId}`).get();
+      if (reverseLikeDoc.exists && reverseLikeDoc.data()?.action === 'like') {
+        return console.log('Mutual like detected — skip like notification, match notification will handle');
+      }
+
       // Lấy FCM token người được like
       const targetDoc = await db.collection('users').doc(targetUserId).get();
       if (!targetDoc.exists) return console.log('Target user not found');
-      const fcmToken = targetDoc.data()?.fcmToken;
-      if (!fcmToken) return console.log('No FCM token for target');
+      const tokens = getUserFcmTokens(targetDoc.data());
+      if (!tokens.length) return console.log('No FCM token for target');
 
       // Lấy tên người like
       const likerDoc = await db.collection('users').doc(likerUserId).get();
       const likerName = likerDoc.exists ? likerDoc.data()?.username || 'Ai đó' : 'Ai đó';
 
-      const response = await sendFcmNotification({
-        token: fcmToken,
+      const response = await sendFcmNotificationToTokens({
+        tokens,
         title: '💖 Có người thích bạn!',
         body: `${likerName} vừa thích bạn — Ghé xem ngay nhé!`,
         channelId: 'gamenect_channel',
@@ -299,7 +329,63 @@ exports.sendLikeNotification = onDocumentCreated(
 );
 
 // ─────────────────────────────────────────────
-// 5. sendLiveNotification
+// 5. sendMatchNotification
+//    Trigger: matches/{matchId} — document mới được tạo
+//    Gửi thông báo cho cả hai user khi match thành công
+// ─────────────────────────────────────────────
+exports.sendMatchNotification = onDocumentCreated(
+  'matches/{matchId}',
+  async (event) => {
+    try {
+      const snap = event.data;
+      if (!snap) return;
+
+      const match = snap.data();
+      const matchId = event.params.matchId;
+      const userIds = Array.isArray(match.userIds) ? match.userIds.filter(Boolean) : [];
+      if (match.status !== 'confirmed' || userIds.length < 2) return;
+
+      const db = admin.firestore();
+      const userDocs = await Promise.all(userIds.map(uid => db.collection('users').doc(uid).get()));
+      const usersById = new Map(
+        userDocs
+          .filter(doc => doc.exists)
+          .map(doc => [doc.id, doc.data()])
+      );
+
+      const sendPromises = userIds.flatMap(userId => {
+        const userData = usersById.get(userId);
+        const peerId = userIds.find(id => id !== userId) || '';
+        const peerData = usersById.get(peerId) || {};
+        const tokens = getUserFcmTokens(userData);
+        if (!peerId || !tokens.length) return [];
+
+        const peerName = peerData.username || 'người mới';
+        return tokens.map(token => sendFcmNotification({
+          token,
+          title: '🎮 Match mới!',
+          body: `Bạn và ${peerName} đã match — nhắn tin ngay nhé!`,
+          channelId: 'gamenect_channel',
+          data: {
+            type: 'match',
+            matchId,
+            peerUserId: peerId,
+            peerUsername: peerName,
+            message: `Bạn và ${peerName} đã match`,
+          },
+        }).catch(e => console.warn(`Failed to send match to ${userId}: ${e.message}`)));
+      });
+
+      await Promise.allSettled(sendPromises);
+      console.log(`Match notification sent for match ${matchId}`);
+    } catch (e) {
+      console.error('sendMatchNotification error:', e);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────
+// 6. sendLiveNotification
 //    Trigger: livestreams/{streamId} — document mới được tạo
 //    Gửi thông báo cho tất cả followers của Mentor khi họ bắt đầu live
 // ─────────────────────────────────────────────
@@ -347,9 +433,9 @@ exports.sendLiveNotification = onDocumentCreated(
         );
 
         const sendPromises = userDocs
-          .filter(doc => doc.exists && doc.data()?.fcmToken)
-          .map(doc => sendFcmNotification({
-            token: doc.data().fcmToken,
+          .filter(doc => doc.exists && getUserFcmTokens(doc.data()).length)
+          .flatMap(doc => getUserFcmTokens(doc.data()).map(token => sendFcmNotification({
+            token,
             title: `🔴 ${mentorUsername} đang LIVE!`,
             body: title,
             channelId: 'mentor_live_channel',
@@ -360,7 +446,7 @@ exports.sendLiveNotification = onDocumentCreated(
               mentorUsername,
               streamTitle: title,
             },
-          }).catch(e => console.warn(`Failed to send to ${doc.id}: ${e.message}`)));
+          }).catch(e => console.warn(`Failed to send to ${doc.id}: ${e.message}`))));
 
         await Promise.allSettled(sendPromises);
       }

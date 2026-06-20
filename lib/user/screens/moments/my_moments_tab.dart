@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:ui';
+import 'dart:developer' as developer;
 import '../../../core/providers/moment_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/theme/theme_helper.dart';
@@ -22,15 +23,24 @@ class MyMomentsTab extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: AlertDialog(
           backgroundColor: context.dialogBgColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Xóa khoảnh khắc?',
-              style: TextStyle(color: context.textColor)),
-          content: Text('Bạn có chắc muốn xóa khoảnh khắc này?',
-              style: TextStyle(color: context.textSecondaryColor)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Xóa khoảnh khắc?',
+            style: TextStyle(color: context.textColor),
+          ),
+          content: Text(
+            'Bạn có chắc muốn xóa khoảnh khắc này?',
+            style: TextStyle(color: context.textSecondaryColor),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Hủy', style: TextStyle(color: context.textSecondaryColor)),
+              child: Text(
+                'Hủy',
+                style: TextStyle(color: context.textSecondaryColor),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
@@ -51,17 +61,25 @@ class MyMomentsTab extends StatelessWidget {
         final mediaUrl = data['mediaUrl'] as String?;
         final thumbUrl = data['thumbnailUrl'] as String?;
 
-        await FirebaseFirestore.instance.collection('moments').doc(momentId).delete();
+        await FirebaseFirestore.instance
+            .collection('moments')
+            .doc(momentId)
+            .delete();
 
-        // Thử xóa file trên Storage (bỏ qua lỗi)
+        // Thử xóa file trên Storage
         try {
-          if (mediaUrl != null && mediaUrl.startsWith('http')) {
+          if (mediaUrl != null && mediaUrl.contains('firebasestorage')) {
             await FirebaseStorage.instance.refFromURL(mediaUrl).delete();
           }
-          if (thumbUrl != null && thumbUrl.startsWith('http')) {
+          if (thumbUrl != null && thumbUrl.contains('firebasestorage')) {
             await FirebaseStorage.instance.refFromURL(thumbUrl).delete();
           }
-        } catch (_) {}
+        } catch (e) {
+          developer.log(
+            'Lỗi xóa moment trên storage: $e',
+            name: 'MyMomentsTab',
+          );
+        }
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -69,15 +87,17 @@ class MyMomentsTab extends StatelessWidget {
               content: const Text('Đã xóa khoảnh khắc'),
               backgroundColor: Colors.deepOrange,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
         }
       }
     }
@@ -109,7 +129,8 @@ class MyMomentsTab extends StatelessWidget {
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40, height: 6,
+                width: 40,
+                height: 6,
                 decoration: BoxDecoration(
                   color: Colors.white54,
                   borderRadius: BorderRadius.circular(3),
@@ -140,11 +161,16 @@ class MyMomentsTab extends StatelessWidget {
       builder: (context, provider, _) {
         if (provider.isLoading) {
           return const Center(
-            child: CircularProgressIndicator(color: Colors.deepOrange, strokeWidth: 3),
+            child: CircularProgressIndicator(
+              color: Colors.deepOrange,
+              strokeWidth: 3,
+            ),
           );
         }
 
-        final myMoments = provider.moments.where((m) => m.userId == userId).toList();
+        final myMoments = provider.moments
+            .where((m) => m.userId == userId)
+            .toList();
 
         if (myMoments.isEmpty) {
           return Center(
@@ -158,16 +184,30 @@ class MyMomentsTab extends StatelessWidget {
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: context.textColor, width: 3),
-                    boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.textColor,
+                        offset: const Offset(4, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.photo_library_rounded, size: 64, color: context.textColor),
+                      Icon(
+                        Icons.photo_library_rounded,
+                        size: 64,
+                        color: context.textColor,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'CHƯA CÓ KHOẢNH KHẮC',
-                        style: TextStyle(color: context.textColor, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                        style: TextStyle(
+                          color: context.textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -198,7 +238,12 @@ class MyMomentsTab extends StatelessWidget {
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: context.textColor, width: 3),
-                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.textColor,
+                      offset: const Offset(3, 3),
+                    ),
+                  ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(13),
@@ -207,7 +252,8 @@ class MyMomentsTab extends StatelessWidget {
                     children: [
                       // Thumbnail image/video
                       GamenectNetworkImage(
-                        imageUrl: (moment.isVideo && moment.thumbnailUrl != null)
+                        imageUrl:
+                            (moment.isVideo && moment.thumbnailUrl != null)
                             ? moment.thumbnailUrl!
                             : moment.mediaUrl,
                         fit: BoxFit.cover,
@@ -230,7 +276,8 @@ class MyMomentsTab extends StatelessWidget {
                       ),
                       if (moment.isVideo)
                         Positioned(
-                          top: 8, right: 8,
+                          top: 8,
+                          right: 8,
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
@@ -238,11 +285,17 @@ class MyMomentsTab extends StatelessWidget {
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                             ),
-                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ),
                         ),
                       Positioned(
-                        bottom: 8, left: 8, right: 8,
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,7 +306,11 @@ class MyMomentsTab extends StatelessWidget {
                                 child: Text(
                                   moment.caption!,
                                   style: const TextStyle(
-                                      color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500, height: 1.2),
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.2,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -265,7 +322,10 @@ class MyMomentsTab extends StatelessWidget {
                                   height: 20,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFF6E40),
-                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                   ),
                                   child: (avatarUrl?.isNotEmpty == true)
                                       ? GamenectNetworkImage(
@@ -291,7 +351,12 @@ class MyMomentsTab extends StatelessWidget {
                                       color: Colors.white,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
-                                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)]
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black54,
+                                          blurRadius: 4,
+                                        ),
+                                      ],
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

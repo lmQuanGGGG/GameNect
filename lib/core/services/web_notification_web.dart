@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
+import 'dart:js' as js;
 
 class WebNotificationServiceImpl {
   static Future<void> show({
@@ -27,6 +28,7 @@ class WebNotificationServiceImpl {
     );
 
     notification.onClick.listen((_) {
+      js.context.callMethod('focus');
       if (onClick != null) {
         onClick();
       }

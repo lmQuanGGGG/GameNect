@@ -8,9 +8,10 @@ class RawgService {
   // ======================================================
   // RAWG API KEY - LẤY TỪ .env GIỐNG EDIT_PROFILE_SCREEN
   // ======================================================
-  final String _apiKey = dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
+  final String _apiKey =
+      dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
   static const String _baseUrl = 'https://api.rawg.io/api';
-  
+
   final _logger = Logger();
 
   // ======================================================
@@ -27,17 +28,13 @@ class RawgService {
 
       _logger.i('Fetching trending games');
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final results = data['results'] as List<dynamic>;
 
-        final games = results
-            .map((json) => GameModel.fromJson(json))
-            .toList();
+        final games = results.map((json) => GameModel.fromJson(json)).toList();
 
         _logger.i('Loaded ${games.length} trending games');
         return games;
@@ -46,7 +43,11 @@ class RawgService {
         throw Exception('Failed to load trending games');
       }
     } catch (e, stackTrace) {
-      _logger.e('Error fetching trending games', error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error fetching trending games',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -61,15 +62,14 @@ class RawgService {
     try {
       final now = DateTime.now();
       final oneMonthAgo = now.subtract(const Duration(days: 30));
-      final dateStr = '${oneMonthAgo.year}-${oneMonthAgo.month.toString().padLeft(2, '0')}-${oneMonthAgo.day.toString().padLeft(2, '0')}';
-      
+      final dateStr =
+          '${oneMonthAgo.year}-${oneMonthAgo.month.toString().padLeft(2, '0')}-${oneMonthAgo.day.toString().padLeft(2, '0')}';
+
       final url = Uri.parse(
         '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&ordering=-released&dates=$dateStr,${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
       );
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -80,7 +80,11 @@ class RawgService {
         throw Exception('Failed to load new releases');
       }
     } catch (e, stackTrace) {
-      _logger.e('Error fetching new releases', error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error fetching new releases',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -98,9 +102,7 @@ class RawgService {
         '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&genres=$genre&ordering=-rating',
       );
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -111,7 +113,11 @@ class RawgService {
         throw Exception('Failed to load games by genre');
       }
     } catch (e, stackTrace) {
-      _logger.e('Error fetching games by genre', error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error fetching games by genre',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -129,9 +135,7 @@ class RawgService {
         '$_baseUrl/games?key=$_apiKey&page=$page&page_size=$pageSize&search=$query',
       );
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -156,9 +160,7 @@ class RawgService {
 
       _logger.i('Fetching game detail: $gameId');
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -179,9 +181,7 @@ class RawgService {
     try {
       final url = Uri.parse('$_baseUrl/genres?key=$_apiKey');
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

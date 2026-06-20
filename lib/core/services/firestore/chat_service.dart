@@ -382,7 +382,8 @@ extension ChatServiceExtension on FirestoreService {
         .collection('chats')
         .doc(matchId)
         .collection('messages')
-        .orderBy('timestamp', descending: false)
+        .orderBy('timestamp', descending: true) // Sắp xếp giảm dần để lấy 50 tin mới nhất
+        .limit(50) // Giới hạn 50 tin nhắn để tránh tốn Reads
         .snapshots()
         .asyncMap((snapshot) async {
           if (snapshot.docs.isEmpty) {
@@ -419,7 +420,8 @@ extension ChatServiceExtension on FirestoreService {
             }
             messages.add(data);
           }
-          return messages;
+          // Đảo ngược lại danh sách để tin mới nhất nằm ở dưới cùng theo đúng UI của Chat
+          return messages.reversed.toList();
         });
   }
 

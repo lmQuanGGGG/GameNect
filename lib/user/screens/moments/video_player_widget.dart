@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:video_player/video_player.dart';
+import '../../../core/services/video_warmup_service.dart';
 
 const _kNeoYellow = Color(0xFFFFD54F);
 
@@ -34,17 +35,23 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   @override
   void initState() {
     super.initState();
+    final warmedController = VideoWarmupService.take(widget.videoUrl);
     _videoController =
-        VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
-          ..addListener(_handlePlaybackChange)
-          ..initialize().then((_) {
-            if (!mounted) return;
-            setState(() => _isInitialized = true);
-            _videoController.setLooping(true);
-            _isMuted = widget.muted || (kIsWeb && widget.webAutoplayFallback);
-            _videoController.setVolume(_isMuted ? 0 : 1);
-            _videoController.play();
-          });
+        warmedController ??
+        VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+    _videoController.addListener(_handlePlaybackChange);
+
+    final initFuture = _videoController.value.isInitialized
+        ? Future<void>.value()
+        : _videoController.initialize();
+    initFuture.then((_) {
+      if (!mounted) return;
+      setState(() => _isInitialized = true);
+      _videoController.setLooping(true);
+      _isMuted = widget.muted || (kIsWeb && widget.webAutoplayFallback);
+      _videoController.setVolume(_isMuted ? 0 : 1);
+      _videoController.play();
+    });
   }
 
   void _handleTap() {

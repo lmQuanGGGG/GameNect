@@ -45,7 +45,10 @@ class _MomentCardState extends State<MomentCard>
     if (_userCache.containsKey(userId)) {
       return _userCache[userId];
     }
-    final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
     if (doc.exists) {
       _userCache[userId] = doc.data() as Map<String, dynamic>;
       return _userCache[userId];
@@ -64,6 +67,7 @@ class _MomentCardState extends State<MomentCard>
       return widget.moment;
     }
   }
+
   String get currentUserId => widget.currentUserId;
 
   String _formatTime(DateTime dateTime) {
@@ -77,11 +81,17 @@ class _MomentCardState extends State<MomentCard>
   }
 
   void _quickReact(BuildContext context, String momentId, String userId) {
-    Provider.of<MomentProvider>(context, listen: false)
-        .reactToMoment(momentId, userId, '❤️');
+    Provider.of<MomentProvider>(
+      context,
+      listen: false,
+    ).reactToMoment(momentId, userId, '❤️');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('❤️', textAlign: TextAlign.center, style: TextStyle(fontSize: 24)),
+        content: Text(
+          '❤️',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 24),
+        ),
         duration: Duration(milliseconds: 800),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -90,7 +100,11 @@ class _MomentCardState extends State<MomentCard>
     );
   }
 
-  void _showReactionPicker(BuildContext context, String momentId, String userId) {
+  void _showReactionPicker(
+    BuildContext context,
+    String momentId,
+    String userId,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -102,50 +116,60 @@ class _MomentCardState extends State<MomentCard>
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.black, width: 4),
           boxShadow: const [
-            BoxShadow(
-              color: Colors.black,
-              offset: Offset(8, 8),
-            ),
+            BoxShadow(color: Colors.black, offset: Offset(8, 8)),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 6,
+              width: 40,
+              height: 6,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
                 color: Colors.black,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
-            const Text('CHỌN CẢM XÚC',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0)),
+            const Text(
+              'CHỌN CẢM XÚC',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
+                letterSpacing: 1.0,
+              ),
+            ),
             const SizedBox(height: 28),
             Wrap(
-              spacing: 16, runSpacing: 16,
+              spacing: 16,
+              runSpacing: 16,
               alignment: WrapAlignment.center,
-              children: ['❤️', '😍', '😂', '😮', '😢', '👏', '🔥', '🎉'].map((emoji) {
+              children: ['❤️', '😍', '😂', '😮', '😢', '👏', '🔥', '🎉'].map((
+                emoji,
+              ) {
                 return GestureDetector(
                   onTap: () {
-                    Provider.of<MomentProvider>(context, listen: false)
-                        .reactToMoment(momentId, userId, emoji);
+                    Provider.of<MomentProvider>(
+                      context,
+                      listen: false,
+                    ).reactToMoment(momentId, userId, emoji);
                     Navigator.pop(context);
                   },
                   child: Container(
-                    width: 68, height: 68,
+                    width: 68,
+                    height: 68,
                     decoration: BoxDecoration(
                       color: Colors.white, // White
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.black, width: 3),
                       boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black,
-                          offset: Offset(4, 4),
-                        ),
+                        BoxShadow(color: Colors.black, offset: Offset(4, 4)),
                       ],
                     ),
-                    child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
+                    child: Center(
+                      child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                    ),
                   ),
                 );
               }).toList(),
@@ -179,10 +203,7 @@ class _MomentCardState extends State<MomentCard>
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: Colors.black, width: 4),
                   boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black,
-                      offset: Offset(8, 8),
-                    ),
+                    BoxShadow(color: Colors.black, offset: Offset(8, 8)),
                   ],
                 ),
                 padding: const EdgeInsets.all(24),
@@ -190,8 +211,15 @@ class _MomentCardState extends State<MomentCard>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('NHẮN TIN CHO NGƯỜI ĐĂNG',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 0.5)),
+                    const Text(
+                      'NHẮN TIN CHO NGƯỜI ĐĂNG',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     Container(
                       decoration: BoxDecoration(
@@ -199,11 +227,8 @@ class _MomentCardState extends State<MomentCard>
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.black, width: 2),
                         boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black,
-                            offset: Offset(4, 4),
-                          )
-                        ]
+                          BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                        ],
                       ),
                       child: Theme(
                         data: ThemeData.light().copyWith(
@@ -215,12 +240,20 @@ class _MomentCardState extends State<MomentCard>
                         ),
                         child: TextField(
                           controller: controller,
-                          style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                           cursorColor: Colors.black,
                           maxLines: 4,
                           decoration: InputDecoration(
                             hintText: 'Nhập nội dung...',
-                            hintStyle: TextStyle(color: Colors.black.withValues(alpha: 0.5), fontSize: 16, fontWeight: FontWeight.w600),
+                            hintStyle: TextStyle(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
@@ -233,8 +266,14 @@ class _MomentCardState extends State<MomentCard>
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Hủy',
-                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16)),
+                          child: const Text(
+                            'Hủy',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
@@ -245,44 +284,82 @@ class _MomentCardState extends State<MomentCard>
                               if (userId != momentOwnerId) {
                                 final matchId = await FirestoreService()
                                     .getOrCreateMatchId(userId, momentOwnerId);
-                                final peerUserDoc = await FirebaseFirestore.instance
+                                final peerUserDoc = await FirebaseFirestore
+                                    .instance
                                     .collection('users')
                                     .doc(momentOwnerId)
                                     .get();
-                                final peerUser = UserModel.fromMap(peerUserDoc.data()!, momentOwnerId);
-                                await Provider.of<ChatProvider>(context, listen: false)
-                                    .sendMessageWithMedia(matchId, text,
-                                        mediaUrl: moment.mediaUrl, isVideo: moment.isVideo);
+                                final peerUser = UserModel.fromMap(
+                                  peerUserDoc.data()!,
+                                  momentOwnerId,
+                                );
+                                await Provider.of<ChatProvider>(
+                                  context,
+                                  listen: false,
+                                ).sendMessageWithMedia(
+                                  matchId,
+                                  text,
+                                  mediaUrl: moment.mediaUrl,
+                                  isVideo: moment.isVideo,
+                                );
                                 Navigator.pop(ctx);
-                                Navigator.pushNamed(context, '/chat',
-                                    arguments: {'matchId': matchId, 'peerUser': peerUser});
+                                Navigator.pushNamed(
+                                  context,
+                                  '/chat',
+                                  arguments: {
+                                    'matchId': matchId,
+                                    'peerUser': peerUser,
+                                  },
+                                );
                               } else {
                                 Navigator.pop(ctx);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text('Không thể nhắn cho chính mình!'),
+                                    content: const Text(
+                                      'Không thể nhắn cho chính mình!',
+                                    ),
                                     backgroundColor: Colors.deepOrange,
                                     behavior: SnackBarBehavior.floating,
                                     shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12)),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 );
                               }
                             }
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: const Color(0xFFFF6E40).withValues(alpha: 0.5)),
+                          style:
+                              ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: const Color(
+                                      0xFFFF6E40,
+                                    ).withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                elevation: 0,
+                              ).copyWith(
+                                backgroundColor:
+                                    WidgetStateProperty.resolveWith(
+                                      (states) => const Color(
+                                        0xFFFF6E40,
+                                      ).withValues(alpha: 0.8),
+                                    ),
+                              ),
+                          child: const Text(
+                            'Gửi',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
-                            elevation: 0,
-                          ).copyWith(
-                            backgroundColor: WidgetStateProperty.resolveWith((states) => const Color(0xFFFF6E40).withValues(alpha: 0.8)),
                           ),
-                          child: const Text('Gửi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ),
@@ -320,7 +397,8 @@ class _MomentCardState extends State<MomentCard>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 6,
+              width: 40,
+              height: 6,
               margin: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
                 color: Colors.black,
@@ -329,8 +407,15 @@ class _MomentCardState extends State<MomentCard>
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text('CẢM XÚC',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0)),
+              child: Text(
+                'CẢM XÚC',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.black,
+                  letterSpacing: 1.0,
+                ),
+              ),
             ),
             const Divider(color: Colors.black, height: 4, thickness: 3),
             Flexible(
@@ -340,29 +425,44 @@ class _MomentCardState extends State<MomentCard>
                 children: byUser.entries.map<Widget>((entry) {
                   final future = _reactionUserFutures.putIfAbsent(
                     entry.key,
-                    () => FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                    () => FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(entry.key)
+                        .get(),
                   );
                   return FutureBuilder<DocumentSnapshot>(
                     future: future,
                     builder: (context, snapshot) {
-                      final user = snapshot.data?.data() as Map<String, dynamic>?;
+                      final user =
+                          snapshot.data?.data() as Map<String, dynamic>?;
                       final avatarUrl = user?['avatarUrl'];
                       final username = user?['username'] ?? entry.key;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.black, width: 3),
-                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(4, 4),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.black, width: 2),
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
                               ),
                               child: CircleAvatar(
                                 radius: 20,
@@ -377,7 +477,9 @@ class _MomentCardState extends State<MomentCard>
                                         ),
                                       )
                                     : Text(
-                                        username.isNotEmpty ? username[0].toUpperCase() : '?',
+                                        username.isNotEmpty
+                                            ? username[0].toUpperCase()
+                                            : '?',
                                         style: const TextStyle(
                                           color: Colors.black,
                                           fontWeight: FontWeight.w900,
@@ -388,19 +490,30 @@ class _MomentCardState extends State<MomentCard>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Text(username.toUpperCase(),
-                                  style: const TextStyle(
-                                      color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.5)),
+                              child: Text(
+                                username.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                             ),
                             // All emojis from this user
                             Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: entry.value.map((e) =>
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 4),
-                                    child: Text(e, style: const TextStyle(fontSize: 22)),
+                              children: entry.value
+                                  .map(
+                                    (e) => Padding(
+                                      padding: const EdgeInsets.only(left: 4),
+                                      child: Text(
+                                        e,
+                                        style: const TextStyle(fontSize: 22),
+                                      ),
+                                    ),
                                   )
-                              ).toList(),
+                                  .toList(),
                             ),
                           ],
                         ),
@@ -416,7 +529,12 @@ class _MomentCardState extends State<MomentCard>
     );
   }
 
-  void _showReplyWithMediaDialog(BuildContext context, String momentId, String userId, Map mediaResult) {
+  void _showReplyWithMediaDialog(
+    BuildContext context,
+    String momentId,
+    String userId,
+    Map mediaResult,
+  ) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Tính năng reply bằng ảnh/video đang phát triển'),
@@ -434,7 +552,8 @@ class _MomentCardState extends State<MomentCard>
       future: _userInfoFuture,
       builder: (context, snapshot) {
         final userInfo = snapshot.data;
-        final username = userInfo?['username'] ??
+        final username =
+            userInfo?['username'] ??
             (moment.userId == currentUserId ? 'Bạn' : 'Người bạn');
         final avatarUrl = userInfo?['avatarUrl'];
 
@@ -454,10 +573,7 @@ class _MomentCardState extends State<MomentCard>
                     color: Colors.black,
                     border: Border.all(color: Colors.black, width: 3),
                     boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black,
-                        offset: Offset(6, 6),
-                      ),
+                      BoxShadow(color: Colors.black, offset: Offset(6, 6)),
                     ],
                   ),
                   clipBehavior: Clip.hardEdge,
@@ -470,7 +586,13 @@ class _MomentCardState extends State<MomentCard>
                               imageUrl: moment.mediaUrl,
                               fit: BoxFit.contain,
                               errorWidget: (context, url, error) =>
-                                  const Center(child: Icon(Icons.error_outline, color: Colors.white, size: 50)),
+                                  const Center(
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      color: Colors.white,
+                                      size: 50,
+                                    ),
+                                  ),
                             ),
 
                       // Gradient overlay bên trong frame để đảm bảo chữ đè lên ảnh đọc được
@@ -512,7 +634,12 @@ class _MomentCardState extends State<MomentCard>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.black, width: 3),
-                            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black,
+                                offset: Offset(2, 2),
+                              ),
+                            ],
                           ),
                           child: CircleAvatar(
                             radius: 22,
@@ -527,7 +654,9 @@ class _MomentCardState extends State<MomentCard>
                                     ),
                                   )
                                 : Text(
-                                    username.isNotEmpty ? username.substring(0, 1).toUpperCase() : '?',
+                                    username.isNotEmpty
+                                        ? username.substring(0, 1).toUpperCase()
+                                        : '?',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w600,
@@ -541,15 +670,36 @@ class _MomentCardState extends State<MomentCard>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(username,
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 18, shadows: [Shadow(color: Colors.black, offset: Offset(2, 2))],
-                                      fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                              Text(
+                                username,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black,
+                                      offset: Offset(2, 2),
+                                    ),
+                                  ],
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
                               const SizedBox(height: 2),
-                              Text(_formatTime(moment.createdAt),
-                                  style: TextStyle(
-                                      color: Colors.white, shadows: [Shadow(color: Colors.black, offset: Offset(1, 1))],
-                                      fontSize: 13, fontWeight: FontWeight.w400)),
+                              Text(
+                                _formatTime(moment.createdAt),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black,
+                                      offset: Offset(1, 1),
+                                    ),
+                                  ],
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -559,89 +709,137 @@ class _MomentCardState extends State<MomentCard>
                     // Caption
                     if (moment.caption?.isNotEmpty == true) ...[
                       const SizedBox(height: 16),
-                      Text(moment.caption!,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 16, shadows: [Shadow(color: Colors.black, offset: Offset(1, 1))],
-                              fontWeight: FontWeight.w400, height: 1.4),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        moment.caption!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          shadows: [
+                            Shadow(color: Colors.black, offset: Offset(1, 1)),
+                          ],
+                          fontWeight: FontWeight.w400,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
 
                     // Reactions grouped by user (like TikTok)
                     if (moment.reactions.isNotEmpty) ...[
                       const SizedBox(height: 14),
                       GestureDetector(
-                        onTap: () => _showReactionUsers(context, moment.reactions),
-                        child: Builder(builder: (context) {
-                          // Group by user
-                          final Map<String, List<String>> byUser = {};
-                          for (final r in moment.reactions) {
-                            final uid = r['userId'] as String? ?? '';
-                            byUser.putIfAbsent(uid, () => []).add(r['emoji'] as String? ?? '❤️');
-                          }
-                          return Wrap(
-                            spacing: 8, runSpacing: 8,
-                            children: byUser.entries.take(4).map<Widget>((entry) {
-                              final future = _reactionUserFutures.putIfAbsent(
-                                entry.key,
-                                () => FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
-                              );
-                              return FutureBuilder<DocumentSnapshot>(
-                                future: future,
-                                builder: (context, snapshot) {
-                                  final user = snapshot.data?.data() as Map<String, dynamic>?;
-                                  final av = user?['avatarUrl'];
-                                  final uname = user?['username'] ?? '';
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(24),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.18),
-                                          borderRadius: BorderRadius.circular(24),
-                                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        onTap: () =>
+                            _showReactionUsers(context, moment.reactions),
+                        child: Builder(
+                          builder: (context) {
+                            // Group by user
+                            final Map<String, List<String>> byUser = {};
+                            for (final r in moment.reactions) {
+                              final uid = r['userId'] as String? ?? '';
+                              byUser
+                                  .putIfAbsent(uid, () => [])
+                                  .add(r['emoji'] as String? ?? '❤️');
+                            }
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: byUser.entries.take(4).map<Widget>((
+                                entry,
+                              ) {
+                                final future = _reactionUserFutures.putIfAbsent(
+                                  entry.key,
+                                  () => FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(entry.key)
+                                      .get(),
+                                );
+                                return FutureBuilder<DocumentSnapshot>(
+                                  future: future,
+                                  builder: (context, snapshot) {
+                                    final user =
+                                        snapshot.data?.data()
+                                            as Map<String, dynamic>?;
+                                    final av = user?['avatarUrl'];
+                                    final uname = user?['username'] ?? '';
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(24),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                          sigmaX: 10,
+                                          sigmaY: 10,
                                         ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 11,
-                                              backgroundColor: Colors.grey[700],
-                                              child: av != null
-                                                  ? ClipOval(
-                                                      child: GamenectNetworkImage(
-                                                        imageUrl: av,
-                                                        width: 22,
-                                                        height: 22,
-                                                        fit: BoxFit.cover,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.18,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 11,
+                                                backgroundColor:
+                                                    Colors.grey[700],
+                                                child: av != null
+                                                    ? ClipOval(
+                                                        child:
+                                                            GamenectNetworkImage(
+                                                              imageUrl: av,
+                                                              width: 22,
+                                                              height: 22,
+                                                              fit: BoxFit.cover,
+                                                            ),
+                                                      )
+                                                    : Text(
+                                                        uname.isNotEmpty
+                                                            ? uname[0]
+                                                                  .toUpperCase()
+                                                            : '?',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
                                                       ),
-                                                    )
-                                                  : Text(
-                                                      uname.isNotEmpty ? uname[0].toUpperCase() : '?',
+                                              ),
+                                              const SizedBox(width: 5),
+                                              // All emojis inline
+                                              ...entry.value
+                                                  .take(3)
+                                                  .map(
+                                                    (e) => Text(
+                                                      e,
                                                       style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 9,
-                                                        fontWeight: FontWeight.w700,
+                                                        fontSize: 14,
                                                       ),
                                                     ),
-                                            ),
-                                            const SizedBox(width: 5),
-                                            // All emojis inline
-                                            ...entry.value.take(3).map((e) =>
-                                              Text(e, style: const TextStyle(fontSize: 14))
-                                            ),
-                                          ],
+                                                  ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              );
-                            }).toList(),
-                          );
-                        }),
+                                    );
+                                  },
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ],
@@ -653,90 +851,135 @@ class _MomentCardState extends State<MomentCard>
                 Positioned(
                   right: 28,
                   bottom: 130,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ...['❤️', '😂', '🔥', '😍'].map((emoji) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: GestureDetector(
-                        onTap: () {
-                          Provider.of<MomentProvider>(context, listen: false)
-                              .reactToMoment(moment.id, currentUserId, emoji);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(emoji,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 28)),
-                              duration: const Duration(milliseconds: 600),
-                              backgroundColor: Colors.transparent,
-                              elevation: 0,
-                              behavior: SnackBarBehavior.floating,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...['❤️', '😂', '🔥', '😍'].map(
+                        (emoji) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: GestureDetector(
+                            onTap: () {
+                              Provider.of<MomentProvider>(
+                                context,
+                                listen: false,
+                              ).reactToMoment(moment.id, currentUserId, emoji);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    emoji,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 28),
+                                  ),
+                                  duration: const Duration(milliseconds: 600),
+                                  backgroundColor: Colors.transparent,
+                                  elevation: 0,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white, // White
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 3,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black,
+                                    offset: Offset(3, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  emoji,
+                                  style: const TextStyle(fontSize: 22),
+                                ),
+                              ),
                             ),
-                          );
-                        },
+                          ),
+                        ),
+                      ),
+                      // + button
+                      GestureDetector(
+                        onTap: () => _showReactionPicker(
+                          context,
+                          moment.id,
+                          currentUserId,
+                        ),
                         child: Container(
-                          width: 48, height: 48,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
-                            color: Colors.white, // White
+                            color: const Color(0xFF00E5FF), // Cyan
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.black, width: 3),
                             boxShadow: const [
-                              BoxShadow(color: Colors.black, offset: Offset(3, 3)),
+                              BoxShadow(
+                                color: Colors.black,
+                                offset: Offset(3, 3),
+                              ),
                             ],
                           ),
-                          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            color: Colors.black,
+                            size: 28,
+                          ),
                         ),
                       ),
-                    )),
-                    // + button
-                    GestureDetector(
-                      onTap: () => _showReactionPicker(context, moment.id, currentUserId),
-                      child: Container(
-                        width: 48, height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00E5FF), // Cyan
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 3),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black, offset: Offset(3, 3)),
-                          ],
-                        ),
-                        child: const Icon(Icons.add_rounded, color: Colors.black, size: 28),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
               // Action buttons bar (camera + send only)
               Positioned(
-                left: 16, right: 16, bottom: 40,
+                left: 16,
+                right: 16,
+                bottom: 40,
                 child: Row(
                   children: [
-
                     // Camera button
                     GestureDetector(
                       onTap: () async {
                         final result = await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const CameraCaptureScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => const CameraCaptureScreen(),
+                          ),
                         );
                         if (result != null && result is Map) {
-                          _showReplyWithMediaDialog(context, moment.id, currentUserId, result);
+                          _showReplyWithMediaDialog(
+                            context,
+                            moment.id,
+                            currentUserId,
+                            result,
+                          );
                         }
                       },
                       child: Container(
-                        width: 56, height: 56,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF6E40), // Deep Orange
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.black, width: 3),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(4, 4),
+                            ),
                           ],
                         ),
-                        child: const Icon(Icons.camera_alt_rounded,
-                            color: Colors.black, size: 28),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          color: Colors.black,
+                          size: 28,
+                        ),
                       ),
                     ),
 
@@ -745,7 +988,8 @@ class _MomentCardState extends State<MomentCard>
                     // Send message button
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => _showReplyDialog(context, moment.id, currentUserId),
+                        onTap: () =>
+                            _showReplyDialog(context, moment.id, currentUserId),
                         child: Container(
                           height: 56,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -754,22 +998,33 @@ class _MomentCardState extends State<MomentCard>
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Colors.black, width: 3),
                             boxShadow: const [
-                              BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                              BoxShadow(
+                                color: Colors.black,
+                                offset: Offset(4, 4),
+                              ),
                             ],
                           ),
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.chat_bubble_rounded,
-                                  color: Colors.black, size: 24),
+                              Icon(
+                                Icons.chat_bubble_rounded,
+                                color: Colors.black,
+                                size: 24,
+                              ),
                               SizedBox(width: 8),
                               Flexible(
-                                child: Text('GỬI',
-                                    style: TextStyle(
-                                        color: Colors.black, fontSize: 16,
-                                        fontWeight: FontWeight.w900, letterSpacing: 1.5),
-                                    maxLines: 1),
+                                child: Text(
+                                  'GỬI',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                  ),
+                                  maxLines: 1,
+                                ),
                               ),
                             ],
                           ),

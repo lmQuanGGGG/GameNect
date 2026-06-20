@@ -157,7 +157,7 @@ extension MentorService on FirestoreService {
         query = query.where('games', arrayContains: gameFilter);
       }
 
-      final snapshot = await query.get();
+      final snapshot = await query.limit(50).get();
       final docs = [...snapshot.docs];
       // Sắp xếp các mentor được duyệt gần nhất lên trước tiên
       docs.sort((a, b) {
@@ -183,23 +183,11 @@ extension MentorService on FirestoreService {
           final mentorData = doc.data() as Map<String, dynamic>;
           final userData = userDoc.data() ?? {};
 
-          // Check if currently live
-          final liveSnap = await _db
-              .collection('livestreams')
-              .where('mentorId', isEqualTo: doc.id)
-              .where('status', isEqualTo: 'live')
-              .limit(1)
-              .get();
-          final isLive = liveSnap.docs.isNotEmpty;
-          final liveStreamId = isLive ? liveSnap.docs.first.id : null;
-
           results.add({
             ...mentorData,
             'userId': doc.id,
             'username': userData['username'] ?? '',
             'avatarUrl': userData['avatarUrl'] ?? '',
-            'isLive': isLive,
-            'liveStreamId': liveStreamId,
           });
         } catch (_) {
           // Bỏ qua nếu không lấy được user data

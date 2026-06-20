@@ -1644,3 +1644,77 @@ RefreshIndicator(
   - `lib/user/screens/camera/camera_capture_screen.dart`
   - `lib/user/screens/main/main_screen.dart`
 
+
+---
+
+## 11. UI/UX & AESTHETIC GUIDELINES (NEO-BRUTALISM + GLASSMORPHISM)
+
+**GameNect** áp dụng phong cách thiết kế kết hợp độc đáo giữa **Neo-Brutalism** (Thô mộc hiện đại) và **Glassmorphism** (Hiệu ứng kính mờ). Đây là phong cách chủ đạo bắt buộc phải tuân thủ khi xây dựng giao diện mới hoặc chỉnh sửa các thành phần hiện tại.
+
+### 11.1. Nguyên tắc thiết kế chung (Core Aesthetics)
+- **Border:** Các thành phần UI có thể tương tác (nút, thẻ, input) đều PHẢI có viền đen/trắng nét dày, rõ ràng (e.g., `border: Border.all(color: Colors.black, width: 3)`).
+- **Shadow (Bóng đổ):** Không dùng bóng đổ mờ (blur). PHẢI dùng bóng đổ đặc (solid drop shadow) chệch về góc dưới bên phải (e.g., `boxShadow: [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]`).
+- **Hình dáng (Shapes):** Ưu tiên các góc bo tròn lớn (`borderRadius: BorderRadius.circular(16)` hoặc `50` cho các thành phần dạng pill).
+- **Glassmorphism:** Sử dụng `BackdropFilter` với `sigmaX: 10, sigmaY: 10` cho các thành phần trôi nổi (floating) như thanh điều hướng (Bottom Bar), popup, overlay thông báo.
+- **Màu sắc (Colors):**
+  - **Màu Accent (Chủ đạo):** Cam Neon rực rỡ (`Color(0xFFFF6E40)`).
+  - **Màu Alert/Badge:** Đỏ Neon (`Color(0xFFFF2D55)`).
+  - **Màu Cảnh báo/Khác:** Vàng Neon (`Color(0xFFFFD54F)`).
+  - **Màu nền (Background):** Trắng/Trắng ngà (`#F4F4F0`) cho chế độ Sáng, Đen tuyền/Xám đen (`#121214`) cho chế độ Tối.
+- **Typography:** Text trên các nút bấm hoặc tiêu đề phải in đậm (Bold/Black), font không chân (Sans-serif) với `fontWeight: FontWeight.w900`.
+
+### 11.2. Hướng dẫn thiết kế theo Từng Màn Hình & Thành Phần
+Dựa trên kiến trúc hiện tại, UI của các màn hình được quy định như sau:
+
+#### A. Thanh Điều Hướng (Bottom Navigation Bar)
+- **Hình dáng:** Dạng viên thuốc nổi (Floating Pill) cách mép màn hình một khoảng.
+- **Background:** Hiệu ứng kính mờ (Glassmorphism) với nền xám/trắng bán trong suốt.
+- **Border & Shadow:** Viền đen dày (3px) và bóng đổ đặc (solid shadow) màu đen.
+- **Trạng thái Active (Đang chọn):** Icon và Text được bọc trong một khối pill màu Cam (`_kAccent`), có viền đen và bóng đổ đặc biệt nhấn mạnh. Text in đậm (`w900`).
+- **Trạng thái Inactive (Chưa chọn):** Icon nét mỏng hoặc solid màu xám/đen. Text mỏng hơn.
+- **Badges (Chấm đỏ thông báo):** Đặt ở góc trên bên phải icon. Dạng hình tròn màu Đỏ (`_kLiveRed`), text trắng, viền ngoài màu đen (2px).
+
+#### B. Màn hình Discover / Swipe Screen
+- **Card Swipe:** Các thẻ người dùng giống Tinder nhưng tuân thủ Neo-Brutalism (Viền đen 3px, bo góc 24px, bóng đổ đặc dưới thẻ).
+- **Typography:** Tên user, Tuổi in cực lớn và đậm trên ảnh nền.
+- **Buttons (Like/Pass):** Các nút hình tròn to, màu nổi (Đỏ/Xanh/Vàng) với viền đen và solid shadow. Khi ấn vào, shadow thu nhỏ lại tạo cảm giác nút bị lún xuống vật lý.
+
+#### C. Màn hình Moment / Feed Screen
+- **Hình ảnh:** Trải toàn màn hình (Edge-to-edge) hoặc bo góc vuông vắn.
+- **Controls/Overlays:** Các nút tim, bình luận hiển thị lơ lửng trên nền ảnh bằng hiệu ứng Glassmorphism (Kính mờ) để không bị chìm vào nền ảnh nhiều chi tiết.
+- **Caption:** Bọc trong một vùng Glassmorphism dưới đáy màn hình.
+
+#### D. Màn hình Chat (Chat Screen)
+- **Chat Bubbles (Bong bóng chat):** 
+  - Tin nhắn của mình: Nền màu Cam (`_kAccent`), viền đen, bo góc tròn, đuôi bong bóng nhọn.
+  - Tin nhắn đối phương: Nền xám/trắng, viền đen.
+- **Input Bar:** Nằm dưới cùng, bo góc `24px`, viền đen, có bóng đổ đặc. Nút Send (Gửi) hình tròn, viền đen.
+
+#### E. Màn hình Mentor / Public Media Screen
+- **Grid Layout:** Lưới ảnh/video có khoảng cách (gutter) rộng, mỗi ảnh có viền đen mỏng để tách biệt.
+- **CTA Buttons:** Các nút như "Ủng hộ", "Theo dõi", "Đăng ký Premium" là nút Neo-Brutalism kích thước lớn, chiều ngang full chiều rộng, padding lớn (`vertical: 14`), chữ IN HOA đậm.
+
+#### F. Các Thành Phần Cơ Bản (Widgets)
+- **Buttons (Nút bấm):** Phải có `Container` viền đen, bóng đổ `Offset(4,4)`. Dùng `GestureDetector` đổi màu shadow khi tap (nhấn xuống).
+- **Text Inputs (Khung nhập liệu):** Nền trắng/xám sáng, viền đen 2-3px. Khi Focus (đang nhập) viền đổi sang màu Cam.
+- **Avatar (Ảnh đại diện):** Bo tròn, viền ngoài màu đen (thêm viền Cam nếu đang có Story/Moment chưa xem).
+- **Cards (Khối nội dung):** Background sáng màu, viền đen 3px, bóng đổ đặc 4px.
+
+*Tất cả AI Agent khi code layout mới hoặc refactor UI phải sử dụng đúng mã màu và cấu trúc Shadow, Border như mô tả trên để giữ sự nhất quán 100% cho GameNect.*
+
+### [2026-06-16 — Phiên 5] — Tối ưu hóa Database Reads và Storage Bandwidth
+
+- **Thay đổi:**
+  - **Tối ưu hóa Firestore Reads (Giảm chi phí cực lớn):**
+    * Thêm `.limit(50)` vào `getApprovedMentors` trong `MentorService`, đồng thời gỡ bỏ truy vấn N+1 (truy vấn lồng nhau) tìm kiếm livestream đang hoạt động. Livestream giờ sẽ được tìm qua một bảng riêng hoặc snapshot trực tiếp để không bị lặp.
+    * Thêm `.orderBy('timestamp', descending: true).limit(50)` vào `messagesStream` trong `ChatService`. Sau đó đảo ngược mảng (reversed) trên Client để UI chat hiển thị đúng (tin nhắn mới nhất ở dưới). Chặn đứng tình trạng load hàng ngàn tin nhắn cũ mỗi khi mở đoạn chat.
+  - **Tối ưu hóa Firebase Storage Bandwidth (Tránh cạn kiệt Egress):**
+    * Gỡ bỏ điều kiện chỉ nén cho Camera Trước trong `camera_capture_screen.dart`. Bắt buộc 100% Ảnh chụp từ App (bằng CameraAwesome) phải được đưa qua Isolate để nén trước khi tải lên Firebase. Giảm `quality` từ 95 xuống 80 (giảm dung lượng xuống mức 200KB - 400KB).
+    * Giới hạn chất lượng Video khi quay trực tiếp từ App: Chuyển cấu hình `VideoOptions` của CameraAwesome sang `VideoRecordingQuality.sd` thay vì mặc định phân giải gốc. Dung lượng video từ 50MB giảm xuống còn vài MB.
+    * Giới hạn thời gian Video tối đa: Giảm từ 15 giây xuống **5 giây** trong tất cả các giao diện quay/chụp và Gallery Upload (`camera_capture_screen.dart`, `mentor_media_screen.dart`). Cực kỳ tiết kiệm chi phí băng thông khi người dùng lướt feed có cơ chế Pre-load (Tải trước).
+- **File ảnh hưởng:**
+  - `lib/core/services/firestore/mentor_service.dart`
+  - `lib/core/services/firestore/chat_service.dart`
+  - `lib/user/screens/camera/camera_capture_screen.dart`
+  - `lib/user/screens/mentor/mentor_media_screen.dart`
+

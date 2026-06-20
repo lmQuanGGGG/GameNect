@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../user/screens/auth/login_screen.dart';
 import '../../user/user_app.dart';
 import '../../user/screens/profile/edit_profile_screen.dart';
@@ -20,33 +21,33 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class AppRouter {
   static Map<String, WidgetBuilder> get routes => {
-        '/': (context) => const AuthWrapper(),
-        '/login': (context) => LoginScreen(),
-        '/home': (context) => const UserApp(),
-        '/profile': (context) => const ProfileScreen(),
-        '/phone-login': (context) => const PhoneLoginScreen(),
-        '/email-login': (context) => const EmailLoginScreen(),
-        '/wallet': (context) => const WalletScreen(),
-        '/admin-test-users': (context) => const AdminTestUsersScreen(),
-        '/moments': (context) => const UserApp(initialRoute: '/main'),
-        '/chat': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map;
-          return ChatScreen(
-            matchId: args['matchId'] as String,
-            peerUser: args['peerUser'] as UserModel,
-          );
-        },
-        '/video_call': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map;
-          return VideoCallScreen(
-            channelName: args['channelName'] as String,
-            peerUserId: args['peerUserId'] as String,
-            peerUsername: args['peerUsername'] as String,
-            peerAvatarUrl: args['peerAvatarUrl'] as String?,
-            isVoiceCall: args['isVoiceCall'] as bool? ?? false,
-          );
-        },
-      };
+    '/': (context) => const AuthWrapper(),
+    '/login': (context) => LoginScreen(),
+    '/home': (context) => const UserApp(),
+    '/profile': (context) => const ProfileScreen(),
+    '/phone-login': (context) => const PhoneLoginScreen(),
+    '/email-login': (context) => const EmailLoginScreen(),
+    '/wallet': (context) => const WalletScreen(),
+    '/admin-test-users': (context) => const AdminTestUsersScreen(),
+    '/moments': (context) => const UserApp(initialRoute: '/main'),
+    '/chat': (context) {
+      final args = ModalRoute.of(context)!.settings.arguments as Map;
+      return ChatScreen(
+        matchId: args['matchId'] as String,
+        peerUser: args['peerUser'] as UserModel,
+      );
+    },
+    '/video_call': (context) {
+      final args = ModalRoute.of(context)!.settings.arguments as Map;
+      return VideoCallScreen(
+        channelName: args['channelName'] as String,
+        peerUserId: args['peerUserId'] as String,
+        peerUsername: args['peerUsername'] as String,
+        peerAvatarUrl: args['peerAvatarUrl'] as String?,
+        isVoiceCall: args['isVoiceCall'] as bool? ?? false,
+      );
+    },
+  };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? '';
@@ -114,34 +115,43 @@ class _ViewerFeedLauncher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('livestreams').doc(streamId).get(),
+      future: FirebaseFirestore.instance
+          .collection('livestreams')
+          .doc(streamId)
+          .get(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: Color(0xFFFF6E40))),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFFF6E40)),
+            ),
           );
         }
         if (!snap.hasData || !snap.data!.exists) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: Text('Stream không tồn tại', style: TextStyle(color: Colors.white))),
+            body: Center(
+              child: Text(
+                'Stream không tồn tại',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
           );
         }
         final stream = LivestreamModel.fromMap(
           snap.data!.data() as Map<String, dynamic>,
           snap.data!.id,
         );
-        return LiveSwipeFeedScreen(
-          streams: [stream],
-          initialIndex: 0,
-        );
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUserId != null && stream.mentorId == currentUserId) {
+          return LiveStreamScreen(streamId: stream.id, isMentor: true);
+        }
+        return LiveSwipeFeedScreen(streams: [stream], initialIndex: 0);
       },
     );
   }
 }
-
-
 
 // ── Mentor: wrapper để tránh circular import với LiveStreamScreen ──────────
 
@@ -154,4 +164,3 @@ class _MentorLiveScreenWrapper extends StatelessWidget {
     return LiveStreamScreen(streamId: streamId, isMentor: true);
   }
 }
-

@@ -68,34 +68,37 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
     _mentorSub = FirestoreService()
         .getMentorProfileStream(widget.mentorId)
         .listen((mentor) {
-      if (mounted && mentor != null) {
-        setState(() {
-          _mentor = mentor;
+          if (mounted && mentor != null) {
+            setState(() {
+              _mentor = mentor;
+            });
+          }
         });
-      }
-    });
   }
 
   Future<void> _loadData() async {
     final mentorProvider = context.read<MentorProvider>();
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    
+
     try {
       _mentor = await FirebaseFirestore.instance
           .collection('mentor_profiles')
           .doc(widget.mentorId)
           .get()
-          .then((doc) => doc.exists ? MentorModel.fromMap(doc.data()!, doc.id) : null);
-          
+          .then(
+            (doc) =>
+                doc.exists ? MentorModel.fromMap(doc.data()!, doc.id) : null,
+          );
+
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.mentorId)
           .get();
       _mentorUser = userDoc.data();
-      
+
       if (currentUserId.isNotEmpty) {
         _isFollowing = await mentorProvider.checkIsFollowing(
-          widget.mentorId, 
+          widget.mentorId,
           currentUserId,
         );
         _matchRequestId = await FirebaseFirestore.instance
@@ -108,18 +111,18 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             .then((s) => s.docs.isEmpty ? null : s.docs.first.id);
         _hasMatchRequest = _matchRequestId != null;
       }
-      
+
       final liveSnap = await FirebaseFirestore.instance
           .collection('livestreams')
           .where('mentorId', isEqualTo: widget.mentorId)
           .where('status', isEqualTo: 'live')
           .limit(1)
           .get();
-          
+
       if (liveSnap.docs.isNotEmpty) {
         _liveStreamId = liveSnap.docs.first.id;
       }
-      
+
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -133,10 +136,10 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
   Future<void> _toggleFollow() async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null || widget.mentorId == currentUserId) return;
-    
+
     final mentorProvider = context.read<MentorProvider>();
     setState(() => _isFollowing = !_isFollowing);
-    
+
     if (_isFollowing) {
       await mentorProvider.followMentor(widget.mentorId, currentUserId);
     } else {
@@ -156,19 +159,16 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
   void _showMatchRequestSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    
+
     if (widget.mentorId == currentUserId) return;
-    
+
     final msgCtrl = TextEditingController();
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark ? _kDarkCard : _kLightCard,
       shape: Border(
-        top: BorderSide(
-          color: isDark ? Colors.white : Colors.black, 
-          width: 3,
-        ),
+        top: BorderSide(color: isDark ? Colors.white : Colors.black, width: 3),
       ),
       builder: (_) => Padding(
         padding: EdgeInsets.only(
@@ -193,7 +193,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             Text(
               'Viết lời nhắn cho Mentor (tùy chọn)',
               style: TextStyle(
-                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.6),
+                color: (isDark ? Colors.white : Colors.black).withValues(
+                  alpha: 0.6,
+                ),
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
@@ -207,10 +209,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                   width: 3,
                 ),
                 boxShadow: const [
-                  BoxShadow(
-                    color: _kNeoOrange,
-                    offset: Offset(4, 4),
-                  )
+                  BoxShadow(color: _kNeoOrange, offset: Offset(4, 4)),
                 ],
               ),
               child: TextField(
@@ -223,7 +222,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 decoration: InputDecoration(
                   hintText: 'Ví dụ: Mình muốn học Valorant...',
                   hintStyle: TextStyle(
-                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.4),
+                    color: (isDark ? Colors.white : Colors.black).withValues(
+                      alpha: 0.4,
+                    ),
                     fontWeight: FontWeight.bold,
                   ),
                   border: InputBorder.none,
@@ -237,13 +238,15 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 Navigator.pop(context);
                 final currentUserId = FirebaseAuth.instance.currentUser?.uid;
                 if (currentUserId == null) return;
-                
-                final ok = await context.read<MentorProvider>().sendMatchRequest(
-                  currentUserId,
-                  widget.mentorId,
-                  msgCtrl.text.trim().isEmpty ? null : msgCtrl.text.trim(),
-                );
-                
+
+                final ok = await context
+                    .read<MentorProvider>()
+                    .sendMatchRequest(
+                      currentUserId,
+                      widget.mentorId,
+                      msgCtrl.text.trim().isEmpty ? null : msgCtrl.text.trim(),
+                    );
+
                 if (mounted) {
                   setState(() => _hasMatchRequest = ok);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -276,7 +279,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                     BoxShadow(
                       color: isDark ? Colors.white : Colors.black,
                       offset: const Offset(4, 4),
-                    )
+                    ),
                   ],
                 ),
                 child: const Center(
@@ -332,7 +335,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
               Text(
                 'BẠN THẤY MENTOR NÀY THẾ NÀO?',
                 style: TextStyle(
-                  color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.7),
+                  color: (isDark ? Colors.white : Colors.black).withValues(
+                    alpha: 0.7,
+                  ),
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -370,10 +375,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                     width: 3,
                   ),
                   boxShadow: const [
-                    BoxShadow(
-                      color: _kNeoOrange,
-                      offset: Offset(4, 4),
-                    )
+                    BoxShadow(color: _kNeoOrange, offset: Offset(4, 4)),
                   ],
                 ),
                 child: TextField(
@@ -387,7 +389,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                   decoration: InputDecoration(
                     hintText: 'Nhập ý kiến...',
                     hintStyle: TextStyle(
-                      color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.4),
+                      color: (isDark ? Colors.white : Colors.black).withValues(
+                        alpha: 0.4,
+                      ),
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -404,7 +408,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                    onTap: isSubmitting
+                        ? null
+                        : () => Navigator.pop(dialogContext),
                     child: Container(
                       height: 48,
                       decoration: BoxDecoration(
@@ -417,7 +423,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                           BoxShadow(
                             color: isDark ? Colors.white : Colors.black,
                             offset: const Offset(3, 3),
-                          )
+                          ),
                         ],
                       ),
                       alignment: Alignment.center,
@@ -439,23 +445,26 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                         ? null
                         : () async {
                             setDialogState(() => isSubmitting = true);
-                            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                            final currentUserId =
+                                FirebaseAuth.instance.currentUser?.uid;
                             if (currentUserId == null) return;
-                            
+
                             final ok = await mentorProvider.rateMentor(
                               fromUserId: currentUserId,
                               toMentorId: widget.mentorId,
                               rating: selectedRating,
                               comment: commentCtrl.text.trim(),
                             );
-                            
+
                             Navigator.pop(dialogContext);
-                            
+
                             if (mounted) {
                               messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    ok ? 'Cảm ơn bạn đã đánh giá!' : 'Đánh giá thất bại',
+                                    ok
+                                        ? 'Cảm ơn bạn đã đánh giá!'
+                                        : 'Đánh giá thất bại',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       color: Colors.white,
@@ -485,12 +494,15 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                           BoxShadow(
                             color: isDark ? Colors.white : Colors.black,
                             offset: const Offset(3, 3),
-                          )
+                          ),
                         ],
                       ),
                       alignment: Alignment.center,
                       child: isSubmitting
-                          ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            )
                           : const Text(
                               'GỬI',
                               style: TextStyle(
@@ -535,7 +547,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             offset: const Offset(4, 4),
             blurRadius: 0,
             spreadRadius: 0,
-          )
+          ),
         ],
       ),
       padding: padding,
@@ -562,7 +574,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
               shadowColor: isDark ? Colors.white : Colors.black,
               borderRadius: 12,
               padding: const EdgeInsets.all(10),
-              child: const Icon(CupertinoIcons.back, color: Colors.black, size: 24),
+              child: const Icon(
+                CupertinoIcons.back,
+                color: Colors.black,
+                size: 24,
+              ),
             ),
           ),
           Text(
@@ -601,12 +617,15 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                   children: [
                     const SizedBox(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: _kNeoOrange,
                         border: Border.all(color: Colors.black, width: 2),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black, offset: Offset(2, 2))
+                          BoxShadow(color: Colors.black, offset: Offset(2, 2)),
                         ],
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -635,8 +654,12 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () {
-                      final allStreams = context.read<LivestreamProvider>().liveStreams;
-                      final index = allStreams.indexWhere((s) => s.id == _liveStreamId);
+                      final allStreams = context
+                          .read<LivestreamProvider>()
+                          .liveStreams;
+                      final index = allStreams.indexWhere(
+                        (s) => s.id == _liveStreamId,
+                      );
                       if (index >= 0) {
                         Navigator.push(
                           context,
@@ -650,7 +673,10 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: _kNeoRed,
                         border: Border.all(
@@ -661,7 +687,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                           BoxShadow(
                             color: isDark ? Colors.white : Colors.black,
                             offset: const Offset(3, 3),
-                          )
+                          ),
                         ],
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -697,7 +723,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 BoxShadow(
                   color: isDark ? Colors.white : Colors.black,
                   offset: const Offset(4, 4),
-                )
+                ),
               ],
               image: (_mentorUser?['avatarUrl'] as String?)?.isNotEmpty == true
                   ? DecorationImage(
@@ -910,50 +936,50 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _kNeoOrange))
           : _mentor == null
-              ? Center(
-                  child: Text('Không tìm thấy Mentor',
-                      style: TextStyle(
-                          color: (isDark ? Colors.white : Colors.black)
-                              .withValues(alpha: 0.7))))
-              : SafeArea(
-                  bottom: false,
-                  child: Stack(
-                    children: [
-                      // Scrollable content
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(16, 80, 16, 120),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildAvatarCard(),
-                            const SizedBox(height: 24),
-                            _buildStatsGrid(isSelf),
-                            const SizedBox(height: 24),
-                            _buildTabs(),
-                            const SizedBox(height: 24),
-                            _buildTabContent(),
-                          ],
-                        ),
-                      ),
-
-                      // Custom Neo Header
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: _buildHeader(),
-                      ),
-
-                      // Bottom Action Bar
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: _buildBottomBar(isSelf),
-                      ),
-                    ],
+          ? Center(
+              child: Text(
+                'Không tìm thấy Mentor',
+                style: TextStyle(
+                  color: (isDark ? Colors.white : Colors.black).withValues(
+                    alpha: 0.7,
                   ),
                 ),
+              ),
+            )
+          : SafeArea(
+              bottom: false,
+              child: Stack(
+                children: [
+                  // Scrollable content
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 80, 16, 120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildAvatarCard(),
+                        const SizedBox(height: 24),
+                        _buildStatsGrid(isSelf),
+                        const SizedBox(height: 24),
+                        _buildTabs(),
+                        const SizedBox(height: 24),
+                        _buildTabContent(),
+                      ],
+                    ),
+                  ),
+
+                  // Custom Neo Header
+                  Positioned(top: 0, left: 0, right: 0, child: _buildHeader()),
+
+                  // Bottom Action Bar
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildBottomBar(isSelf),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
@@ -1009,7 +1035,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                         color: _kNeoOrange,
                         border: Border.all(color: Colors.black, width: 2),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black, offset: Offset(2, 2))
+                          BoxShadow(color: Colors.black, offset: Offset(2, 2)),
                         ],
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1056,11 +1082,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 ),
                 Text(
                   _mentor!.bio,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    height: 1.6,
-                  ),
+                  style: TextStyle(color: textColor, fontSize: 14, height: 1.6),
                 ),
               ],
             ),
@@ -1097,34 +1119,34 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                     .map((l) => l.trim())
                     .where((l) => l.isNotEmpty)
                     .map((line) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '✦',
-                          style: TextStyle(
-                            color: Colors.amber,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            line,
-                            style: TextStyle(
-                              color: textColor.withValues(alpha: 0.9),
-                              fontSize: 14,
-                              height: 1.4,
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '✦',
+                              style: TextStyle(
+                                color: Colors.amber,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                line,
+                                style: TextStyle(
+                                  color: textColor.withValues(alpha: 0.9),
+                                  fontSize: 14,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }),
+                      );
+                    }),
               ],
             ),
           ),
@@ -1180,7 +1202,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                             BoxShadow(
                               color: isDark ? Colors.white : Colors.black,
                               offset: const Offset(2, 2),
-                            )
+                            ),
                           ],
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1207,7 +1229,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                       ),
                     );
                   }
-                  
+
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return Container(
                       width: double.infinity,
@@ -1236,8 +1258,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                       ),
                     );
                   }
-                  
-                  final ratingDocs = [...snapshot.data!.docs]..sort((a, b) {
+
+                  final ratingDocs = [...snapshot.data!.docs]
+                    ..sort((a, b) {
                       final aTs = (a.data() as Map)['createdAt'] as Timestamp?;
                       final bTs = (b.data() as Map)['createdAt'] as Timestamp?;
                       if (aTs == null && bTs == null) return 0;
@@ -1245,13 +1268,14 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                       if (bTs == null) return -1;
                       return bTs.compareTo(aTs);
                     });
-                    
+
                   return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: ratingDocs.length,
                     itemBuilder: (context, index) {
-                      final data = ratingDocs[index].data() as Map<String, dynamic>;
+                      final data =
+                          ratingDocs[index].data() as Map<String, dynamic>;
                       return _ReviewItem(
                         fromUserId: data['fromUserId'] ?? '',
                         rating: (data['rating'] ?? 0.0).toDouble(),
@@ -1313,7 +1337,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                       width: 2,
                     ),
                     boxShadow: const [
-                      BoxShadow(color: _kNeoOrange, offset: Offset(2, 2))
+                      BoxShadow(color: _kNeoOrange, offset: Offset(2, 2)),
                     ],
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1360,15 +1384,16 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 ),
               );
             }
-            
-            final docs = [...snapshot.data!.docs]..sort((a, b) {
+
+            final docs = [...snapshot.data!.docs]
+              ..sort((a, b) {
                 final aTs = (a.data() as Map)['createdAt'] as Timestamp?;
                 final bTs = (b.data() as Map)['createdAt'] as Timestamp?;
                 if (aTs == null) return 1;
                 if (bTs == null) return -1;
                 return bTs.compareTo(aTs);
               });
-              
+
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1386,7 +1411,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 final url = data['url'] as String? ?? '';
                 final likes = List<String>.from(data['likes'] ?? []);
                 final isLiked = likes.contains(currentUserId);
-                
+
                 return GestureDetector(
                   onTap: () => _viewMedia(context, data, docId),
                   child: _buildNeoContainer(
@@ -1398,7 +1423,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                         fit: StackFit.expand,
                         children: [
                           if (url.isNotEmpty)
-                            (isVideo && (data['thumbnailUrl'] == null || data['thumbnailUrl'].toString().isEmpty))
+                            (isVideo &&
+                                    (data['thumbnailUrl'] == null ||
+                                        data['thumbnailUrl']
+                                            .toString()
+                                            .isEmpty))
                                 ? Container(
                                     color: Colors.black26,
                                     child: const Center(
@@ -1410,7 +1439,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                                     ),
                                   )
                                 : GamenectNetworkImage(
-                                    imageUrl: isVideo ? data['thumbnailUrl']! : url,
+                                    imageUrl: isVideo
+                                        ? data['thumbnailUrl']!
+                                        : url,
                                     fit: BoxFit.cover,
                                     errorWidget: (_, __, ___) => Container(
                                       color: Colors.black26,
@@ -1428,7 +1459,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                            
+
                           Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -1441,14 +1472,18 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                               ),
                             ),
                           ),
-                          
+
                           Positioned(
                             bottom: 8,
                             left: 8,
                             child: GestureDetector(
                               onTap: () async {
                                 if (currentUserId.isNotEmpty) {
-                                  await FirestoreService().toggleLikeMentorMedia(docId, currentUserId);
+                                  await FirestoreService()
+                                      .toggleLikeMentorMedia(
+                                        docId,
+                                        currentUserId,
+                                      );
                                 }
                               },
                               child: Container(
@@ -1471,7 +1506,9 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                                       isLiked
                                           ? CupertinoIcons.heart_fill
                                           : CupertinoIcons.heart,
-                                      color: isLiked ? Colors.red : Colors.black,
+                                      color: isLiked
+                                          ? Colors.red
+                                          : Colors.black,
                                       size: 14,
                                     ),
                                     const SizedBox(width: 4),
@@ -1488,7 +1525,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                               ),
                             ),
                           ),
-                          
+
                           if (isVideo)
                             Positioned(
                               top: 8,
@@ -1558,7 +1595,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             );
             if (updated == true) _loadData();
           },
-          icon: const Icon(CupertinoIcons.pencil, size: 20, color: Colors.black),
+          icon: const Icon(
+            CupertinoIcons.pencil,
+            size: 20,
+            color: Colors.black,
+          ),
           label: const Text(
             'CHỈNH SỬA HỒ SƠ',
             style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
@@ -1579,7 +1620,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
         ),
       );
     }
-    
+
     return Container(
       color: bgColor,
       padding: const EdgeInsets.all(16),
@@ -1589,9 +1630,15 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
           GestureDetector(
             onTap: _toggleFollow,
             child: _buildNeoContainer(
-              bgColor: _isFollowing ? (isDark ? _kDarkCard : _kLightCard) : Colors.white,
-              borderColor: _isFollowing ? (isDark ? Colors.white : Colors.black) : Colors.black,
-              shadowColor: _isFollowing ? (isDark ? Colors.white : Colors.black) : Colors.black,
+              bgColor: _isFollowing
+                  ? (isDark ? _kDarkCard : _kLightCard)
+                  : Colors.white,
+              borderColor: _isFollowing
+                  ? (isDark ? Colors.white : Colors.black)
+                  : Colors.black,
+              shadowColor: _isFollowing
+                  ? (isDark ? Colors.white : Colors.black)
+                  : Colors.black,
               borderRadius: 16,
               padding: const EdgeInsets.all(16),
               child: Icon(
@@ -1602,21 +1649,27 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Match button
           Expanded(
             child: GestureDetector(
               onTap: _hasMatchRequest ? null : _showMatchRequestSheet,
               child: _buildNeoContainer(
-                bgColor: _hasMatchRequest ? (isDark ? _kDarkCard : _kLightCard) : _kNeoOrange,
-                shadowColor: _hasMatchRequest ? Colors.transparent : (isDark ? Colors.white : Colors.black),
+                bgColor: _hasMatchRequest
+                    ? (isDark ? _kDarkCard : _kLightCard)
+                    : _kNeoOrange,
+                shadowColor: _hasMatchRequest
+                    ? Colors.transparent
+                    : (isDark ? Colors.white : Colors.black),
                 borderRadius: 16,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Center(
                   child: Text(
                     _hasMatchRequest ? 'ĐÃ GỬI YÊU CẦU' : 'MATCH NGAY',
                     style: TextStyle(
-                      color: _hasMatchRequest ? (isDark ? Colors.white54 : Colors.black54) : Colors.black,
+                      color: _hasMatchRequest
+                          ? (isDark ? Colors.white54 : Colors.black54)
+                          : Colors.black,
                       fontWeight: FontWeight.w900,
                       fontSize: 18,
                       letterSpacing: 2,
@@ -1631,7 +1684,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
     );
   }
 
-  void _viewMedia(BuildContext context, Map<String, dynamic> initialData, String docId) {
+  void _viewMedia(
+    BuildContext context,
+    Map<String, dynamic> initialData,
+    String docId,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     final isVideo = initialData['type'] == 'video';
@@ -1663,7 +1720,12 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             Expanded(
               child: isVideo
                   ? _VideoPlayer(url: url)
-                  : InteractiveViewer(child: GamenectNetworkImage(imageUrl: url, fit: BoxFit.contain)),
+                  : InteractiveViewer(
+                      child: GamenectNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
             ),
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
@@ -1678,12 +1740,14 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 final caption = data['caption']?.toString() ?? '';
                 final likes = List<String>.from(data['likes'] ?? []);
                 final isLiked = likes.contains(currentUserId);
-                
+
                 return Container(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF141416) : _kLightBg,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1693,13 +1757,20 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                         children: [
                           IconButton(
                             icon: Icon(
-                              isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                              color: isLiked ? Colors.red : (isDark ? Colors.white : Colors.black),
+                              isLiked
+                                  ? CupertinoIcons.heart_fill
+                                  : CupertinoIcons.heart,
+                              color: isLiked
+                                  ? Colors.red
+                                  : (isDark ? Colors.white : Colors.black),
                               size: 28,
                             ),
                             onPressed: () async {
                               if (currentUserId.isNotEmpty) {
-                                await FirestoreService().toggleLikeMentorMedia(docId, currentUserId);
+                                await FirestoreService().toggleLikeMentorMedia(
+                                  docId,
+                                  currentUserId,
+                                );
                               }
                             },
                           ),
@@ -1720,7 +1791,8 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                           child: Text(
                             caption,
                             style: TextStyle(
-                              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.9),
+                              color: (isDark ? Colors.white : Colors.black)
+                                  .withValues(alpha: 0.9),
                               fontSize: 14,
                               height: 1.4,
                             ),
@@ -1837,7 +1909,10 @@ class _ReviewItemState extends State<_ReviewItem> {
   @override
   void initState() {
     super.initState();
-    _userFuture = FirebaseFirestore.instance.collection('users').doc(widget.fromUserId).get();
+    _userFuture = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.fromUserId)
+        .get();
   }
 
   @override
@@ -1850,8 +1925,11 @@ class _ReviewItemState extends State<_ReviewItem> {
       future: _userFuture,
       builder: (context, snapshot) {
         final userData = snapshot.data?.data() as Map<String, dynamic>?;
-        final username = userData?['username'] ?? 
-            (snapshot.connectionState == ConnectionState.waiting ? 'Đang tải...' : 'Học viên');
+        final username =
+            userData?['username'] ??
+            (snapshot.connectionState == ConnectionState.waiting
+                ? 'Đang tải...'
+                : 'Học viên');
         final avatarUrl = userData?['avatarUrl'] as String?;
 
         return Container(
@@ -1859,9 +1937,12 @@ class _ReviewItemState extends State<_ReviewItem> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: cardColor,
-            border: Border.all(color: isDark ? Colors.white : Colors.black, width: 2),
+            border: Border.all(
+              color: isDark ? Colors.white : Colors.black,
+              width: 2,
+            ),
             boxShadow: const [
-              BoxShadow(color: _kNeoOrange, offset: Offset(3, 3))
+              BoxShadow(color: _kNeoOrange, offset: Offset(3, 3)),
             ],
             borderRadius: BorderRadius.circular(16),
           ),
@@ -1875,7 +1956,10 @@ class _ReviewItemState extends State<_ReviewItem> {
                     height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: isDark ? Colors.white : Colors.black, width: 2),
+                      border: Border.all(
+                        color: isDark ? Colors.white : Colors.black,
+                        width: 2,
+                      ),
                       image: (avatarUrl != null && avatarUrl.isNotEmpty)
                           ? DecorationImage(
                               image: NetworkImage(avatarUrl),
@@ -1909,7 +1993,11 @@ class _ReviewItemState extends State<_ReviewItem> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(CupertinoIcons.star_fill, color: Colors.amber, size: 12),
+                            const Icon(
+                              CupertinoIcons.star_fill,
+                              color: Colors.amber,
+                              size: 12,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               widget.rating.toStringAsFixed(1),
@@ -1930,11 +2018,7 @@ class _ReviewItemState extends State<_ReviewItem> {
                 const SizedBox(height: 12),
                 Text(
                   widget.comment,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
+                  style: TextStyle(color: textColor, fontSize: 14, height: 1.4),
                 ),
               ],
             ],
@@ -1969,7 +2053,7 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
       minChildSize: 0.4,
@@ -1987,7 +2071,9 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.25),
+                  color: (isDark ? Colors.white : Colors.black).withValues(
+                    alpha: 0.25,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -2022,7 +2108,10 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                   ],
                 ),
               ),
-              Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.white10 : Colors.black12,
+              ),
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: _followersStream,
@@ -2032,17 +2121,20 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                         child: CircularProgressIndicator(color: _kNeoOrange),
                       );
                     }
-                    
+
                     final docs = snap.data?.docs ?? [];
-                    final sorted = [...docs]..sort((a, b) {
-                        final aT = (a.data() as Map<String, dynamic>)['followedAt'];
-                        final bT = (b.data() as Map<String, dynamic>)['followedAt'];
+                    final sorted = [...docs]
+                      ..sort((a, b) {
+                        final aT =
+                            (a.data() as Map<String, dynamic>)['followedAt'];
+                        final bT =
+                            (b.data() as Map<String, dynamic>)['followedAt'];
                         if (aT == null && bT == null) return 0;
                         if (aT == null) return 1;
                         if (bT == null) return -1;
                         return (bT as Timestamp).compareTo(aT as Timestamp);
                       });
-                      
+
                     if (sorted.isEmpty) {
                       return Center(
                         child: Column(
@@ -2051,13 +2143,15 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                             Icon(
                               CupertinoIcons.person_badge_plus,
                               size: 52,
-                              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.2),
+                              color: (isDark ? Colors.white : Colors.black)
+                                  .withValues(alpha: 0.2),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               'Chưa có người theo dõi',
                               style: TextStyle(
-                                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.4),
+                                color: (isDark ? Colors.white : Colors.black)
+                                    .withValues(alpha: 0.4),
                                 fontSize: 15,
                               ),
                             ),
@@ -2065,7 +2159,7 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                         ),
                       );
                     }
-                    
+
                     return ListView.builder(
                       controller: scrollCtrl,
                       itemCount: sorted.length,
@@ -2073,28 +2167,42 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                       itemBuilder: (context, i) {
                         final d = sorted[i].data() as Map<String, dynamic>;
                         final followerId = d['followerId'] as String? ?? '';
-                        
+
                         final future = _userFutures.putIfAbsent(
-                          followerId, 
-                          () => FirebaseFirestore.instance.collection('users').doc(followerId).get(),
+                          followerId,
+                          () => FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(followerId)
+                              .get(),
                         );
-                        
+
                         return FutureBuilder<DocumentSnapshot>(
                           future: future,
                           builder: (ctx, userSnap) {
-                            final userData = userSnap.data?.data() as Map<String, dynamic>?;
-                            final name = userData?['username'] as String? ?? 
-                                userData?['displayName'] as String? ?? 
+                            final userData =
+                                userSnap.data?.data() as Map<String, dynamic>?;
+                            final name =
+                                userData?['username'] as String? ??
+                                userData?['displayName'] as String? ??
                                 'Người dùng';
-                            final avatar = userData?['avatarUrl'] as String? ?? '';
-                            
+                            final avatar =
+                                userData?['avatarUrl'] as String? ?? '';
+
                             return ListTile(
                               leading: CircleAvatar(
                                 radius: 22,
-                                backgroundColor: _kNeoOrange.withValues(alpha: 0.15),
-                                backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                                backgroundColor: _kNeoOrange.withValues(
+                                  alpha: 0.15,
+                                ),
+                                backgroundImage: avatar.isNotEmpty
+                                    ? NetworkImage(avatar)
+                                    : null,
                                 child: avatar.isEmpty
-                                    ? const Icon(CupertinoIcons.person_solid, color: _kNeoOrange, size: 22)
+                                    ? const Icon(
+                                        CupertinoIcons.person_solid,
+                                        color: _kNeoOrange,
+                                        size: 22,
+                                      )
                                     : null,
                               ),
                               title: Text(
@@ -2110,14 +2218,22 @@ class _MentorFollowerSheetState extends State<_MentorFollowerSheet> {
                                 size: 14,
                                 color: isDark ? Colors.white30 : Colors.black38,
                               ),
-                              onTap: (followerId.isNotEmpty && userSnap.hasData && userData != null)
+                              onTap:
+                                  (followerId.isNotEmpty &&
+                                      userSnap.hasData &&
+                                      userData != null)
                                   ? () {
-                                      final userModel = UserModel.fromMap(userData, followerId);
+                                      final userModel = UserModel.fromMap(
+                                        userData,
+                                        followerId,
+                                      );
                                       Navigator.pop(context);
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) => PeerProfileScreen(peerUser: userModel),
+                                          builder: (_) => PeerProfileScreen(
+                                            peerUser: userModel,
+                                          ),
                                         ),
                                       );
                                     }

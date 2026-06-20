@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import 'location_provider.dart';
 
@@ -19,6 +20,20 @@ class AuthProvider extends ChangeNotifier {
     _locationProvider = locationProvider;
   }
 
+  Future<void> _updateLocationAfterAuth(String userId) async {
+    final provider = _locationProvider;
+    if (provider == null) return;
+
+    if (kIsWeb) {
+      Future<void>(() async {
+        await provider.updateUserLocation(userId);
+      });
+      return;
+    }
+
+    await provider.updateUserLocation(userId);
+  }
+
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -36,9 +51,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
-        if (_locationProvider != null) {
-          await _locationProvider!.updateUserLocation(user.uid);
-        }
+        await _updateLocationAfterAuth(user.uid);
 
         return true;
       }
@@ -65,9 +78,7 @@ class AuthProvider extends ChangeNotifier {
       
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
-        if (_locationProvider != null) {
-          await _locationProvider!.updateUserLocation(user.uid);
-        }
+        await _updateLocationAfterAuth(user.uid);
         
         return true;
       }
@@ -94,9 +105,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
-        if (_locationProvider != null) {
-          await _locationProvider!.updateUserLocation(user.uid);
-        }
+        await _updateLocationAfterAuth(user.uid);
 
         return true;
       }
@@ -123,9 +132,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (user != null) {
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
-        if (_locationProvider != null) {
-          await _locationProvider!.updateUserLocation(user.uid);
-        }
+        await _updateLocationAfterAuth(user.uid);
 
         return true;
       }
@@ -161,9 +168,7 @@ class AuthProvider extends ChangeNotifier {
         _verificationId = null;
 
         // 2. Lấy và cập nhật vị trí (nếu có LocationProvider)
-        if (_locationProvider != null) {
-          await _locationProvider!.updateUserLocation(user.uid);
-        }
+        await _updateLocationAfterAuth(user.uid);
 
         return true;
       }

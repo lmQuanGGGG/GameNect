@@ -20,6 +20,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../../core/controllers/notification_controller.dart';
 import '../../../core/providers/mentor_provider.dart';
 import '../../../core/models/user_model.dart';
+import '../../../core/services/web_page_visibility.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../wallet/wallet_screen.dart';
 
@@ -33,8 +34,41 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   final Logger _logger = Logger('ProfilePage');
+  DateTime? _lastProfileRefreshAt;
+
+  Future<void> _refreshProfileState({bool force = false}) async {
+    if (!mounted) return;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null || userId.isEmpty) {
+      context.read<ProfileProvider>().clearUserProfile();
+      context.read<MentorProvider>().clearMyMentorProfile();
+      return;
+    }
+
+    final now = DateTime.now();
+    if (!force &&
+        _lastProfileRefreshAt != null &&
+        now.difference(_lastProfileRefreshAt!) < const Duration(seconds: 8)) {
+      return;
+    }
+    _lastProfileRefreshAt = now;
+
+    final profileProvider = context.read<ProfileProvider>();
+    final mentorProvider = context.read<MentorProvider>();
+    await Future.wait([
+      profileProvider.loadUserProfile(forceRefresh: force),
+      mentorProvider.loadMyMentorProfile(userId, forceRefresh: force),
+    ]);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshProfileState(force: true);
+    }
+  }
 
   // Widget hiển thị card quảng cáo Premium cho user Free
   // Liệt kê các tính năng Premium và nút nâng cấp
@@ -394,11 +428,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Consumer<MentorProvider>(
       builder: (context, mentorProvider, _) {
-        // Load nếu chưa load
-        if (mentorProvider.myMentorProfile == null) {
-          mentorProvider.loadMyMentorProfile(userId);
-        }
-
         final mentor = mentorProvider.myMentorProfile;
         final status = mentor?.status ?? 'none';
 
@@ -766,13 +795,23 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Load thông tin profile sau khi build frame đầu tiên nếu chưa có
+    WidgetsBinding.instance.addObserver(this);
+    // Load lại profile/quyền khi mở màn, đặc biệt cần cho web/PWA sau khi resume.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<ProfileProvider>();
-      if (provider.userData == null) {
-        provider.loadUserProfile();
-      }
+      _refreshProfileState(force: true);
     });
+    if (kIsWeb) {
+      WebPageVisibilityService.start(() => _refreshProfileState(force: true));
+    }
+  }
+
+  @override
+  void dispose() {
+    if (kIsWeb) {
+      WebPageVisibilityService.stop();
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   // Hàm test để request quyền location và lấy vị trí hiện tại
@@ -817,10 +856,14 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
 
-        // Cập nhật vị trí lên Firestore
+        // Cập nhật vị trí lên Firestore và tự động lưu cài đặt match
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           await locationProvider.updateUserLocation(user.uid);
+          await locationProvider.saveSettings(user.uid); // Tự động lưu settings
+          if (mounted) {
+            await context.read<ProfileProvider>().loadUserProfile(forceRefresh: true);
+          }
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -836,6 +879,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _handleLogout() async {
+    final authService = context.read<AuthService>();
+    final navigator = Navigator.of(context);
+    final profileProvider = context.read<ProfileProvider>();
+    final mentorProvider = context.read<MentorProvider>();
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -870,10 +917,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (shouldLogout == true) {
       if (!context.mounted) return;
-      final authService = Provider.of<AuthService>(context, listen: false);
+      profileProvider.clearUserProfile();
+      mentorProvider.clearMyMentorProfile();
       await authService.signOut();
       if (!context.mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
+      navigator.pushReplacementNamed('/login');
     }
   }
 
@@ -1027,10 +1075,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         backgroundColor: const Color(0xFF1A1A1E),
                         displacement: 20,
                         onRefresh: () async {
-                          await Provider.of<ProfileProvider>(
-                            context,
-                            listen: false,
-                          ).loadUserProfile();
+                          await _refreshProfileState(force: true);
                         },
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (n) {
