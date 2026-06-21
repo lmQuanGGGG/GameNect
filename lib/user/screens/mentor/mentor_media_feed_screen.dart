@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/network_image.dart';
 import 'dart:ui';
+import 'package:video_player/video_player.dart';
+import '../matching/home_screen.dart';
 import '../chat/video_player_bubble.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/video_warmup_service.dart';
@@ -105,6 +107,7 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final docsToDisplay = filteredDocs;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -251,7 +254,6 @@ class _MentorMediaFeedScreenState extends State<MentorMediaFeedScreen> {
                                   size: 20,
                                 ),
                                 onPressed: () {
-                                  _searchController.clear();
                                   setState(() {
                                     _searchQuery = '';
                                   });
@@ -773,12 +775,17 @@ class _MentorMediaFeedCardState extends State<MentorMediaFeedCard>
               children: [
                 GestureDetector(
                   onTap: () {
-                    if (currentUserId.isNotEmpty) {
-                      FirestoreService().toggleLikeMentorMedia(
-                        widget.doc.id,
-                        currentUserId,
+                    if (currentUserId.isEmpty) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
                       );
+                      return;
                     }
+                    FirestoreService().toggleLikeMentorMedia(
+                      widget.doc.id,
+                      currentUserId,
+                    );
                   },
                   child: Column(
                     children: [

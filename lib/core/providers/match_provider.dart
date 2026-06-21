@@ -20,6 +20,16 @@ class MatchProvider with ChangeNotifier {
   // Getter trả về trạng thái loading
   bool get isLoading => _isLoading;
 
+  void setRecommendations(List<UserModel> users) {
+    _recommendations = users;
+    notifyListeners();
+  }
+
+  void removeRecommendation(String userId) {
+    _recommendations.removeWhere((u) => u.id == userId);
+    notifyListeners();
+  }
+
   // Hàm lấy danh sách đề xuất người dùng dựa trên bộ lọc và gọi API recommend
   Future<void> fetchRecommendations(
     UserModel currentUser,

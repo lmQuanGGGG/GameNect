@@ -563,7 +563,7 @@ class _ProfileCardState extends State<ProfileCard> {
                       ListTile(
                         leading: const Icon(Icons.location_on, color: Color(0xFFFF6E40)),
                         title: Text(
-                          user.location,
+                          user.address ?? user.location,
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.textColor),
                         ),
                         contentPadding: EdgeInsets.zero,

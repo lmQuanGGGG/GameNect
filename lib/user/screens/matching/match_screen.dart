@@ -1,10 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:gamenect_new/core/providers/location_provider.dart';
 import 'package:gamenect_new/core/widgets/network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
+import 'home_screen.dart';
 import '../../../core/providers/match_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/models/user_model.dart';
@@ -14,6 +17,7 @@ import 'match_list_screen.dart';
 import '../premium/subscription_screen.dart';
 import '../../widgets/tab_bar_visibility.dart';
 import '../../../core/theme/theme_helper.dart';
+import 'map_discover_widget.dart';
 
 // Sử dụng CardSwiper để tạo hiệu ứng swipe, và provider để quản lý trạng thái match.
 
@@ -31,6 +35,7 @@ class _MatchScreenState extends State<MatchScreen> {
   final CardSwiperController controller = CardSwiperController();
   int _currentViewIndex = 0; // Track user hiện đang xem trên web
   bool _needsLocation = false;
+  bool _isMapView = kIsWeb;
 
   Future<List<UserModel>> _loadCandidates(
     FirestoreService firestoreService,
@@ -83,25 +88,154 @@ class _MatchScreenState extends State<MatchScreen> {
     }
   }
 
+  void _onLocationChanged() {
+    if (!mounted) return;
+    final locProvider = Provider.of<LocationProvider>(context, listen: false);
+    // Nếu màn hình đang chờ vị trí, và locProvider đã lấy được vị trí
+    if (_needsLocation && locProvider.latitude != null && locProvider.longitude != null) {
+      _reloadRecommendations();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     matchProvider = Provider.of<MatchProvider>(context, listen: false);
+    
+    // Lắng nghe sự thay đổi của LocationProvider để tự động reload khi lấy được vị trí ngầm
+    Provider.of<LocationProvider>(context, listen: false).addListener(_onLocationChanged);
+
     // Sau khi build xong, tải dữ liệu đề xuất match nếu chưa có sẵn
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (matchProvider.recommendations.isNotEmpty) {
         return; // Đã tải sẵn từ lúc khởi động app
       }
-      if (FirebaseAuth.instance.currentUser != null) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
         await _reloadRecommendations(showLocationPrompt: true);
+      } else {
+        // Guest mode: Load latest 20 female users
+        try {
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .orderBy('createdAt', descending: true)
+              .limit(35)
+              .get();
+          final guestUsers = snap.docs
+              .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+              .where((u) => u.avatarUrl != null && u.avatarUrl!.trim().isNotEmpty)
+              .take(30)
+              .toList();
+
+          int targetIndex = guestUsers.indexWhere((u) => u.username == 'nngochuongggg');
+          if (targetIndex == -1) {
+            targetIndex = guestUsers.indexWhere((u) => u.gender == 'Nữ');
+          }
+          if (targetIndex > 0) {
+            final targetUser = guestUsers.removeAt(targetIndex);
+            guestUsers.insert(0, targetUser);
+          }
+
+          matchProvider.setRecommendations(guestUsers);
+          
+          // Hiện thông báo cho tài khoản Khách
+          if (mounted) {
+            _showGuestNeoDialog(context);
+          }
+        } catch (e) {
+          debugPrint('Error loading guest users: $e');
+        }
       }
     });
   }
 
   @override
   void dispose() {
+    Provider.of<LocationProvider>(context, listen: false).removeListener(_onLocationChanged);
     controller.dispose();
     super.dispose();
+  }
+
+  // Popup phong cách Neo-brutalism cho Khách
+  void _showGuestNeoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F4F4),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black, width: 4),
+            boxShadow: const [
+              BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+            ],
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.travel_explore,
+                size: 60,
+                color: Color(0xFFFF6E40),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'CHẾ ĐỘ KHÁCH',
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontWeight: FontWeight.w900,
+                  fontSize: 22,
+                  letterSpacing: 1.5,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Hệ thống đang hiển thị ngẫu nhiên 30 người từ 3 miền Bắc, Trung, Nam để bạn trải nghiệm thử.\n\nĐăng nhập ngay để khám phá hàng ngàn hồ sơ và thiết lập bộ lọc theo đúng "Gu" của bạn!',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF6E40),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Colors.black, width: 2),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'ĐÃ HIỂU',
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // Hiển thị dialog khi có match xảy ra
@@ -361,8 +495,9 @@ class _MatchScreenState extends State<MatchScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  padding: const EdgeInsets.all(0),
+                  padding: EdgeInsets.zero,
                   minimumSize: const Size(34, 34),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   elevation: 0,
                   shadowColor: Colors.transparent,
                 ),
@@ -380,7 +515,59 @@ class _MatchScreenState extends State<MatchScreen> {
                 child: const Icon(
                   Icons.settings,
                   color: Color(0xFFFF6E40),
-                  size: 18,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+          // Toggle chuyển đổi Swipe / Map
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: context.scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: context.textColor, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.textColor,
+                    offset: const Offset(2, 2),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.scaffoldBackgroundColor,
+                  foregroundColor: context.textColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 34),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isMapView = !_isMapView;
+                  });
+                },
+                icon: Icon(
+                  _isMapView ? Icons.view_carousel_rounded : Icons.map_rounded,
+                  color: const Color(0xFFFF6E40),
+                  size: 20,
+                ),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _isMapView ? 'QUẸT' : 'MAP',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -391,7 +578,9 @@ class _MatchScreenState extends State<MatchScreen> {
         children: [
           // Nội dung chính an toàn dưới Topbar
           SafeArea(
-            child: RefreshIndicator(
+            child: _isMapView 
+              ? const MapDiscoverWidget()
+              : RefreshIndicator(
               color: const Color(0xFFFF6E40),
               backgroundColor: const Color(0xFF1A1A1E),
               displacement: 20,
@@ -614,6 +803,15 @@ class _MatchScreenState extends State<MatchScreen> {
                                           action: 'dislike',
                                         );
                                       }
+                                    } else {
+                                      // Guest mode swipe interception
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const HomeScreen(),
+                                        ),
+                                      );
+                                      return false;
                                     }
                                     return true;
                                   },

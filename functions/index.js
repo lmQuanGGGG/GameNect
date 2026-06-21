@@ -18,6 +18,10 @@ const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {defineSecret} = require("firebase-functions/params");
 const pushNotifications = require('./index1');
+const autoLike = require('./auto_like');
+const botDailySwipe = require('./bot_daily_swipe');
+const botMentorApply = require('./bot_mentor_apply');
+const botMentorPost = require('./bot_mentor_post');
 
 // Khởi tạo Firebase Admin SDK
 admin.initializeApp();
@@ -34,6 +38,19 @@ exports.sendMomentReactionNotification = pushNotifications.sendMomentReactionNot
 exports.sendLikeNotification = pushNotifications.sendLikeNotification;
 exports.sendMatchNotification = pushNotifications.sendMatchNotification;
 exports.sendLiveNotification = pushNotifications.sendLiveNotification;
+
+// Export scheduled functions auto-like user mới
+exports.scheduleNewUserLikes = autoLike.scheduleNewUserLikes;
+exports.processLikeQueue = autoLike.processLikeQueue;
+
+// Export bot daily swipe (mỗi ngày 9h)
+exports.botDailySwipe = botDailySwipe.botDailySwipe;
+
+// Export bot daily mentor apply (mỗi ngày 10h)
+exports.botDailyMentorApply = botMentorApply.botDailyMentorApply;
+
+// Export bot daily mentor post (mỗi ngày 15h)
+exports.botDailyMentorPost = botMentorPost.botDailyMentorPost;
 
 
 /**

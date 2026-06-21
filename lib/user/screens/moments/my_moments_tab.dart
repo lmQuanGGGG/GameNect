@@ -168,6 +168,35 @@ class MyMomentsTab extends StatelessWidget {
           );
         }
 
+        if (userId.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_rounded, size: 64, color: context.textSecondaryColor),
+                const SizedBox(height: 16),
+                Text(
+                  'Đăng nhập để xem khoảnh khắc của bạn',
+                  style: TextStyle(color: context.textColor, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () {
+                    Navigator.pushReplacementNamed(context, '/login');
+                  },
+                  child: const Text('Đăng nhập', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          );
+        }
+
         final myMoments = provider.moments
             .where((m) => m.userId == userId)
             .toList();

@@ -21,3 +21,8 @@ firebase_options.dart
 # ignore service account keys
 /service-account.json
 android/key.properties
+admin_scripts/
+
+# Security Keys & Mac OS
+*firebase-adminsdk*.json
+.DS_Store

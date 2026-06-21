@@ -380,7 +380,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
 
             final totalGamenectTestCount = gamenectTestUsers.length;
 
-            // ── HYBRID USERS: tạo tháng 3, KHÔNG phải testuser/gamenect.com ──
+            // ── HYBRID USERS: tạo từ 10/2025 - 03/2026, KHÔNG phải testuser/gamenect.com ──
             bool isHybridDoc(dynamic docRaw) {
               final doc = docRaw as QueryDocumentSnapshot;
               final data = doc.data() as Map<String, dynamic>;
@@ -390,7 +390,7 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
                   email.endsWith('@gamenect.com')) {
                 return false;
               }
-              // Phải được tạo vào tháng 3
+              // Phải được tạo từ 10/2025 đến 03/2026
               final createdAt = data['createdAt'];
               if (createdAt == null) return false;
               DateTime? dt;
@@ -399,7 +399,14 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
               } else if (createdAt is String) {
                 dt = DateTime.tryParse(createdAt);
               }
-              return dt != null && dt.month == 3;
+              if (dt == null) return false;
+              
+              if (dt.year == 2025 && dt.month >= 10) return true;
+              if (dt.year == 2026) {
+                if (dt.month <= 2) return true;
+                if (dt.month == 3 && dt.day <= 12) return true; // Lấy 40% của tháng 3 (từ mùng 1 đến 12)
+              }
+              return false;
             }
 
             final hybridUsers = allTestDocs.where(isHybridDoc).toList();
@@ -877,8 +884,8 @@ class _AdminTestUsersScreenState extends State<AdminTestUsersScreen> {
                     Expanded(
                       child: Text(
                         _selectedTab == _ListTab.test
-                            ? 'DANH SÁCH TEST USER (testuser*@gamenect.com)'
-                            : 'DANH SÁCH HYBRID USER (tạo tháng 3)',
+                            ? 'DANH SÁCH TEST USER (gamenect)'
+                            : 'DANH SÁCH HYBRID USER',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w900,

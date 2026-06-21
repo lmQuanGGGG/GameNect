@@ -97,6 +97,8 @@ class UserModel {
   // Trường mới
   double? distanceKm; // Khoảng cách đến user này (km)
   bool isAdmin; // Có phải admin không
+  bool isTestAccount; // Tài khoản dùng để test/bot
+  bool freezeLocation; // Có đóng băng vị trí không
   DateTime? premiumEndDate; // Thời điểm hết hạn premium
   String? premiumPlan; // Tên gói premium
   DateTime? premiumStartDate; // Thời điểm bắt đầu premium
@@ -175,6 +177,8 @@ class UserModel {
     this.gamingPlatforms = const [],
     this.distanceKm,
     this.isAdmin = false,
+    this.isTestAccount = false,
+    this.freezeLocation = false,
     this.premiumEndDate,
     this.premiumPlan,
     this.premiumStartDate,
@@ -299,6 +303,8 @@ class UserModel {
       'gamingPlatforms': gamingPlatforms,
       'distanceKm': distanceKm,
       'isAdmin': isAdmin,
+      'isTestAccount': isTestAccount,
+      'freezeLocation': freezeLocation,
       'premiumEndDate': premiumEndDate?.toIso8601String(),
       'premiumPlan': premiumPlan,
       'premiumStartDate': premiumStartDate?.toIso8601String(),
@@ -415,6 +421,8 @@ class UserModel {
       gamingPlatforms: List<String>.from(map['gamingPlatforms'] ?? []),
       distanceKm: map['distanceKm']?.toDouble(),
       isAdmin: map['isAdmin'] ?? false,
+      isTestAccount: map['isTestAccount'] ?? false,
+      freezeLocation: map['freezeLocation'] ?? false,
       premiumEndDate: map['premiumEndDate'] != null
           ? (map['premiumEndDate'] is Timestamp
                 ? (map['premiumEndDate'] as Timestamp).toDate()
@@ -469,6 +477,9 @@ class UserModel {
     String? interestedInGender,
     bool? isVerified,
     // Premium fields
+    bool? isAdmin,
+    bool? isTestAccount,
+    bool? freezeLocation,
     bool? isPremium,
     String? premiumPlan,
     DateTime? premiumStartDate,
@@ -507,6 +518,9 @@ class UserModel {
       maxAge: maxAge ?? this.maxAge,
       interestedInGender: interestedInGender ?? this.interestedInGender,
       isVerified: isVerified ?? this.isVerified,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isTestAccount: isTestAccount ?? this.isTestAccount,
+      freezeLocation: freezeLocation ?? this.freezeLocation,
       isPremium: isPremium ?? this.isPremium,
       premiumPlan: premiumPlan ?? this.premiumPlan,
       premiumStartDate: premiumStartDate ?? this.premiumStartDate,

@@ -41,6 +41,7 @@ import 'core/theme/app_theme.dart';
 import 'core/models/user_model.dart';
 import 'user/screens/matching/home_screen.dart';
 import 'user/screens/chat/chat_screen.dart';
+import 'user/screens/auth/login_screen.dart';
 
 import 'user/user_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1042,8 +1043,21 @@ class AuthWrapper extends StatelessWidget {
           });
         }
 
-        developer.log('No user logged in', name: 'Auth');
-        return const HomeScreen();
+        developer.log('No user logged in (Guest Mode)', name: 'Auth');
+        int? guestInitialIndex;
+        if (kIsWeb) {
+          final params = Uri.base.queryParameters;
+          if (params.isNotEmpty && params.containsKey('type')) {
+            final type = params['type'];
+            if (type == 'mentor_live') {
+              guestInitialIndex = 1;
+            } else if (type == 'moment_reaction' || type == 'like') {
+              // Redirect to login if trying to access restricted content directly
+              return const LoginScreen();
+            }
+          }
+        }
+        return UserApp(initialIndex: guestInitialIndex);
       },
     );
   }

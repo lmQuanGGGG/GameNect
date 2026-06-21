@@ -136,9 +136,78 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
     }
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, String userId) {
+    if (userId.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.grey.withValues(alpha: 0.2),
+                      Colors.grey.withValues(alpha: 0.1),
+                    ],
+                  ),
+                ),
+                child: Icon(
+                  Icons.login_rounded,
+                  size: 80,
+                  color: context.textColor.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'Đăng nhập để xem Khoảnh khắc',
+                style: TextStyle(
+                  color: context.textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 50),
+                child: Text(
+                  'Xem và chia sẻ những khoảnh khắc thú vị cùng bạn bè.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: context.textSecondaryColor, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                icon: const Icon(Icons.login_rounded),
+                label: const Text(
+                  'Đăng nhập ngay',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
-      child: Column(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
@@ -199,6 +268,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -318,7 +388,10 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                         ),
                       )
                     else
-                      SliverFillRemaining(child: _buildEmptyState(context)),
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _buildEmptyState(context, userId),
+                      ),
                   ],
                 );
               } else {
@@ -336,7 +409,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                     itemBuilder: (context, index) {
                       if (index == 0) return const DiscoverHubPage();
                       if (!hasMoments && index == 1) {
-                        return _buildEmptyState(context);
+                        return _buildEmptyState(context, userId);
                       }
                       return MomentCard(
                         key: ValueKey(provider.moments[index - 1].id),

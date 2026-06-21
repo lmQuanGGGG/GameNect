@@ -127,7 +127,83 @@ class _MatchListScreenState extends State<MatchListScreen> {
     if (_matchStream == null ||
         _currentUserId == null ||
         _currentUserId!.isEmpty) {
-      return const Scaffold(body: Center(child: Text('Vui lòng đăng nhập')));
+      return Scaffold(
+        backgroundColor: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F4F4),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.black, width: 4),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+                ],
+              ),
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_person_rounded,
+                    size: 80,
+                    color: Color(0xFFFF6E40),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Dành Cho Thành Viên',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Đăng nhập để xem tin nhắn và trò chuyện cùng các Tương hợp của bạn nhé!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context, rootNavigator: true)
+                          .pushReplacementNamed('/login');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6E40),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.black, width: 3),
+                      ),
+                      elevation: 0,
+                    ).copyWith(
+                      overlayColor: MaterialStateProperty.resolveWith(
+                        (states) => Colors.black12,
+                      ),
+                    ),
+                    child: const Text(
+                      'ĐĂNG NHẬP NGAY',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(

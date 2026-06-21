@@ -191,10 +191,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     children: [
                       // Camera shortcut button
                       GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
-                        ),
+                        onTap: () {
+                          if (FirebaseAuth.instance.currentUser == null) {
+                            Navigator.pushReplacementNamed(context, '/login');
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
+                            );
+                          }
+                        },
                         child: Container(
                           width: 56,
                           height: 56,

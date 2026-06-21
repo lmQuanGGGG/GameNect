@@ -56,7 +56,14 @@ class _LikedMeScreenState extends State<LikedMeScreen>
   // Setup stream để lắng nghe realtime và cập nhật thời gian xem likes
   Future<void> _initializeData() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    if (userId == null) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+      return;
+    }
 
     // Cập nhật thời gian xem likes cuối cùng để reset badge
     await FirebaseFirestore.instance.collection('users').doc(userId).update({
@@ -827,6 +834,71 @@ class _LikedMeScreenState extends State<LikedMeScreen>
         ),
         body: const Center(
           child: CircularProgressIndicator(color: Color(0xFFFF6E40)),
+        ),
+      );
+    }
+
+    if (currentUserId == null) {
+      return Scaffold(
+        backgroundColor: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 12.0),
+                child: Icon(
+                  Icons.sports_esports,
+                  color: Color(0xFFFF6E40),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'gamenect',
+                style: TextStyle(
+                  color: context.textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  shadows: [
+                    Shadow(
+                      color: const Color(0xFFFF6E40).withValues(alpha: 0.5),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.favorite_border,
+                size: 100,
+                color: Colors.grey[300],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Đăng nhập để xem lượt thích',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text('Đăng nhập'),
+              ),
+            ],
+          ),
         ),
       );
     }

@@ -6,6 +6,9 @@ import '../../../core/theme/theme_helper.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/firestore_service.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/match_provider.dart';
+import '../matching/home_screen.dart';
 
 /// Màn hình xem profile người khác — Liquid Glass Dark Premium
 /// Dùng chung cho: Chat, Lượt thích, Bỏ lỡ, Kết quả tìm kiếm...
@@ -123,72 +126,138 @@ class PeerProfileScreen extends StatelessWidget {
               child: ProfileCard(user: peerUser),
             ),
           ),
-          // Nút Like
+          // Nút Dislike và Like
           if (showActions)
             Positioned(
               bottom: 40,
               left: 0,
               right: 0,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: context.textColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: context.textColor, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: context.textColor,
-                        offset: const Offset(4, 4),
-                      ),
-                    ],
-                  ),
-                  child: FloatingActionButton.extended(
-                    heroTag: null,
-                    onPressed: () async {
-                      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                      if (currentUserId == null) return;
-
-                      final firestoreService = FirestoreService();
-                      await firestoreService.saveSwipeHistory(
-                        userId: currentUserId, 
-                        targetUserId: peerUser.id, 
-                        action: 'like'
-                      );
-
-                      final isMutual = await firestoreService.checkMutualLike(
-                        userId: currentUserId, 
-                        targetUserId: peerUser.id
-                      );
-
-                      if (isMutual) {
-                        await firestoreService.createNewMatch(
-                          userIds: [currentUserId, peerUser.id],
-                          game: 'Gamenect',
-                        );
-                      }
-                      
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        if (isMutual) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('🎉 Đã Match thành công!')),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Đã gửi lượt thích 💖')),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Nút Dislike (X)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: context.scaffoldBackgroundColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: context.textColor, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.textColor,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      iconSize: 36,
+                      padding: const EdgeInsets.all(16),
+                      icon: const Icon(Icons.close, color: Colors.grey),
+                      onPressed: () async {
+                        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                        if (currentUserId == null) {
+                          // Chặn Khách
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            );
+                          }
+                          return;
+                        }
+                        
+                        if (currentUserId != null) {
+                          await FirestoreService().saveSwipeHistory(
+                            userId: currentUserId,
+                            targetUserId: peerUser.id,
+                            action: 'dislike'
                           );
                         }
-                      }
-                    },
-                    backgroundColor: context.textColor,
-                    icon: const Icon(Icons.favorite, color: Color(0xFFFF6E40)),
-                    label: Text('Thích', style: TextStyle(color: context.scaffoldBackgroundColor, fontWeight: FontWeight.w900, fontSize: 16)),
-                    elevation: 0,
-                    highlightElevation: 0,
-                    hoverElevation: 0,
-                    focusElevation: 0,
+                        
+                        if (context.mounted) {
+                          try {
+                            Provider.of<MatchProvider>(context, listen: false)
+                                .removeRecommendation(peerUser.id);
+                          } catch (_) {}
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 32),
+                  // Nút Like (Heart)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: context.textColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: context.textColor, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.textColor,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
+                    ),
+                    child: FloatingActionButton.extended(
+                      heroTag: null,
+                      onPressed: () async {
+                        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                        if (currentUserId == null) {
+                          // Chặn Khách
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            );
+                          }
+                          return;
+                        }
+
+                        final firestoreService = FirestoreService();
+                        await firestoreService.saveSwipeHistory(
+                          userId: currentUserId, 
+                          targetUserId: peerUser.id, 
+                          action: 'like'
+                        );
+
+                        final isMutual = await firestoreService.checkMutualLike(
+                          userId: currentUserId, 
+                          targetUserId: peerUser.id
+                        );
+
+                        if (isMutual) {
+                          await firestoreService.createNewMatch(
+                            userIds: [currentUserId, peerUser.id],
+                            game: 'Gamenect',
+                          );
+                        }
+                        
+                        if (context.mounted) {
+                          try {
+                            Provider.of<MatchProvider>(context, listen: false)
+                                .removeRecommendation(peerUser.id);
+                          } catch (_) {}
+                          Navigator.pop(context);
+                          if (isMutual) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('🎉 Đã Match thành công!')),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã gửi lượt thích 💖')),
+                            );
+                          }
+                        }
+                      },
+                      backgroundColor: context.textColor,
+                      icon: const Icon(Icons.favorite, color: Color(0xFFFF6E40)),
+                      label: Text('Thích', style: TextStyle(color: context.scaffoldBackgroundColor, fontWeight: FontWeight.w900, fontSize: 16)),
+                      elevation: 0,
+                      highlightElevation: 0,
+                      hoverElevation: 0,
+                      focusElevation: 0,
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

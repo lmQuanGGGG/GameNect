@@ -728,9 +728,11 @@ class _MentorPostPreviewCardState extends State<MentorPostPreviewCard> {
     return GestureDetector(
       onTap: () {
         final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-        if (userId.isNotEmpty) {
-          FirestoreService().toggleLikeMentorMedia(postId, userId);
+        if (userId.isEmpty) {
+          Navigator.pushReplacementNamed(context, '/login');
+          return;
         }
+        FirestoreService().toggleLikeMentorMedia(postId, userId);
       },
       child: Container(
         height: 42,

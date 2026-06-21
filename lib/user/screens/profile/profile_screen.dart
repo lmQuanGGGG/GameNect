@@ -8,6 +8,7 @@ import '../../../core/providers/location_provider.dart';
 import '../../../core/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'edit_profile_screen.dart';
+import '../matching/home_screen.dart';
 import '../settings/location_settings_screen.dart';
 import '../../../admin/admin_app.dart';
 import 'package:logging/logging.dart';
@@ -1903,34 +1904,39 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
 
   // Widget hiển thị empty state khi chưa có profile
   Widget _buildEmptyState() {
+    final isGuest = FirebaseAuth.instance.currentUser == null;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            CupertinoIcons.person_circle,
+            isGuest ? CupertinoIcons.person_circle : CupertinoIcons.person_badge_plus,
             size: 100,
             color: Colors.grey[300],
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Chưa có thông tin hồ sơ',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+          Text(
+            isGuest ? 'Đăng nhập để xem hồ sơ' : 'Chưa có thông tin hồ sơ',
+            style: const TextStyle(fontSize: 18, color: Colors.grey),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
-              // Mở màn hình tạo profile
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
+              if (isGuest) {
+                Navigator.pushReplacementNamed(context, '/login');
+              } else {
+                // Mở màn hình tạo profile
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepOrange,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
-            child: const Text('Tạo hồ sơ'),
+            child: Text(isGuest ? 'Đăng nhập' : 'Tạo hồ sơ'),
           ),
         ],
       ),

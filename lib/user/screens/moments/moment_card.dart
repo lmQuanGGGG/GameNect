@@ -9,6 +9,7 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/firestore_service.dart';
 import '../camera/camera_capture_screen.dart';
 import 'video_player_widget.dart';
+import '../matching/home_screen.dart';
 
 /// Widget hiển thị chi tiết một moment với video/ảnh fullscreen,
 /// thông tin user, reactions và action buttons (react, camera reply, send message).
@@ -81,6 +82,13 @@ class _MomentCardState extends State<MomentCard>
   }
 
   void _quickReact(BuildContext context, String momentId, String userId) {
+    if (userId.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
     Provider.of<MomentProvider>(
       context,
       listen: false,
@@ -105,6 +113,13 @@ class _MomentCardState extends State<MomentCard>
     String momentId,
     String userId,
   ) {
+    if (userId.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -182,6 +197,13 @@ class _MomentCardState extends State<MomentCard>
   }
 
   void _showReplyDialog(BuildContext context, String momentId, String userId) {
+    if (userId.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
     final controller = TextEditingController();
     showDialog(
       context: context,

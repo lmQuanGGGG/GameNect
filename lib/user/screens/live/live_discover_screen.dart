@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../core/services/firestore_service.dart';
+import '../matching/home_screen.dart';
 import '../../../core/providers/livestream_provider.dart';
 import '../../../core/providers/mentor_provider.dart';
 import '../../../core/models/livestream_model.dart';
@@ -933,7 +935,14 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                 if (!isSelf)
                   GestureDetector(
                     onTap: () async {
-                      if (_isChecking || currentUserId == null) return;
+                      if (_isChecking) return;
+                      if (currentUserId == null || currentUserId.isEmpty) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        );
+                        return;
+                      }
                       final mentorProvider = context.read<MentorProvider>();
                       setState(() => _isFollowing = !_isFollowing);
                       if (_isFollowing) {

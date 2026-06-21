@@ -135,7 +135,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
 
   Future<void> _toggleFollow() async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null || widget.mentorId == currentUserId) return;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+    if (widget.mentorId == currentUserId) return;
 
     final mentorProvider = context.read<MentorProvider>();
     setState(() => _isFollowing = !_isFollowing);
@@ -159,6 +163,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
   void _showMatchRequestSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (currentUserId == null || currentUserId.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
 
     if (widget.mentorId == currentUserId) return;
 
@@ -301,6 +310,11 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
   }
 
   void _showRatingDialog() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     double selectedRating = 5.0;
     final commentCtrl = TextEditingController();

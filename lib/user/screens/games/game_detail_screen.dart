@@ -8,6 +8,7 @@ import '../../../core/providers/game_provider.dart';
 import '../../../core/providers/match_provider.dart';
 import '../../../core/providers/chat_provider.dart';
 import '../../../core/models/game_model.dart';
+import '../matching/home_screen.dart';
 
 class GameDetailScreen extends StatefulWidget {
   final int gameId;
@@ -453,7 +454,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
   void _showShareBottomSheet(BuildContext context, GameDetailModel game) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
