@@ -1,0 +1,210 @@
+--- lib/user/screens/camera/camera_preview_view.dart
++++ lib/user/screens/camera/camera_preview_view.dart
+@@ -5,6 +5,7 @@
+ import 'dart:io';
+ import 'package:camera/camera.dart';
+ import 'package:flutter/foundation.dart';
++import 'package:video_player/video_player.dart';
+ 
+ const _kNeoAccent = Color(0xFFFF6E40);
+ const _kNeoYellow = Color(0xFFFFD54F);
+@@ -11,7 +12,7 @@
+-class CameraPreviewView extends StatelessWidget {
++class CameraPreviewView extends StatefulWidget {
+   final bool isVideo;
+   final String? localThumbnailPath;
+   final bool isGeneratingThumbnail;
+@@ -37,7 +38,36 @@
+   });
+ 
+   @override
++  State<CameraPreviewView> createState() => _CameraPreviewViewState();
++}
++
++class _CameraPreviewViewState extends State<CameraPreviewView> {
++  VideoPlayerController? _videoController;
++
++  @override
++  void initState() {
++    super.initState();
++    if (widget.isVideo && widget.capturedMedia != null) {
++      if (kIsWeb) {
++        _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.capturedMedia!.path));
++      } else {
++        _videoController = VideoPlayerController.file(File(widget.capturedMedia!.path));
++      }
++      _videoController!.initialize().then((_) {
++        if (mounted) {
++          setState(() {});
++          _videoController!.setLooping(true);
++          _videoController!.play();
++        }
++      });
++    }
++  }
++
++  @override
++  void dispose() {
++    _videoController?.dispose();
++    super.dispose();
++  }
++
++  @override
+   Widget build(BuildContext context) {
+-    if (capturedMedia == null) return const SizedBox.shrink();
++    if (widget.capturedMedia == null) return const SizedBox.shrink();
+@@ -80,7 +110,7 @@
+                           ClipRRect(
+                             borderRadius: BorderRadius.circular(28),
+-                            child: isVideo
++                            child: widget.isVideo
+                                 ? _buildVideoPreview()
+                                 : _buildImagePreview(),
+                           ),
+@@ -93,7 +123,7 @@
+                             child: _NeoBtn(
+                               icon: Icons.close_rounded,
+                               bgColor: Colors.white,
+-                              onTap: onClose,
++                              onTap: widget.onClose,
+                             ),
+                           ),
+ 
+@@ -98,12 +128,12 @@
+                           // Nút Lật ảnh (chỉ hiển thị nếu không phải video)
+-                          if (!isVideo)
++                          if (!widget.isVideo)
+                             Positioned(
+                               top: 16,
+                               right: 16,
+                               child: _NeoBtn(
+                                 icon: Icons.flip_rounded,
+-                                bgColor: isMirrored
++                                bgColor: widget.isMirrored
+                                     ? _kNeoYellow
+                                     : Colors.white,
+-                                onTap: onToggleMirror,
++                                onTap: widget.onToggleMirror,
+                               ),
+@@ -131,7 +161,7 @@
+                       Expanded(
+                         child: GestureDetector(
+-                          onTap: onRetake,
++                          onTap: widget.onRetake,
+                           child: Container(
+                             padding: const EdgeInsets.symmetric(vertical: 18),
+@@ -172,7 +202,7 @@
+                       Expanded(
+                         child: GestureDetector(
+-                          onTap: onPost,
++                          onTap: widget.onPost,
+                           child: Container(
+                             padding: const EdgeInsets.symmetric(vertical: 18),
+@@ -223,7 +253,7 @@
+     if (kIsWeb) {
+-      imageWidget = Image.network(capturedMedia!.path, fit: BoxFit.cover);
++      imageWidget = Image.network(widget.capturedMedia!.path, fit: BoxFit.cover);
+     } else {
+-      imageWidget = Image.file(File(capturedMedia!.path), fit: BoxFit.cover);
++      imageWidget = Image.file(File(widget.capturedMedia!.path), fit: BoxFit.cover);
+     }
+@@ -242,7 +272,7 @@
+ 
+-    if (isMirrored) {
++    if (widget.isMirrored) {
+       processedImage = Transform(
+@@ -255,27 +285,16 @@
+   Widget _buildVideoPreview() {
+-    if (localThumbnailPath != null) {
++    if (_videoController != null && _videoController!.value.isInitialized) {
+       return Stack(
+         fit: StackFit.expand,
+         children: [
+-          Image.file(File(localThumbnailPath!), fit: BoxFit.cover),
+-          // Nút Play Video Neo-Brutalism
+-          Center(
+-            child: Container(
+-              width: 80,
+-              height: 80,
+-              decoration: BoxDecoration(
+-                color: _kNeoYellow,
+-                shape: BoxShape.circle,
+-                border: Border.all(color: Colors.black, width: 4),
+-                boxShadow: const [
+-                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+-                ],
+-              ),
+-              child: const Icon(
+-                CupertinoIcons.play_fill,
+-                color: Colors.black,
+-                size: 36,
+-              ),
++          FittedBox(
++            fit: BoxFit.cover,
++            child: SizedBox(
++              width: _videoController!.value.size.width,
++              height: _videoController!.value.size.height,
++              child: VideoPlayer(_videoController!),
+             ),
+           ),
+         ],
+       );
+     }
+ 
+-    if (widget.localThumbnailPath != null) {
+-      return Stack(
+-        fit: StackFit.expand,
+-        children: [
+-          Image.file(File(widget.localThumbnailPath!), fit: BoxFit.cover),
+-          Center(
+-            child: Container(
+-              width: 80,
+-              height: 80,
+-              decoration: BoxDecoration(
+-                color: _kNeoYellow,
+-                shape: BoxShape.circle,
+-                border: Border.all(color: Colors.black, width: 4),
+-                boxShadow: const [
+-                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+-                ],
+-              ),
+-              child: const Icon(
+-                CupertinoIcons.play_fill,
+-                color: Colors.black,
+-                size: 36,
+-              ),
+-            ),
+-          ),
+-        ],
+-      );
+-    }
+-
+     // Trạng thái đang load hoặc xử lý video
+     return Container(
+       color: Colors.black,
+@@ -291,14 +310,14 @@
+             if (widget.isGeneratingThumbnail)
+               const CircularProgressIndicator(
+                 color: _kNeoAccent,
+                 strokeWidth: 4,
+               )
+             else
+               const Icon(
+                 CupertinoIcons.videocam_fill,
+                 color: Colors.white,
+                 size: 64,
+               ),
+             const SizedBox(height: 24),
+             Container(
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+               decoration: BoxDecoration(
+                 color: Colors.white,
+                 border: Border.all(color: Colors.black, width: 2),
+                 boxShadow: const [
+                   BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                 ],
+                 borderRadius: BorderRadius.circular(8),
+               ),
+               child: Text(
+                 widget.isGeneratingThumbnail ? 'ĐANG XỬ LÝ...' : 'VIDEO ĐÃ QUAY',
+                 style: const TextStyle(

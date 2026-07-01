@@ -540,4 +540,37 @@ extension ChatServiceExtension on FirestoreService {
       'lastMessageRead': false,
     });
   }
+
+  // Chia sẻ Mentor Post vào đoạn chat
+  Future<void> sendMentorPostMessage({
+    required String matchId,
+    required String postId,
+    required String previewUrl,
+    required bool isVideo,
+    required String mentorName,
+    UserModel? peerUser,
+  }) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(matchId)
+        .collection('messages')
+        .add({
+          'senderId': userId,
+          'type': 'mentor_post',
+          'postId': postId,
+          'previewUrl': previewUrl,
+          'isVideo': isVideo,
+          'mentorName': mentorName,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+    await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
+      'lastMessage': 'Đã chia sẻ một bài viết Mentor',
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'lastMessageSenderId': userId,
+      'lastMessageRead': false,
+    });
+  }
 }

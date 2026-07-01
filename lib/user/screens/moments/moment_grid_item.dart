@@ -63,7 +63,7 @@ class _MomentGridItemState extends State<MomentGridItem>
           decoration: BoxDecoration(
             color: Colors.black,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: Colors.white, width: 4),
+            border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: const [
               BoxShadow(
                 color: Colors.white24,
@@ -110,9 +110,9 @@ class _MomentGridItemState extends State<MomentGridItem>
         decoration: BoxDecoration(
           color: const Color(0xFFF4F4F4),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black, width: 3),
+          border: Border.all(color: Colors.black, width: 1.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+            BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: ClipRRect(
@@ -159,7 +159,7 @@ class _MomentGridItemState extends State<MomentGridItem>
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     border: Border(
-                      top: BorderSide(color: Colors.black, width: 3),
+                      top: BorderSide(color: Colors.black, width: 1.5),
                     ),
                   ),
                 ),
@@ -178,16 +178,16 @@ class _MomentGridItemState extends State<MomentGridItem>
                     decoration: BoxDecoration(
                       color: Colors.white, // White
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.black, width: 2),
+                      border: Border.all(color: Colors.black, width: 1.5),
                       boxShadow: const [
-                        BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                        BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                       ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text('❤️', style: TextStyle(fontSize: 12)),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 1.5),
                         Text(
                           '${widget.moment.reactions.length}',
                           style: const TextStyle(
@@ -221,7 +221,7 @@ class _MomentGridItemState extends State<MomentGridItem>
                           Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.black, width: 2),
+                              border: Border.all(color: Colors.black, width: 1.5),
                             ),
                             child: CircleAvatar(
                               radius: 14,

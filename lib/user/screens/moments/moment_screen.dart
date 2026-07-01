@@ -6,13 +6,19 @@ import 'dart:ui';
 import '../../../core/providers/moment_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/mentor_provider.dart';
+import '../../../core/providers/match_provider.dart';
 import '../premium/subscription_screen.dart';
 import '../../../core/theme/theme_helper.dart';
 
 // Sub-widgets (tách ra theo từng file để dễ bảo trì)
 import 'moment_feed_tab.dart';
 import 'my_moments_tab.dart';
+import '../matching/match_list_screen.dart';
+import '../chat/chat_screen.dart';
+import '../main/main_screen.dart';
+import '../../../core/models/user_model.dart';
 import '../../widgets/tab_bar_visibility.dart';
+import 'suggested_mentors_sidebar.dart';
 export 'moment_card.dart';
 export 'video_player_widget.dart';
 
@@ -32,6 +38,9 @@ class MomentScreen extends StatefulWidget {
 class _MomentScreenState extends State<MomentScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  UserModel? _selectedChatUser;
+  String? _selectedMatchId;
+  bool _isChatPopupOpen = false;
 
   @override
   void initState() {
@@ -65,31 +74,17 @@ class _MomentScreenState extends State<MomentScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.scaffoldBackgroundColor,
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // Content — 3 tabs
-          NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              TabBarVisibility.of(context).update(notification);
-              return false;
-            },
-            child: TabBarView(
-              controller: _tabController,
-              children: const [MomentFeedTab(), MyMomentsTab()],
-            ),
-          ),
-
-          // Neo-Brutalism header (logo + tab bar)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
+      extendBodyBehindAppBar: false,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Neo-Brutalism header (logo + tab bar)
+            Container(
               decoration: BoxDecoration(
                 color: context.appBarBgColor,
                 border: Border(
-                  bottom: BorderSide(color: context.textColor, width: 3),
+                  bottom: BorderSide(color: context.textColor, width: 1.5),
                 ),
               ),
               child: SafeArea(
@@ -151,12 +146,12 @@ class _MomentScreenState extends State<MomentScreen>
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: context.textColor,
-                                          width: 3,
+                                          width: 1.5,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
                                             color: context.textColor,
-                                            offset: const Offset(4, 4),
+                                            offset: const Offset(1.5, 1.5),
                                           ),
                                         ],
                                       ),
@@ -168,9 +163,9 @@ class _MomentScreenState extends State<MomentScreen>
                                             color: Color(0xFFFF6E40),
                                             size: 18,
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 1.5),
                                           Text(
-                                            'Premium',
+                                            'Pre',
                                             style: TextStyle(
                                               color: context
                                                   .scaffoldBackgroundColor,
@@ -245,8 +240,295 @@ class _MomentScreenState extends State<MomentScreen>
                 ),
               ),
             ),
-          ),
-        ],
+            
+            // Content — 3 tabs
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  TabBarVisibility.of(context).update(notification);
+                  return false;
+                },
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final bool isLargeScreen = constraints.maxWidth >= 1000;
+                    
+                    Widget feedContent = TabBarView(
+                      controller: _tabController,
+                      children: const [MomentFeedTab(), MyMomentsTab()],
+                    );
+
+                    if (isLargeScreen) {
+                      // Instagram style: Centered feed, specific max width
+                      feedContent = Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 700),
+                            child: feedContent,
+                          ),
+                          if (constraints.maxWidth >= 1100) ...[
+                            const SizedBox(width: 40),
+                            const SizedBox(
+                              width: 320,
+                              child: SuggestedMentorsSidebar(),
+                            ),
+                          ],
+                        ],
+                      );
+
+                      return Stack(
+                        children: [
+                          feedContent,
+                          
+                          // Floating Chat Popup & Button
+                          Positioned(
+                            bottom: 104,
+                            right: 88,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Chat Popup Window
+                                if (_isChatPopupOpen)
+                                  Container(
+                                    width: 380,
+                                    height: 550,
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: context.scaffoldBackgroundColor,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: context.textColor,
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: context.textColor,
+                                          offset: const Offset(1.5, 1.5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(13),
+                                      child: Column(
+                                        children: [
+                                          // Popup Header
+                                          Container(
+                                            height: 48,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                                            decoration: BoxDecoration(
+                                              color: context.scaffoldBackgroundColor,
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: context.textColor,
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Tin nhắn',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 15,
+                                                    color: context.textColor,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  icon: Icon(
+                                                    Icons.open_in_full_rounded,
+                                                    size: 20,
+                                                    color: context.textColor,
+                                                  ),
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(),
+                                                  onPressed: () {
+                                                    // Chuyển sang tab Tin nhắn
+                                                    mainScreenTabIndex.value = 3;
+                                                    setState(() {
+                                                      _isChatPopupOpen = false;
+                                                    });
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // Popup Content
+                                          Expanded(
+                                            child: _selectedChatUser != null && _selectedMatchId != null
+                                                ? ChatScreen(
+                                                    matchId: _selectedMatchId!,
+                                                    peerUser: _selectedChatUser!,
+                                                    showBackButton: true,
+                                                    isPopup: true,
+                                                    onBack: () {
+                                                      setState(() {
+                                                        _selectedChatUser = null;
+                                                        _selectedMatchId = null;
+                                                      });
+                                                    },
+                                                  )
+                                                : MatchListScreen(
+                                                    hideAppBar: true,
+                                                    isSidebarMode: true,
+                                                    onChatSelected: (user, matchId) {
+                                                      setState(() {
+                                                        _selectedChatUser = user;
+                                                        _selectedMatchId = matchId;
+                                                      });
+                                                    },
+                                                  ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                // Floating Action Button (Tin nhắn)
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _isChatPopupOpen = !_isChatPopupOpen;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: context.scaffoldBackgroundColor,
+                                      borderRadius: BorderRadius.circular(30),
+                                      border: Border.all(
+                                        color: context.textColor,
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: context.textColor,
+                                          offset: const Offset(1.5, 1.5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: StreamBuilder<List<Map<String, dynamic>>>(
+                                      stream: Provider.of<MatchProvider>(context, listen: false)
+                                          .matchedUsersStream(FirebaseAuth.instance.currentUser?.uid ?? ''),
+                                      builder: (context, snapshot) {
+                                        final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                                        int unreadCount = 0;
+                                        List<String?> avatarUrls = [];
+
+                                        if (snapshot.hasData && snapshot.data != null) {
+                                          final matches = snapshot.data!;
+                                          final unreadMatches = matches.where((m) => 
+                                            m['lastMessageRead'] == false && 
+                                            m['lastMessageSenderId'] != currentUserId && 
+                                            m['lastMessageSenderId'] != ''
+                                          ).toList();
+                                          unreadCount = unreadMatches.length;
+
+                                          if (unreadCount > 0) {
+                                            for (int i = 0; i < unreadMatches.length && i < 3; i++) {
+                                              final unread = unreadMatches[i];
+                                              if (unread['user'] != null && unread['user'] is UserModel) {
+                                                avatarUrls.add((unread['user'] as UserModel).avatarUrl);
+                                              }
+                                            }
+                                          }
+                                        }
+
+                                        return Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (_isChatPopupOpen)
+                                              Icon(
+                                                Icons.close_rounded,
+                                                color: context.textColor,
+                                                size: 24,
+                                              )
+                                            else if (unreadCount > 0)
+                                              SizedBox(
+                                                width: 24.0 + (avatarUrls.length > 1 ? (avatarUrls.length - 1) * 14.0 : 0),
+                                                height: 24,
+                                                child: Stack(
+                                                  clipBehavior: Clip.none,
+                                                  children: [
+                                                    for (int i = avatarUrls.length - 1; i >= 0; i--)
+                                                      Positioned(
+                                                        left: i * 14.0,
+                                                        child: Container(
+                                                          decoration: BoxDecoration(
+                                                            shape: BoxShape.circle,
+                                                            border: Border.all(color: context.scaffoldBackgroundColor, width: 1.5),
+                                                          ),
+                                                          child: CircleAvatar(
+                                                            radius: 11, // Slightly smaller to account for border
+                                                            backgroundColor: context.scaffoldBackgroundColor,
+                                                            backgroundImage: avatarUrls[i] != null ? NetworkImage(avatarUrls[i]!) : null,
+                                                            child: avatarUrls[i] == null 
+                                                                ? Icon(Icons.person, size: 14, color: context.textColor)
+                                                                : null,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    Positioned(
+                                                      right: -6,
+                                                      top: -6,
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(4),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFFFF6E40), // Bright red/orange
+                                                          shape: BoxShape.circle,
+                                                          border: Border.all(color: context.textColor, width: 1.5),
+                                                        ),
+                                                        child: Text(
+                                                          unreadCount > 9 ? '9+' : unreadCount.toString(),
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 8,
+                                                            fontWeight: FontWeight.w900,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              )
+                                            else
+                                              Icon(
+                                                Icons.send_rounded,
+                                                color: context.textColor,
+                                                size: 24,
+                                              ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              _isChatPopupOpen ? 'Đóng' : 'Tin nhắn',
+                                              style: TextStyle(
+                                                color: context.textColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    
+                    return feedContent;
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

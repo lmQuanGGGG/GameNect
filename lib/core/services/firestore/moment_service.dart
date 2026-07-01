@@ -53,6 +53,7 @@ extension MomentServiceExtension on FirestoreService {
     required List<String> matchIds,
     String? caption,
     String? thumbnailUrl,
+    bool isMirrored = false,
   }) async {
     if (!await canPostMoment(userId, isVideo: isVideo)) {
       throw Exception(isVideo ? 'VIDEO_LIMIT_EXCEEDED' : 'LIMIT_EXCEEDED');
@@ -77,6 +78,7 @@ extension MomentServiceExtension on FirestoreService {
         'reactions': [],
         'replies': [],
         'caption': caption,
+        'isMirrored': isMirrored,
       });
 
       developer.log(

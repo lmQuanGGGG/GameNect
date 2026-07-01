@@ -962,36 +962,41 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
             )
           : SafeArea(
               bottom: false,
-              child: Stack(
-                children: [
-                  // Scrollable content
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 80, 16, 120),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildAvatarCard(),
-                        const SizedBox(height: 24),
-                        _buildStatsGrid(isSelf),
-                        const SizedBox(height: 24),
-                        _buildTabs(),
-                        const SizedBox(height: 24),
-                        _buildTabContent(),
-                      ],
-                    ),
-                  ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Stack(
+                    children: [
+                      // Scrollable content
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 80, 16, 120),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildAvatarCard(),
+                            const SizedBox(height: 24),
+                            _buildStatsGrid(isSelf),
+                            const SizedBox(height: 24),
+                            _buildTabs(),
+                            const SizedBox(height: 24),
+                            _buildTabContent(),
+                          ],
+                        ),
+                      ),
 
-                  // Custom Neo Header
-                  Positioned(top: 0, left: 0, right: 0, child: _buildHeader()),
+                      // Custom Neo Header
+                      Positioned(top: 0, left: 0, right: 0, child: _buildHeader()),
 
-                  // Bottom Action Bar
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildBottomBar(isSelf),
+                      // Bottom Action Bar
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: _buildBottomBar(isSelf),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
     );

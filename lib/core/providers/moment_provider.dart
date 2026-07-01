@@ -191,6 +191,7 @@ class MomentProvider with ChangeNotifier {
     required List<String> matchIds,
     String? caption,
     String? thumbnailUrl,
+    bool isMirrored = false,
   }) async {
     try {
       await FirestoreService().postMoment(
@@ -200,6 +201,7 @@ class MomentProvider with ChangeNotifier {
         matchIds: matchIds,
         caption: caption,
         thumbnailUrl: thumbnailUrl,
+        isMirrored: isMirrored,
       );
       // Stream sẽ tự động cập nhật khi có moment mới
     } catch (e) {

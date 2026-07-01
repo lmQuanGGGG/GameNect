@@ -9,6 +9,22 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:developer' as dev;
 import '../../../core/providers/mentor_provider.dart';
 import '../../../core/theme/theme_helper.dart';
+import '../../../core/widgets/network_image.dart';
+
+class GameItem {
+  final String name;
+  final String? imageUrl;
+  GameItem({required this.name, this.imageUrl});
+  
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is GameItem && runtimeType == other.runtimeType && name == other.name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => name;
+}
 
 // Design tokens
 const _kAccent = Color(0xFFFF6E40);
@@ -25,38 +41,24 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
   final _formKey = GlobalKey<FormState>();
   final _bioCtrl = TextEditingController();
   final _achCtrl = TextEditingController();
-  List<String> _selectedGames = [];
+  List<GameItem> _selectedGames = [];
   bool _isSubmitting = false;
 
-  final List<String> _hotGames = [
-    "League of Legends",
-    "Arena of Valor",
-    "Free Fire",
-    "Genshin Impact",
-    "PUBG Mobile",
-    "Valorant",
-    "Call of Duty: Mobile",
-    "FIFA Online 4",
-    "Minecraft",
-    "Mobile Legends",
-  ];
-
-  Future<List<String>> _searchGamesAsync(String query) async {
+  Future<List<GameItem>> _searchGamesAsync(String query) async {
     final apiKey =
         dotenv.env['RAWG_API_KEY'] ?? '754a38d2419a4aee8924fd13b8193b0f';
-    if (query.isEmpty) {
-      return _hotGames;
-    }
     try {
-      final response = await http.get(
-        Uri.parse(
-          'https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=10',
-        ),
-      );
+      final url = query.isEmpty 
+          ? 'https://api.rawg.io/api/games?key=$apiKey&ordering=-added&page_size=10'
+          : 'https://api.rawg.io/api/games?key=$apiKey&search=$query&page_size=10';
+      final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final games = data['results'] as List;
-        return games.map((game) => game['name'] as String).toList();
+        return games.map((game) => GameItem(
+              name: game['name'] as String,
+              imageUrl: game['background_image'] as String?,
+            )).toList();
       }
     } catch (e) {
       dev.log(
@@ -88,14 +90,16 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
 
   Widget _buildNeoContainer({required Widget child, double radius = 12}) {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         color: context.dialogBgColor,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: context.textColor, width: 2.5),
+        border: Border.all(color: context.textColor, width: 1.5),
         boxShadow: [
-          BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
+          BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
         ],
       ),
+      clipBehavior: Clip.hardEdge,
       child: child,
     );
   }
@@ -114,7 +118,7 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
 
     final ok = await context.read<MentorProvider>().applyForMentor(
       userId,
-      games: _selectedGames,
+      games: _selectedGames.map((e) => e.name).toList(),
       bio: _bioCtrl.text.trim(),
       achievements: _achCtrl.text.trim(),
     );
@@ -241,9 +245,12 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Form(
-        key: _formKey,
-        child: Column(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Form(
+            key: _formKey,
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
@@ -340,10 +347,44 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                     titleMedium: TextStyle(color: context.textColor),
                   ),
                 ),
-                child: DropdownSearch<String>.multiSelection(
+                child: DropdownSearch<GameItem>.multiSelection(
                   items: (filter, props) => _searchGamesAsync(filter),
                   selectedItems: _selectedGames,
-                  compareFn: (i, s) => i == s,
+                  compareFn: (i, s) => i.name == s.name,
+                  dropdownBuilder: (context, selectedItems) {
+                    if (selectedItems.isEmpty) {
+                      return Text(
+                        "Chọn game chuyên môn...",
+                        style: TextStyle(color: context.textTertiaryColor, fontSize: 16),
+                      );
+                    }
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: selectedItems.map((game) {
+                        return Chip(
+                          backgroundColor: context.dialogBgColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: context.textColor, width: 1.5),
+                          ),
+                          avatar: game.imageUrl != null 
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: GamenectNetworkImage(imageUrl: game.imageUrl!, fit: BoxFit.cover, width: 24, height: 24),
+                                )
+                              : const Icon(Icons.sports_esports, size: 16),
+                          label: Text(game.name, style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold)),
+                          deleteIcon: Icon(Icons.close, color: context.textColor, size: 16),
+                          onDeleted: () {
+                            setState(() {
+                              _selectedGames.remove(game);
+                            });
+                          },
+                        );
+                      }).toList(),
+                    );
+                  },
                   decoratorProps: DropDownDecoratorProps(
                     decoration: InputDecoration(
                       hintText: "Chọn game chuyên môn...",
@@ -373,21 +414,21 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
                             color: context.textColor,
-                            width: 2,
+                            width: 1.5,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
                             color: context.textColor,
-                            width: 2,
+                            width: 1.5,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(
                             color: _kAccent,
-                            width: 2.5,
+                            width: 1.5,
                           ),
                         ),
                       ),
@@ -397,7 +438,7 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: context.textColor, width: 2.5),
+                        side: BorderSide(color: context.textColor, width: 1.5),
                       ),
                     ),
                     containerBuilder: (ctx, widget) => DecoratedBox(
@@ -406,12 +447,12 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: context.textColor,
-                          width: 2.5,
+                          width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
                             color: context.textColor,
-                            offset: const Offset(8, 8),
+                            offset: const Offset(1.5, 1.5),
                           ),
                         ],
                       ),
@@ -421,13 +462,26 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 12,
+                          vertical: 8,
                         ),
                         child: Row(
                           children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: context.textColor, width: 1.5),
+                              ),
+                              clipBehavior: Clip.hardEdge,
+                              child: item.imageUrl != null 
+                                  ? GamenectNetworkImage(imageUrl: item.imageUrl!, fit: BoxFit.cover)
+                                  : const Icon(Icons.sports_esports),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                item,
+                                item.name,
                                 style: TextStyle(
                                   color: isSelected
                                       ? _kAccent
@@ -534,7 +588,7 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
                       Colors.white, // Cố định chữ trắng trên nền màu chủ đạo
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: context.textColor, width: 2.5),
+                    side: BorderSide(color: context.textColor, width: 1.5),
                   ),
                   elevation: 0,
                 ),
@@ -558,6 +612,8 @@ class _MentorApplyScreenState extends State<MentorApplyScreen> {
             ),
             const SizedBox(height: 40),
           ],
+        ),
+      ),
         ),
       ),
     );

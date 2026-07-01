@@ -162,23 +162,6 @@ class _TabItemWidget extends StatelessWidget {
                   scale: isActive ? scaleAnim.value : 1.0,
                   child: _buildIconContainer(context),
                 ),
-                const SizedBox(height: 4),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 250),
-                  style: TextStyle(
-                    fontSize: isActive ? 10 : 9,
-                    fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
-                    color: isActive
-                        ? context.textColor
-                        : context.textSecondaryColor,
-                    letterSpacing: isActive ? 0.3 : 0.0,
-                  ),
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
               ],
             );
           },

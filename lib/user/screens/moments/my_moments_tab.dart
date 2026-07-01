@@ -116,7 +116,7 @@ class MyMomentsTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.black,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: Colors.white, width: 4),
+            border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: const [
               BoxShadow(
                 color: Colors.white24,
@@ -153,7 +153,7 @@ class MyMomentsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final topPadding = MediaQuery.of(context).padding.top + 120;
+    final topPadding = 16.0;
     final profileProvider = context.watch<ProfileProvider>();
     final avatarUrl = profileProvider.userData?.avatarUrl;
 
@@ -212,11 +212,11 @@ class MyMomentsTab extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: context.textColor, width: 3),
+                    border: Border.all(color: context.textColor, width: 1.5),
                     boxShadow: [
                       BoxShadow(
                         color: context.textColor,
-                        offset: const Offset(4, 4),
+                        offset: const Offset(1.5, 1.5),
                       ),
                     ],
                   ),
@@ -266,11 +266,11 @@ class MyMomentsTab extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.textColor, width: 3),
+                  border: Border.all(color: context.textColor, width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: context.textColor,
-                      offset: const Offset(3, 3),
+                      offset: const Offset(1.5, 1.5),
                     ),
                   ],
                 ),
@@ -312,7 +312,7 @@ class MyMomentsTab extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.6),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border: Border.all(color: Colors.white, width: 1.5),
                             ),
                             child: const Icon(
                               Icons.play_arrow_rounded,

@@ -3,12 +3,20 @@ import '../games/game_trending_screen.dart';
 import '../mentor/all_mentor_media_screen.dart';
 import 'mentor_post_preview_card.dart';
 import 'trending_games_page.dart';
+import 'trending_games_preview_card.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 /// Trang Hub khám phá kết hợp cả "Trending Games" và "Mentor Posts" trên một màn hình duy nhất
 /// giúp tối ưu hành trình vuốt dọc xem Moments (chỉ cần vuốt 1 lần thay vì 2 lần).
 class DiscoverHubPage extends StatefulWidget {
-  const DiscoverHubPage({super.key});
+  final bool isSplitMode;
+  final double bottomPadding;
+
+  const DiscoverHubPage({
+    super.key,
+    this.isSplitMode = false,
+    this.bottomPadding = 120.0,
+  });
 
   @override
   State<DiscoverHubPage> createState() => _DiscoverHubPageState();
@@ -26,11 +34,13 @@ class _DiscoverHubPageState extends State<DiscoverHubPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isLargeScreen = constraints.maxWidth >= 900;
-        final mentorMediaSize = (constraints.maxWidth * 0.24).clamp(
-          360.0,
-          620.0,
-        );
-        final mentorCardHeight = isLargeScreen ? mentorMediaSize + 58 : 265.0;
+        final cardWidth = isLargeScreen ? (constraints.maxWidth - 24) / 2 : constraints.maxWidth;
+        // On narrow cards (width < 700), bar is 46, otherwise 58.
+        final barHeight = cardWidth >= 700 ? 58.0 : 46.0;
+        // If splitEvenly is true, media takes 50% width. For 1:1 media, height is cardWidth / 2.
+        // If isWideLayout (cardWidth >= 700), media takes 45% width. For 1:1 media, height is cardWidth * 0.45.
+        final expectedMediaWidth = cardWidth >= 700 ? cardWidth * 0.45 : (cardWidth - 4) / 2;
+        final mentorCardHeight = expectedMediaWidth + barHeight;
 
         return VisibilityDetector(
           key: const Key('discover-hub-page'),
@@ -55,94 +65,175 @@ class _DiscoverHubPageState extends State<DiscoverHubPage> {
                     isLargeScreen ? 12 : 8,
                     isLargeScreen ? 12 : 20,
                     isLargeScreen ? 12 : 8,
-                    120,
+                    widget.bottomPadding,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Padding(
-                        padding: EdgeInsets.only(
-                          right: isLargeScreen ? 80 : 68,
-                        ),
-                        child: isLargeScreen
-                            ? const TrendingGamesButton()
-                            : _buildDiscoverCard(
-                                context,
-                                title: 'TRENDING GAMES',
-                                description:
-                                    'KHÁM PHÁ CÁC TRÒ CHƠI HOT NHẤT & TÌM BẠN CHƠI',
-                                icon: Icons.sports_esports_rounded,
-                                buttonText: 'KHÁM PHÁ',
-                                onTap: () => Navigator.push(
+                      if (isLargeScreen)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TrendingGamesPreviewCard(
+                                height: mentorCardHeight,
+                                mediaAspectRatio: 1,
+                                splitEvenly: true,
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: MentorPostPreviewCard(
+                                height: mentorCardHeight,
+                                mediaAspectRatio: 1,
+                                splitEvenly: true,
+                                autoplayVideo: _isVisible,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AllMentorMediaScreen(),
+                                    ),
+                                  );
+                                },
+                                fallback: _buildDiscoverCard(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const GameTrendingScreen(),
+                                  title: 'MENTOR POSTS',
+                                  description:
+                                      'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
+                                  icon: Icons.auto_awesome_mosaic_rounded,
+                                  buttonText: 'XEM NGAY',
+                                  isLargeScreen: isLargeScreen,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AllMentorMediaScreen(),
+                                    ),
                                   ),
                                 ),
                               ),
-                      ),
-                      SizedBox(height: isLargeScreen ? 12 : 20),
-                      MentorPostPreviewCard(
-                        height: mentorCardHeight,
-                        mediaAspectRatio: 1,
-                        autoplayVideo: _isVisible,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AllMentorMediaScreen(),
                             ),
-                          );
-                        },
-                        fallback: _buildDiscoverCard(
-                          context,
-                          title: 'MENTOR POSTS',
-                          description:
-                              'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
-                          icon: Icons.auto_awesome_mosaic_rounded,
-                          buttonText: 'XEM NGAY',
-                          isLargeScreen: isLargeScreen,
-                          onTap: () => Navigator.push(
+                          ],
+                        )
+                      else if (widget.isSplitMode) ...[
+                        SizedBox(
+                          height: 250,
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: TrendingGamesPreviewCard(
+                                  height: 250,
+                                  mediaAspectRatio: 1,
+                                  hideDetails: true,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: MentorPostPreviewCard(
+                                  height: 250,
+                                  mediaAspectRatio: 1.0,
+                                  hideDetails: true,
+                                  autoplayVideo: _isVisible,
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const AllMentorMediaScreen(),
+                                      ),
+                                    );
+                                  },
+                                  fallback: _buildDiscoverCard(
+                                    context,
+                                    title: 'MENTOR POSTS',
+                                    description:
+                                        'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
+                                    icon: Icons.auto_awesome_mosaic_rounded,
+                                    buttonText: 'XEM NGAY',
+                                    isLargeScreen: false,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const AllMentorMediaScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        const TrendingGamesPreviewCard(
+                          height: 225,
+                          mediaAspectRatio: 1,
+                          splitEvenly: true,
+                        ),
+                        const SizedBox(height: 20),
+                        MentorPostPreviewCard(
+                          height: mentorCardHeight,
+                          mediaAspectRatio: 1.0,
+                          splitEvenly: true,
+                          autoplayVideo: _isVisible,
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AllMentorMediaScreen(),
+                              ),
+                            );
+                          },
+                          fallback: _buildDiscoverCard(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => const AllMentorMediaScreen(),
+                            title: 'MENTOR POSTS',
+                            description:
+                                'HÌNH ẢNH & VIDEO ĐỘC QUYỀN TỪ CÁC MENTOR XỊN XÒ',
+                            icon: Icons.auto_awesome_mosaic_rounded,
+                            buttonText: 'XEM NGAY',
+                            isLargeScreen: false,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AllMentorMediaScreen(),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      SizedBox(height: isLargeScreen ? 32 : 28),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isLargeScreen ? 22 : 16,
-                          vertical: isLargeScreen ? 11 : 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF1E1E24)
-                              : const Color.fromARGB(255, 242, 227, 230),
-                          border: Border.all(color: borderColor, width: 2),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.keyboard_double_arrow_up_rounded,
-                              color: isDark ? Colors.white : Colors.black,
-                              size: isLargeScreen ? 24 : 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'VUỐT LÊN ĐỂ XEM MOMENTS',
-                              style: TextStyle(
+                      ],
+                      if (!widget.isSplitMode) ...[
+                        SizedBox(height: isLargeScreen ? 32 : 28),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isLargeScreen ? 22 : 16,
+                            vertical: isLargeScreen ? 11 : 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E1E24)
+                                : const Color.fromARGB(255, 242, 227, 230),
+                            border: Border.all(color: borderColor, width: 1.5),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.keyboard_double_arrow_up_rounded,
                                 color: isDark ? Colors.white : Colors.black,
-                                fontSize: isLargeScreen ? 15 : 12,
-                                fontWeight: FontWeight.w900,
+                                size: isLargeScreen ? 24 : 20,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Text(
+                                'VUỐT LÊN ĐỂ XEM MOMENTS',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black,
+                                  fontSize: isLargeScreen ? 15 : 12,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -183,8 +274,8 @@ class _DiscoverHubPageState extends State<DiscoverHubPage> {
       decoration: BoxDecoration(
         color: cardBgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 4),
-        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
+        border: Border.all(color: borderColor, width: 1.5),
+        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(1.5, 1.5))],
       ),
       child: Column(
         children: [
@@ -196,9 +287,9 @@ class _DiscoverHubPageState extends State<DiscoverHubPage> {
                   color: isDark ? Colors.black : Colors.white,
                   shape: BoxShape.rectangle,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor, width: 2.5),
+                  border: Border.all(color: borderColor, width: 1.5),
                   boxShadow: [
-                    BoxShadow(color: shadowColor, offset: const Offset(3, 3)),
+                    BoxShadow(color: shadowColor, offset: const Offset(1.5, 1.5)),
                   ],
                 ),
                 child: Icon(
@@ -245,9 +336,9 @@ class _DiscoverHubPageState extends State<DiscoverHubPage> {
               decoration: BoxDecoration(
                 color: btnBgColor,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: btnBorderColor, width: 3),
+                border: Border.all(color: btnBorderColor, width: 1.5),
                 boxShadow: [
-                  BoxShadow(color: btnShadowColor, offset: const Offset(3, 3)),
+                  BoxShadow(color: btnShadowColor, offset: const Offset(1.5, 1.5)),
                 ],
               ),
               child: Row(

@@ -146,6 +146,37 @@ extension MentorService on FirestoreService {
     }
   }
 
+  /// Admin: Xóa hoàn toàn quyền Mentor (xóa hồ sơ và media)
+  Future<void> removeMentorCompletely(String userId) async {
+    try {
+      final batch = _db.batch();
+
+      // Xóa profile trong mentor_profiles
+      batch.delete(_db.collection(_kMentorProfiles).doc(userId));
+
+      // Cập nhật users (tước quyền)
+      batch.update(
+        _db.collection('users').doc(userId),
+        {
+          'isMentor': false,
+          'mentorStatus': 'none',
+        },
+      );
+
+      // Cần lấy danh sách media để xóa khỏi collection mentor_media
+      final mediaSnap = await _db.collection('mentor_media').where('mentorId', isEqualTo: userId).get();
+      for (final doc in mediaSnap.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      developer.log('removeMentorCompletely: userId=$userId', name: 'MentorService');
+    } catch (e) {
+      developer.log('removeMentorCompletely error: $e', name: 'MentorService');
+      rethrow;
+    }
+  }
+
   /// Lấy danh sách mentor đã approved, có thể lọc theo game.
   Future<List<Map<String, dynamic>>> getApprovedMentors({String? gameFilter}) async {
     try {
@@ -157,7 +188,7 @@ extension MentorService on FirestoreService {
         query = query.where('games', arrayContains: gameFilter);
       }
 
-      final snapshot = await query.limit(50).get();
+      final snapshot = await query.limit(1000).get();
       final docs = [...snapshot.docs];
       // Sắp xếp các mentor được duyệt gần nhất lên trước tiên
       docs.sort((a, b) {
@@ -177,21 +208,30 @@ extension MentorService on FirestoreService {
 
       // Lấy thêm thông tin user (username, avatarUrl) để hiển thị
       final results = <Map<String, dynamic>>[];
-      for (final doc in docs) {
-        try {
-          final userDoc = await _db.collection('users').doc(doc.id).get();
-          final mentorData = doc.data() as Map<String, dynamic>;
-          final userData = userDoc.data() ?? {};
-
-          results.add({
-            ...mentorData,
-            'userId': doc.id,
-            'username': userData['username'] ?? '',
-            'avatarUrl': userData['avatarUrl'] ?? '',
-          });
-        } catch (_) {
-          // Bỏ qua nếu không lấy được user data
+      final userDocsMap = <String, Map<String, dynamic>>{};
+      
+      try {
+        for (var i = 0; i < mentorIds.length; i += 30) {
+          final chunk = mentorIds.sublist(i, i + 30 > mentorIds.length ? mentorIds.length : i + 30);
+          final usersSnap = await _db.collection('users').where(FieldPath.documentId, whereIn: chunk).get();
+          for (final uDoc in usersSnap.docs) {
+            userDocsMap[uDoc.id] = uDoc.data() as Map<String, dynamic>;
+          }
         }
+      } catch (_) {
+        // Fallback or ignore
+      }
+
+      for (final doc in docs) {
+        final mentorData = doc.data() as Map<String, dynamic>;
+        final userData = userDocsMap[doc.id] ?? {};
+
+        results.add({
+          ...mentorData,
+          'userId': doc.id,
+          'username': userData['username'] ?? '',
+          'avatarUrl': userData['avatarUrl'] ?? '',
+        });
       }
       return results;
     } catch (e) {

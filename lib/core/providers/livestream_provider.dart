@@ -631,10 +631,7 @@ class LivestreamProvider extends ChangeNotifier {
   Future<void> startScreenShare() async {
     if (_engine == null) return;
     try {
-      // Dừng camera preview trước để tránh conflict với Extension
-      await _engine!.stopPreview(sourceType: VideoSourceType.videoSourceCamera);
-
-      // Khởi động screen capture trước để mở cổng IPC lắng nghe Extension
+      // Khởi động screen capture TRƯỚC để bắt được user gesture trên trình duyệt (tránh lỗi phải ấn 2 lần trên PWA/Web)
       await _engine!.startScreenCapture(
         const ScreenCaptureParameters2(
           captureAudio: true,
@@ -646,6 +643,9 @@ class LivestreamProvider extends ChangeNotifier {
           ),
         ),
       );
+
+      // Dừng camera preview SAU khi đã kích hoạt popup chia sẻ màn hình
+      await _engine!.stopPreview(sourceType: VideoSourceType.videoSourceCamera);
 
       await _engine!.startPreview(
         sourceType: VideoSourceType.videoSourceScreen,

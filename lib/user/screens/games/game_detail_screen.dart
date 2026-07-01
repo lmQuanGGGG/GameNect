@@ -4,6 +4,8 @@ import '../../../core/widgets/network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/providers/game_provider.dart';
 import '../../../core/providers/match_provider.dart';
 import '../../../core/providers/chat_provider.dart';
@@ -61,8 +63,11 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Widget _buildModernContent(GameDetailModel game) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
       slivers: [
         // 1. Modern App Bar
         SliverAppBar(
@@ -335,9 +340,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           ),
         ),
       ],
-    );
-  }
-
+    ),
+   ),
+  );
+}
   Widget _buildStatsGrid(GameDetailModel game) {
     return Row(
       children: [
@@ -467,7 +473,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (BuildContext bottomSheetContext) {
-        return FutureBuilder<List<Map<String, dynamic>>>(
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return FutureBuilder<List<Map<String, dynamic>>>(
           future: Provider.of<MatchProvider>(
             context,
             listen: false,
@@ -519,7 +528,121 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(
+                              text: 'https://gamenect.vn/game/${game.id}'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'ĐÃ SAO CHÉP LIÊN KẾT',
+                                style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
+                              ),
+                              backgroundColor: Colors.white,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: const BorderSide(color: Colors.black, width: 1.5),
+                              ),
+                            ),
+                          );
+                          Navigator.pop(bottomSheetContext);
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.black, width: 1.5),
+                                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+                              ),
+                              child: const Icon(Icons.link, color: Colors.black, size: 24),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Copy Link', style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Share.share('Xem game ${game.name} cực hay trên Gamenect ngay: https://gamenect.vn/game/${game.id}');
+                          Navigator.pop(bottomSheetContext);
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.black, width: 1.5),
+                                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+                              ),
+                              child: const Icon(Icons.share_outlined, color: Colors.black, size: 24),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Ứng dụng khác', style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value.toLowerCase();
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Tìm kiếm bạn bè...',
+                        hintStyle: const TextStyle(color: Colors.black54),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.black54,
+                        ),
+                        filled: true,
+                        fillColor: Colors.black.withValues(alpha: 0.05),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black,
+                            width: 1.5,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black,
+                            width: 1.5,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black,
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0,
+                        ),
+                      ),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   const Divider(color: Colors.black, height: 4, thickness: 4),
                       Expanded(
                         child:
@@ -541,16 +664,40 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                   ),
                                 ),
                               )
-                            : ListView.builder(
-                                physics: const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
-                                itemCount: snapshot.data!.length,
-                                itemBuilder: (context, index) {
-                                  final matchData = snapshot.data![index];
-                                  final user = matchData['user'];
-                                  final matchId = matchData['matchId'];
+                            : Builder(
+                                builder: (context) {
+                                  final allMatches = snapshot.data!;
+                                  final filteredMatches = searchQuery.isEmpty
+                                      ? allMatches
+                                      : allMatches.where((m) {
+                                          final username =
+                                              (m['user'].username ?? '')
+                                                  .toLowerCase();
+                                          return username.contains(searchQuery);
+                                        }).toList();
+
+                                  if (filteredMatches.isEmpty) {
+                                    return const Center(
+                                      child: Text(
+                                        'KHÔNG TÌM THẤY BẠN BÈ',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  return ListView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    itemCount: filteredMatches.length,
+                                    itemBuilder: (context, index) {
+                                      final matchData = filteredMatches[index];
+                                      final user = matchData['user'];
+                                      final matchId = matchData['matchId'];
 
                                   return ListTile(
                                     contentPadding: const EdgeInsets.symmetric(
@@ -647,13 +794,17 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                     ),
                                   );
                                 },
-                              ),
+                              );
+                            },
+                          ),
                       ),
                     ],
                   ),
             );
           },
         );
+       },
+      );
       },
     );
   }

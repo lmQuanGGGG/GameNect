@@ -5,7 +5,8 @@ import 'mentor_media_feed_screen.dart';
 const _kAccent = Color(0xFFE040FB);
 
 class AllMentorMediaScreen extends StatefulWidget {
-  const AllMentorMediaScreen({super.key});
+  final String? initialPostId;
+  const AllMentorMediaScreen({super.key, this.initialPostId});
 
   @override
   State<AllMentorMediaScreen> createState() => _AllMentorMediaScreenState();
@@ -74,11 +75,18 @@ class _AllMentorMediaScreenState extends State<AllMentorMediaScreen> {
         }
 
         final docs = snapshot.data!.docs;
+        int initialIndex = 0;
+        if (widget.initialPostId != null) {
+          final index = docs.indexWhere((doc) => doc.id == widget.initialPostId);
+          if (index != -1) {
+            initialIndex = index;
+          }
+        }
 
         // Trả về trực tiếp Feed Screen thay vì Grid View
         return MentorMediaFeedScreen(
           docs: docs,
-          initialIndex: 0,
+          initialIndex: initialIndex,
         );
       },
     );

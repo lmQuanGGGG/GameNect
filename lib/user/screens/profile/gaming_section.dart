@@ -57,19 +57,19 @@ class GamingSection extends StatelessWidget {
     
     final enabledBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.black, width: 2.5),
+      borderSide: const BorderSide(color: Colors.black, width: 1.5),
     );
     final focusedBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.deepOrange, width: 3),
+      borderSide: const BorderSide(color: Colors.deepOrange, width: 1.5),
     );
     final errorBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 2.5),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
     );
     final focusedErrorBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 3),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
     );
 
     return Column(
@@ -118,11 +118,11 @@ class GamingSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black, width: 2.5),
+            border: Border.all(color: Colors.black, width: 1.5),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black,
-                offset: Offset(4, 4),
+                offset: const Offset(1.5, 1.5),
               )
             ],
           ),
@@ -161,7 +161,7 @@ class GamingSection extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.deepOrange.withValues(alpha: 0.1) : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    border: isSelected ? Border.all(color: Colors.deepOrange, width: 2) : Border.all(color: Colors.transparent, width: 2),
+                    border: isSelected ? Border.all(color: Colors.deepOrange, width: 1.5) : Border.all(color: Colors.transparent, width: 1.5),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -179,11 +179,11 @@ class GamingSection extends StatelessWidget {
                   fillColor: Colors.grey.shade200,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black, width: 2),
+                    borderSide: const BorderSide(color: Colors.black, width: 1.5),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.deepOrange, width: 2.5),
+                    borderSide: const BorderSide(color: Colors.deepOrange, width: 1.5),
                   ),
                 ),
               ),
@@ -191,7 +191,7 @@ class GamingSection extends StatelessWidget {
                 backgroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
-                  side: const BorderSide(color: Colors.black, width: 3),
+                  side: const BorderSide(color: Colors.black, width: 1.5),
                 ),
                 elevation: 0,
               ),
@@ -203,7 +203,7 @@ class GamingSection extends StatelessWidget {
                     content: const Text('Chỉ được chọn tối đa 5 game!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                     backgroundColor: Colors.deepOrange,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.black, width: 2)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.black, width: 1.5)),
                   ),
                 );
                 results.removeLast();

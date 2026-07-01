@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui';
+import 'dart:math';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/providers/match_provider.dart';
@@ -118,12 +119,12 @@ class _LikedMeScreenState extends State<LikedMeScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
-        border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 3),
+        border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 1.5),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: context.isDarkMode ? Colors.white : Colors.black,
-            offset: const Offset(6, 6),
+            offset: const Offset(1.5, 1.5),
           ),
         ],
       ),
@@ -163,7 +164,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                 foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: context.isDarkMode ? Colors.white : Colors.black, width: 2),
+                  side: BorderSide(color: context.isDarkMode ? Colors.white : Colors.black, width: 1.5),
                 ),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -243,12 +244,12 @@ class _LikedMeScreenState extends State<LikedMeScreen>
         color: context.isDarkMode ? Colors.black : Colors.white,
         border: Border.all(
           color: context.isDarkMode ? Colors.white : Colors.black,
-          width: 2,
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
             color: context.isDarkMode ? Colors.white : Colors.black,
-            offset: const Offset(2, 2),
+            offset: const Offset(1.5, 1.5),
           ),
         ],
       ),
@@ -324,285 +325,521 @@ class _LikedMeScreenState extends State<LikedMeScreen>
         onRefresh: () async {
           await _initializeData();
         },
-        child: ListView.builder(
-          key: const PageStorageKey('liked_me_list'),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          // Premium xem tất cả, Free thì +1 item cho banner upsell
-          itemCount: isPremium
-              ? _likedMeUsers.length
-              : (_likedMeUsers.length + 1),
-        itemBuilder: (context, index) {
-          // Hiện banner quảng cáo Premium sau 3 người (nếu FREE và có nhiều hơn 3)
-          if (!isPremium && index == freeLimit && hasMore) {
-            final remainingCount = _likedMeUsers.length - freeLimit;
-            return Container(
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
-                border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 3),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: context.isDarkMode ? Colors.white : Colors.black,
-                    offset: const Offset(6, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // 3 avatar xếp chồng nhau chuẩn Neo-brutalism
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          3,
-                          (i) => Transform.translate(
-                            offset: Offset((i - 1) * -20.0, 0), // Sửa lại offset để chồng hợp lý hơn ở center
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: context.isDarkMode ? Colors.black : Colors.white,
-                                border: Border.all(
-                                  color: context.isDarkMode ? Colors.white : Colors.black,
-                                  width: 3,
-                                ),
-                              ),
-                              child: ClipOval(
-                                child: Icon(
-                                  Icons.person,
-                                  size: 32,
-                                  color: context.isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    '+$remainingCount người khác đã thích bạn!',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFFFF6E40),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLargeScreen = constraints.maxWidth > 600;
+
+            Widget buildBanner() {
+              final remainingCount = _likedMeUsers.length - freeLimit;
+              return Container(
+                margin: isLargeScreen ? EdgeInsets.zero : const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: context.isDarkMode ? Colors.black : const Color(0xFFF4F4F4),
+                  border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 1.5),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      offset: const Offset(1.5, 1.5),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Nâng cấp Premium để xem tất cả',
-                    style: TextStyle(fontSize: 14, color: context.textSecondaryColor),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionScreen(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF6E40),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: context.isDarkMode ? Colors.white : Colors.black, width: 2),
-                        ),
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text(
-                        'Xem ngay',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Lấy index user thực tế (bỏ qua banner ở giữa nếu free)
-          final userIndex = !isPremium && index > freeLimit ? index - 1 : index;
-          if (userIndex >= _likedMeUsers.length) return const SizedBox.shrink();
-
-          final user = _likedMeUsers[userIndex];
-          // Blur avatar nếu free và vượt quá 3 người
-          final shouldBlur = !isPremium && userIndex >= freeLimit;
-
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: context.isDarkMode ? Colors.black : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: context.isDarkMode ? Colors.white : Colors.black,
-                width: 2.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: context.isDarkMode ? Colors.white : Colors.black,
-                  offset: const Offset(4, 4),
+                  ],
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                // Nếu blur thì tap vào sẽ mở màn hình premium
-                onTap: shouldBlur
-                    ? () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionScreen(),
-                          ),
-                        );
-                      }
-                    : () {
-                        // Không blur thì mở profile card
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PeerProfileScreen(peerUser: user),
-                          ),
-                        );
-                      },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      _buildAvatar(user, shouldBlur: shouldBlur),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Hiển thị dấu chấm nếu blur, còn không thì hiện tên thật
-                            Text(
-                              shouldBlur ? '●●●●●●' : user.username,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: context.textColor,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              shouldBlur
-                                  ? '●● tuổi • ●●●●●●'
-                                  : '${user.age} tuổi • ${user.location}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: context.textSecondaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Nếu không blur thì hiển thị nút thích lại và bỏ qua
-                      if (!shouldBlur)
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 3 avatar xếp chồng nhau chuẩn Neo-brutalism
                         Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.favorite,
-                                color: Colors.deepOrange,
-                                size: 28,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            3,
+                            (i) => Transform.translate(
+                              offset: Offset((i - 1) * -20.0, 0),
+                              child: Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: context.isDarkMode ? Colors.black : Colors.white,
+                                  border: Border.all(
+                                    color: context.isDarkMode ? Colors.white : Colors.black,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: ClipOval(
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 32,
+                                    color: context.isDarkMode ? Colors.white : Colors.black,
+                                  ),
+                                ),
                               ),
-                              tooltip: 'Thích lại',
-                              onPressed: () async {
-                                // Lưu swipe history với action like để tạo match
-                                final matchProvider =
-                                    Provider.of<MatchProvider>(
-                                      context,
-                                      listen: false,
-                                    );
-                                await matchProvider.saveSwipeHistory(
-                                  currentUserId,
-                                  user,
-                                  true,
-                                );
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Bạn đã thích lại ${user.username}!',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.grey,
-                                size: 28,
-                              ),
-                              tooltip: 'Bỏ qua',
-                              onPressed: () async {
-                                // Lưu swipe history với action dislike
-                                await FirestoreService().saveSwipeHistory(
-                                  userId: currentUserId,
-                                  targetUserId: user.id,
-                                  action: 'dislike',
-                                );
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Bạn đã bỏ qua ${user.username}!',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        )
-                      else
-                        // Nếu blur thì hiển thị nút Xem để mở premium
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.deepOrange,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'Xem',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '+$remainingCount người khác đã thích bạn!',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFFF6E40),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Nâng cấp Premium để xem tất cả',
+                      style: TextStyle(fontSize: 14, color: context.textSecondaryColor),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SubscriptionScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF6E40),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: context.isDarkMode ? Colors.white : Colors.black, width: 1.5),
+                          ),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'Xem ngay',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget buildItem(BuildContext context, int userIndex) {
+              if (userIndex >= _likedMeUsers.length) return const SizedBox.shrink();
+
+              final user = _likedMeUsers[userIndex];
+              final shouldBlur = !isPremium && userIndex >= freeLimit;
+
+              if (isLargeScreen) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: context.isDarkMode ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.isDarkMode ? Colors.white : Colors.black,
+                        offset: const Offset(1.5, 1.5),
+                      ),
                     ],
                   ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: InkWell(
+                      onTap: shouldBlur
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SubscriptionScreen(),
+                                ),
+                              );
+                            }
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PeerProfileScreen(peerUser: user),
+                                ),
+                              );
+                            },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                user.additionalPhotos.isNotEmpty
+                                    ? GamenectNetworkImage(
+                                        imageUrl: user.additionalPhotos.first,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : (user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                        ? GamenectNetworkImage(
+                                            imageUrl: user.avatarUrl!,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            color: Colors.grey.shade800,
+                                            child: const Icon(Icons.person, size: 64, color: Colors.white),
+                                          )),
+                                if (shouldBlur)
+                                  ClipRect(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                      child: Container(
+                                        color: Colors.black.withValues(alpha: 0.3),
+                                        alignment: Alignment.center,
+                                        child: const Icon(Icons.lock, color: Colors.white, size: 48),
+                                      ),
+                                    ),
+                                  ),
+                                if (!shouldBlur)
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.black, width: 1.5),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.favorite, color: Colors.red, size: 18),
+                                          const SizedBox(width: 4),
+                                          const Text('1', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            color: context.isDarkMode ? Colors.black : Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 1.5),
+                                  ),
+                                  child: ClipOval(
+                                    child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                        ? GamenectNetworkImage(imageUrl: user.avatarUrl!, fit: BoxFit.cover)
+                                        : Container(color: Colors.grey, child: const Icon(Icons.person, color: Colors.white, size: 20)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        shouldBlur ? '●●●●●●' : user.username.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w900,
+                                          color: context.textColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        shouldBlur ? '😙' : '${user.age} tuổi • ${user.location}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: context.textSecondaryColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (!shouldBlur)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        icon: const Icon(Icons.favorite, color: Colors.deepOrange, size: 24),
+                                        onPressed: () async {
+                                          final matchProvider = Provider.of<MatchProvider>(context, listen: false);
+                                          await matchProvider.saveSwipeHistory(currentUserId, user, true);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bạn đã thích lại ${user.username}!')));
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        icon: const Icon(Icons.close, color: Colors.grey, size: 24),
+                                        onPressed: () async {
+                                          await FirestoreService().saveSwipeHistory(userId: currentUserId, targetUserId: user.id, action: 'dislike');
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bạn đã bỏ qua ${user.username}!')));
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepOrange,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text('Xem', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.isDarkMode ? Colors.black : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: context.isDarkMode ? Colors.white : Colors.black,
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      offset: const Offset(1.5, 1.5),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          );
-        },
-      ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: shouldBlur
+                        ? () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SubscriptionScreen(),
+                              ),
+                            );
+                          }
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PeerProfileScreen(peerUser: user),
+                              ),
+                            );
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          _buildAvatar(user, shouldBlur: shouldBlur),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  shouldBlur ? '●●●●●●' : user.username,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: context.textColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  shouldBlur
+                                      ? '●● tuổi • ●●●●●●'
+                                      : '${user.age} tuổi • ${user.location}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: context.textSecondaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!shouldBlur)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.favorite,
+                                    color: Colors.deepOrange,
+                                    size: 28,
+                                  ),
+                                  tooltip: 'Thích lại',
+                                  onPressed: () async {
+                                    final matchProvider =
+                                        Provider.of<MatchProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                    await matchProvider.saveSwipeHistory(
+                                      currentUserId,
+                                      user,
+                                      true,
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Bạn đã thích lại ${user.username}!'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.grey,
+                                    size: 28,
+                                  ),
+                                  tooltip: 'Bỏ qua',
+                                  onPressed: () async {
+                                    await FirestoreService().saveSwipeHistory(
+                                      userId: currentUserId,
+                                      targetUserId: user.id,
+                                      action: 'dislike',
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Bạn đã bỏ qua ${user.username}!'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.deepOrange,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'Xem',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            if (isLargeScreen) {
+              return CustomScrollView(
+                key: const PageStorageKey('liked_me_grid'),
+                slivers: [
+                  if (_likedMeUsers.isNotEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(32, 24, 32, 8),
+                      sliver: SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 280,
+                          childAspectRatio: 0.65,
+                          crossAxisSpacing: 24,
+                          mainAxisSpacing: 24,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => buildItem(context, index),
+                          childCount: isPremium ? _likedMeUsers.length : min(freeLimit, _likedMeUsers.length),
+                        ),
+                      ),
+                    ),
+                  if (!isPremium && hasMore)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        child: buildBanner(),
+                      ),
+                    ),
+                  if (!isPremium && hasMore)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(32, 8, 32, 24),
+                      sliver: SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 280,
+                          childAspectRatio: 0.65,
+                          crossAxisSpacing: 24,
+                          mainAxisSpacing: 24,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => buildItem(context, index + freeLimit),
+                          childCount: _likedMeUsers.length - freeLimit,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            }
+
+            return ListView.builder(
+              key: const PageStorageKey('liked_me_list'),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: isPremium ? _likedMeUsers.length : (_likedMeUsers.length + 1),
+              itemBuilder: (context, index) {
+                if (!isPremium && index == freeLimit && hasMore) {
+                  return buildBanner();
+                }
+                final userIndex = !isPremium && index > freeLimit ? index - 1 : index;
+                return buildItem(context, userIndex);
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -687,103 +924,244 @@ class _LikedMeScreenState extends State<LikedMeScreen>
         onRefresh: () async {
           await _initializeData();
         },
-        child: ListView.builder(
-          key: const PageStorageKey('missed_list'),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: _myDislikedUsers.length,
-          itemBuilder: (context, index) {
-            final user = _myDislikedUsers[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: context.isDarkMode ? Colors.black : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: context.isDarkMode ? Colors.white : Colors.black,
-                width: 2.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: context.isDarkMode ? Colors.white : Colors.black,
-                  offset: const Offset(4, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  // Tap vào để xem profile card
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PeerProfileScreen(peerUser: user),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLargeScreen = constraints.maxWidth > 600;
+
+            Widget buildItem(BuildContext context, int index) {
+              final user = _myDislikedUsers[index];
+              
+              if (isLargeScreen) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: context.isDarkMode ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      width: 1.5,
                     ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      _buildAvatar(user),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user.username,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: context.textColor,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${user.age} tuổi • ${user.location}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: context.textSecondaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Nút Rewind để hoàn tác dislike và thích lại
-                      IconButton(
-                        icon: const Icon(
-                          Icons.undo_rounded,
-                          color: Colors.deepOrange,
-                          size: 28,
-                        ),
-                        tooltip: 'Rewind - Thích lại',
-                        onPressed: () async {
-                          // Lưu swipe history với action like để thay thế dislike trước đó
-                          await FirestoreService().saveSwipeHistory(
-                            userId: currentUserId,
-                            targetUserId: user.id,
-                            action: 'like',
-                          );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Đã rewind ${user.username}!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        },
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.isDarkMode ? Colors.white : Colors.black,
+                        offset: const Offset(1.5, 1.5),
                       ),
                     ],
                   ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PeerProfileScreen(peerUser: user),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: user.additionalPhotos.isNotEmpty
+                                ? GamenectNetworkImage(
+                                    imageUrl: user.additionalPhotos.first,
+                                    fit: BoxFit.cover,
+                                  )
+                                : (user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                    ? GamenectNetworkImage(
+                                        imageUrl: user.avatarUrl!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Container(
+                                        color: Colors.grey.shade800,
+                                        child: const Icon(Icons.person, size: 64, color: Colors.white),
+                                      )),
+                          ),
+                          Container(
+                            color: context.isDarkMode ? Colors.black : Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: context.isDarkMode ? Colors.white : Colors.black, width: 1.5),
+                                  ),
+                                  child: ClipOval(
+                                    child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                        ? GamenectNetworkImage(imageUrl: user.avatarUrl!, fit: BoxFit.cover)
+                                        : Container(color: Colors.grey, child: const Icon(Icons.person, color: Colors.white, size: 20)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        user.username.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w900,
+                                          color: context.textColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${user.age} tuổi • ${user.location}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: context.textSecondaryColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.undo_rounded, color: Colors.deepOrange, size: 24),
+                                  onPressed: () async {
+                                    await FirestoreService().saveSwipeHistory(userId: currentUserId, targetUserId: user.id, action: 'like');
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã rewind ${user.username}!'), backgroundColor: Colors.green));
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.isDarkMode ? Colors.black : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: context.isDarkMode ? Colors.white : Colors.black,
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: context.isDarkMode ? Colors.white : Colors.black,
+                      offset: const Offset(1.5, 1.5),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          );
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PeerProfileScreen(peerUser: user),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          _buildAvatar(user),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  user.username,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: context.textColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${user.age} tuổi • ${user.location}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: context.textSecondaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.undo_rounded,
+                              color: Colors.deepOrange,
+                              size: 28,
+                            ),
+                            tooltip: 'Rewind - Thích lại',
+                            onPressed: () async {
+                              await FirestoreService().saveSwipeHistory(
+                                userId: currentUserId,
+                                targetUserId: user.id,
+                                action: 'like',
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Đã rewind ${user.username}!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            if (isLargeScreen) {
+              return GridView.builder(
+                key: const PageStorageKey('missed_grid'),
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 280,
+                  childAspectRatio: 0.65,
+                  crossAxisSpacing: 24,
+                  mainAxisSpacing: 24,
+                ),
+                itemCount: _myDislikedUsers.length,
+                itemBuilder: buildItem,
+              );
+            }
+
+            return ListView.builder(
+              key: const PageStorageKey('missed_list'),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: _myDislikedUsers.length,
+              itemBuilder: buildItem,
+            );
           },
-        ), // đóng ListView.builder
+        ), // đóng LayoutBuilder
       ), // đóng RefreshIndicator
     ); // đóng NotificationListener
   }
@@ -955,11 +1333,11 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                       decoration: BoxDecoration(
                         color: context.textColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.textColor, width: 3),
+                        border: Border.all(color: context.textColor, width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: context.textColor,
-                            offset: const Offset(4, 4),
+                            offset: const Offset(1.5, 1.5),
                           ),
                         ],
                       ),
@@ -973,7 +1351,7 @@ class _LikedMeScreenState extends State<LikedMeScreen>
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Premium',
+                            'Pre',
                             style: TextStyle(
                               color: context.scaffoldBackgroundColor,
                               fontWeight: FontWeight.w900,

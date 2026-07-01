@@ -42,9 +42,9 @@ class AvatarPickerSection extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.grey[200],
-                border: Border.all(color: Colors.black, width: 3),
+                border: Border.all(color: Colors.black, width: 1.5),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                  BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                 ],
               ),
               child: ClipOval(
@@ -76,8 +76,8 @@ class AvatarPickerSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                border: Border.all(color: Colors.black, width: 1.5),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
               ),
               child: const Text(
                 'CHỌN ẢNH ĐẠI DIỆN',
@@ -120,8 +120,8 @@ class AvatarPickerSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black, width: 2.5),
-                      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                      border: Border.all(color: Colors.black, width: 1.5),
+                      boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
                     ),
                     child: const Icon(Icons.add, color: Colors.black, size: 40),
                   ),
@@ -159,8 +159,8 @@ class AvatarPickerSection extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black, width: 2.5),
-                        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                        border: Border.all(color: Colors.black, width: 1.5),
+                        boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(9),
@@ -178,7 +178,7 @@ class AvatarPickerSection extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 2),
+                          border: Border.all(color: Colors.black, width: 1.5),
                         ),
                         child: const Icon(
                           Icons.close,
@@ -199,7 +199,7 @@ class AvatarPickerSection extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.deepOrange,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 2),
+                          border: Border.all(color: Colors.black, width: 1.5),
                         ),
                         child: const Icon(
                           Icons.edit,

@@ -20,6 +20,7 @@ import '../../../core/utils/fullscreen_helper.dart'
     if (dart.library.html) '../../../core/utils/fullscreen_helper_web.dart';
 import 'dart:developer' as developer;
 import 'live_stream_screen.dart';
+import '../../../core/theme/theme_helper.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveBadge = Color(0xFFFF3B30);
@@ -48,6 +49,8 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
   // Swipe control
   double _dragStart = 0;
   bool _isSwiping = false;
+
+
 
   @override
   void initState() {
@@ -203,10 +206,14 @@ class _LiveSwipeFeedScreenState extends State<LiveSwipeFeedScreen> {
                 ),
               ),
             ),
+            
+
         ],
       ),
     );
   }
+
+
 }
 
 // Physics class giữ lại cho tương thích, không dùng nữa

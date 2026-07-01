@@ -16,7 +16,8 @@ import 'dart:developer' as developer;
 import '../../../core/services/firestore_service.dart';
 import 'camera_preview_view.dart';
 import 'package:camerawesome/camerawesome_plugin.dart';
-import 'package:camerawesome/pigeon.dart' show PreviewSize, VideoOptions, VideoRecordingQuality;
+import 'package:camerawesome/pigeon.dart'
+    show PreviewSize, VideoOptions, VideoRecordingQuality;
 import 'camera_dialogs.dart';
 
 const _kNeoAccent = Color(0xFFFF6E40);
@@ -48,6 +49,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   bool _isVideoMode = false;
   double _brightnessValue = 0.5;
   bool _needsLensReset = false;
+  bool _isFilterEnabled = true;
 
   // Zoom: we store the label (0.5, 1, 2, 5) for UI, not camerawesome 0-1 scale
   double _currentZoomLabel = 1.0;
@@ -76,11 +78,22 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
     if (kIsWeb) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _pickFromGallery().then((_) {
-          if (_capturedMedia == null && mounted) {
-            Navigator.pop(context); // Đóng nếu user cancel picker
-          }
-        });
+        if (!mounted) return;
+        final isSmallScreen = MediaQuery.of(context).size.width < 600;
+
+        if (isSmallScreen) {
+          _pickCameraDirectly().then((_) {
+            if (_capturedMedia == null && mounted) {
+              Navigator.pop(context);
+            }
+          });
+        } else {
+          _pickFromGallery().then((_) {
+            if (_capturedMedia == null && mounted) {
+              Navigator.pop(context); // Đóng nếu user cancel picker
+            }
+          });
+        }
       });
     }
   }
@@ -421,6 +434,34 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     }
   }
 
+  Future<void> _pickCameraDirectly() async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 90,
+        maxWidth: 1080,
+      );
+      if (pickedFile != null) {
+        Uint8List? bytes;
+        if (kIsWeb) {
+          bytes = await pickedFile.readAsBytes();
+        }
+        setState(() {
+          _capturedMedia = pickedFile;
+          _webImageBytes = bytes;
+          _isVideo = false;
+          _localThumbnailPath = null;
+          if (kIsWeb) {
+            _isMirrored = true;
+          }
+        });
+      }
+    } catch (e) {
+      _logger.e('Pick camera error: $e');
+    }
+  }
+
   // ── Upload & post ─────────────────────────────────────────────────────────────
   Future<void> _uploadAndPost() async {
     if (_capturedMedia == null) return;
@@ -520,7 +561,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           uploadedMediaRef = imageRef;
 
           if (_isFrontCamera) {
-            bytes = await compute(_applyBeautyFilterIsolate, bytes);
+            bytes = await compute(_applyBeautyFilterIsolate, {
+              'bytes': bytes,
+              'isFilterEnabled': _isFilterEnabled,
+            });
           }
 
           if (_isMirrored) {
@@ -591,7 +635,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
           final file = File(_capturedMedia!.path);
           var bytes = await file.readAsBytes();
 
-          bytes = await compute(_applyBeautyFilterIsolate, bytes);
+          bytes = await compute(_applyBeautyFilterIsolate, {
+            'bytes': bytes,
+            'isFilterEnabled': _isFilterEnabled,
+          });
 
           if (_isMirrored) {
             bytes = await compute(_applyMirrorIsolate, bytes);
@@ -615,6 +662,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         matchIds: matchedIds,
         caption: caption.isEmpty ? null : caption,
         thumbnailUrl: thumbnailUrl,
+        isMirrored: _isMirrored,
       );
 
       if (!mounted) return;
@@ -1217,6 +1265,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
         capturedMedia: _capturedMedia,
         isMirrored: _isMirrored,
         webImageBytes: _webImageBytes,
+        isFilterEnabled: _isFilterEnabled,
+        onToggleFilter: () {
+          setState(() {
+            _isFilterEnabled = !_isFilterEnabled;
+          });
+        },
         onToggleMirror: () {
           setState(() {
             _isMirrored = !_isMirrored;
@@ -1284,7 +1338,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                   : CaptureMode.photo,
               mirrorFrontCamera:
                   true, // Natively mirror front camera photo and video
-              videoOptions: VideoOptions(enableAudio: true, quality: VideoRecordingQuality.sd),
+              videoOptions: VideoOptions(
+                enableAudio: true,
+                quality: VideoRecordingQuality.sd,
+              ),
             ),
             sensorConfig: SensorConfig.single(
               sensor: Sensor.position(SensorPosition.back),
@@ -1406,7 +1463,10 @@ class _NeoDialogButton extends StatelessWidget {
 }
 
 // ── Beauty Filter Helper (Runs in isolate via compute) ──
-Uint8List _applyBeautyFilterIsolate(Uint8List bytes) {
+Uint8List _applyBeautyFilterIsolate(Map<String, dynamic> args) {
+  final bytes = args['bytes'] as Uint8List;
+  final isFilterEnabled = args['isFilterEnabled'] as bool? ?? true;
+
   final image = img.decodeImage(bytes);
   if (image == null) return bytes;
 
@@ -1434,10 +1494,12 @@ Uint8List _applyBeautyFilterIsolate(Uint8List bytes) {
   }
 
   // 3. Apply exact color matrix from preview (100% match) for bright, clear Locket style
-  for (final pixel in resized) {
-    pixel.r = (pixel.r * 1.00 + 18.0).round().clamp(0, 255);
-    pixel.g = (pixel.g * 1.00 + 18.0).round().clamp(0, 255);
-    pixel.b = (pixel.b * 1.10 + 40.0).round().clamp(0, 255);
+  if (isFilterEnabled) {
+    for (final pixel in resized) {
+      pixel.r = (pixel.r * 1.00 + 18.0).round().clamp(0, 255);
+      pixel.g = (pixel.g * 1.00 + 18.0).round().clamp(0, 255);
+      pixel.b = (pixel.b * 1.10 + 40.0).round().clamp(0, 255);
+    }
   }
 
   return img.encodeJpg(resized, quality: 80);

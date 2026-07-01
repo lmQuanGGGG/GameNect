@@ -15,6 +15,7 @@ class MomentModel {
   final List<Map<String, dynamic>> reactions;
   final List<Map<String, dynamic>> replies;  
   final String? caption;                     
+  final bool isMirrored;
 
   // Hàm khởi tạo đối tượng MomentModel với các tham số truyền vào.
   MomentModel({
@@ -28,6 +29,7 @@ class MomentModel {
     required this.reactions,
     required this.replies,
     this.caption,
+    this.isMirrored = false,
   });
 
   // Hàm chuyển DateTime thành chuỗi base64 để lưu trữ (dùng khi cần encode thời gian).
@@ -67,6 +69,7 @@ class MomentModel {
       reactions: List<Map<String, dynamic>>.from(map['reactions'] ?? []),
       replies: List<Map<String, dynamic>>.from(map['replies'] ?? []),
       caption: map['caption'],
+      isMirrored: map['isMirrored'] ?? false,
     );
   }
 
@@ -83,6 +86,7 @@ class MomentModel {
       'reactions': reactions,
       'replies': replies,
       'caption': caption,
+      'isMirrored': isMirrored,
     };
   }
 }

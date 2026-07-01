@@ -66,8 +66,8 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   color: context.dialogBgColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.textColor, width: 2.5),
-                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                  border: Border.all(color: context.textColor, width: 1.5),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
                 ),
                 child: TabBar(
                   controller: _tabController,
@@ -90,7 +90,10 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
             ),
           ),
         ),
-        body: Column(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
           children: [
             // ── Balance Card ────────────────────────────────
             Padding(
@@ -100,8 +103,8 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   color: context.textColor, // đen (light) / trắng (dark) → đảo ngược
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.textColor, width: 2.5),
-                  boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(6, 6))],
+                  border: Border.all(color: context.textColor, width: 1.5),
+                  boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(1.5, 1.5))],
                 ),
                 child: Row(
                   children: [
@@ -110,7 +113,7 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
                       decoration: BoxDecoration(
                         color: const Color(0xFFFF6E40),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: context.scaffoldBackgroundColor, width: 2),
+                        border: Border.all(color: context.scaffoldBackgroundColor, width: 1.5),
                       ),
                       child: const Icon(Icons.monetization_on_rounded, color: Colors.white, size: 30),
                     ),
@@ -170,6 +173,8 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
               ),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );
@@ -231,7 +236,7 @@ class _TopupTabState extends State<_TopupTab> {
             decoration: BoxDecoration(
               color: context.dialogBgColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: context.textColor, width: 2),
+              border: Border.all(color: context.textColor, width: 1.5),
             ),
             child: Center(
               child: Text('Chưa có lịch sử nạp coin nào', style: TextStyle(color: context.textSecondaryColor)),
@@ -264,8 +269,8 @@ class _TopupTabState extends State<_TopupTab> {
                 decoration: BoxDecoration(
                   color: context.dialogBgColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.textColor, width: 2.5),
-                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                  border: Border.all(color: context.textColor, width: 1.5),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
                 ),
                 child: Row(
                   children: [
@@ -274,7 +279,7 @@ class _TopupTabState extends State<_TopupTab> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFF6E40),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: context.textColor, width: 2),
+                        border: Border.all(color: context.textColor, width: 1.5),
                       ),
                       child: const Icon(Icons.add_card_rounded, color: Colors.white, size: 22),
                     ),
@@ -346,8 +351,8 @@ class _TopupTabState extends State<_TopupTab> {
                     decoration: BoxDecoration(
                       color: context.dialogBgColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: context.textColor, width: 2.5),
-                      boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(5, 5))],
+                      border: Border.all(color: context.textColor, width: 1.5),
+                      boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                     child: Row(
@@ -360,7 +365,7 @@ class _TopupTabState extends State<_TopupTab> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: context.textColor,
-                              width: 2,
+                              width: 1.5,
                             ),
                           ),
                           child: const Icon(Icons.monetization_on_rounded, color: Colors.white, size: 26),
@@ -482,10 +487,10 @@ class _TopupTabState extends State<_TopupTab> {
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: context.textColor,
-                                width: 2,
+                                width: 1.5,
                               ),
                               boxShadow: [
-                                BoxShadow(color: context.textColor, offset: const Offset(3, 3))
+                                BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))
                               ],
                             ),
                             child: Text(
@@ -603,8 +608,8 @@ class _WithdrawTabState extends State<_WithdrawTab> {
                 decoration: BoxDecoration(
                   color: context.dialogBgColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.textColor, width: 2.5),
-                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(5, 5))],
+                  border: Border.all(color: context.textColor, width: 1.5),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
                 ),
                 child: Row(
                   children: [
@@ -631,7 +636,7 @@ class _WithdrawTabState extends State<_WithdrawTab> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF6E40).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFFF6E40), width: 2),
+                  border: Border.all(color: const Color(0xFFFF6E40), width: 1.5),
                 ),
                 child: Row(
                   children: [
@@ -664,8 +669,8 @@ class _WithdrawTabState extends State<_WithdrawTab> {
                   decoration: BoxDecoration(
                     color: context.textColor,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: context.textColor, width: 2.5),
-                    boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(5, 5))],
+                    border: Border.all(color: context.textColor, width: 1.5),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(1.5, 1.5))],
                   ),
                   child: Center(
                     child: Text(
@@ -718,8 +723,8 @@ class _WithdrawTabState extends State<_WithdrawTab> {
       decoration: BoxDecoration(
         color: context.dialogBgColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: context.textColor, width: 2.5),
-        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+        border: Border.all(color: context.textColor, width: 1.5),
+        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
       ),
       child: TextField(
         controller: controller,
@@ -753,7 +758,7 @@ class _WithdrawTabState extends State<_WithdrawTab> {
             decoration: BoxDecoration(
               color: context.dialogBgColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: context.textColor, width: 2),
+              border: Border.all(color: context.textColor, width: 1.5),
             ),
             child: Center(
               child: Text('Chưa có lệnh rút tiền nào', style: TextStyle(color: context.textSecondaryColor)),
@@ -780,8 +785,8 @@ class _WithdrawTabState extends State<_WithdrawTab> {
                 decoration: BoxDecoration(
                   color: context.dialogBgColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.textColor, width: 2.5),
-                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+                  border: Border.all(color: context.textColor, width: 1.5),
+                  boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
                 ),
                 child: Row(
                   children: [
@@ -790,7 +795,7 @@ class _WithdrawTabState extends State<_WithdrawTab> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFF6E40),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: context.textColor, width: 2),
+                        border: Border.all(color: context.textColor, width: 1.5),
                       ),
                       child: const Icon(Icons.monetization_on_rounded, color: Colors.white, size: 22),
                     ),

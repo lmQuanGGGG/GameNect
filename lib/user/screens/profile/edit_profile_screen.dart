@@ -583,7 +583,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                      BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                     ],
                   ),
                   child: ElevatedButton(
@@ -597,7 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: const BorderSide(color: Colors.black, width: 3),
+                        side: const BorderSide(color: Colors.black, width: 1.5),
                       ),
                       elevation: 0,
                     ),
@@ -622,8 +622,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final containerDecoration = BoxDecoration(
       color: const Color(0xFFFFF1EB), // Light warm white
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: Colors.black, width: 4),
-      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(8, 8))],
+      border: Border.all(color: Colors.black, width: 1.5),
+      boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
     );
 
     return Container(

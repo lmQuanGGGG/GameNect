@@ -8,6 +8,8 @@ import '../../../core/providers/chat_provider.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/firestore_service.dart';
 import '../camera/camera_capture_screen.dart';
+import '../camera/web_rtc_camera_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'video_player_widget.dart';
 import '../matching/home_screen.dart';
 
@@ -129,9 +131,9 @@ class _MomentCardState extends State<MomentCard>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black, width: 4),
+          border: Border.all(color: Colors.black, width: 1.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+            BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: Column(
@@ -177,9 +179,9 @@ class _MomentCardState extends State<MomentCard>
                     decoration: BoxDecoration(
                       color: Colors.white, // White
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.black, width: 3),
+                      border: Border.all(color: Colors.black, width: 1.5),
                       boxShadow: const [
-                        BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                        BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                       ],
                     ),
                     child: Center(
@@ -223,9 +225,9 @@ class _MomentCardState extends State<MomentCard>
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.black, width: 4),
+                  border: Border.all(color: Colors.black, width: 1.5),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+                    BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                   ],
                 ),
                 padding: const EdgeInsets.all(24),
@@ -247,9 +249,9 @@ class _MomentCardState extends State<MomentCard>
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black, width: 2),
+                        border: Border.all(color: Colors.black, width: 1.5),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                          BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                         ],
                       ),
                       child: Theme(
@@ -410,9 +412,9 @@ class _MomentCardState extends State<MomentCard>
         decoration: BoxDecoration(
           color: const Color(0xFFF4F4F4), // Light background
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black, width: 4),
+          border: Border.all(color: Colors.black, width: 1.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+            BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: Column(
@@ -468,11 +470,11 @@ class _MomentCardState extends State<MomentCard>
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black, width: 3),
+                          border: Border.all(color: Colors.black, width: 1.5),
                           boxShadow: const [
                             BoxShadow(
                               color: Colors.black,
-                              offset: Offset(4, 4),
+                              offset: const Offset(1.5, 1.5),
                             ),
                           ],
                         ),
@@ -483,7 +485,7 @@ class _MomentCardState extends State<MomentCard>
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.black,
-                                  width: 2,
+                                  width: 1.5,
                                 ),
                               ),
                               child: CircleAvatar(
@@ -593,9 +595,9 @@ class _MomentCardState extends State<MomentCard>
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.black,
-                    border: Border.all(color: Colors.black, width: 3),
+                    border: Border.all(color: Colors.black, width: 1.5),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black, offset: Offset(6, 6)),
+                      BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                     ],
                   ),
                   clipBehavior: Clip.hardEdge,
@@ -603,7 +605,13 @@ class _MomentCardState extends State<MomentCard>
                     fit: StackFit.expand,
                     children: [
                       moment.isVideo
-                          ? VideoPlayerWidget(videoUrl: moment.mediaUrl)
+                          ? (moment.isMirrored
+                              ? Transform(
+                                  alignment: Alignment.center,
+                                  transform: Matrix4.rotationY(3.141592653589793),
+                                  child: VideoPlayerWidget(videoUrl: moment.mediaUrl),
+                                )
+                              : VideoPlayerWidget(videoUrl: moment.mediaUrl))
                           : GamenectNetworkImage(
                               imageUrl: moment.mediaUrl,
                               fit: BoxFit.contain,
@@ -655,11 +663,11 @@ class _MomentCardState extends State<MomentCard>
                         Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.black, width: 3),
+                            border: Border.all(color: Colors.black, width: 1.5),
                             boxShadow: const [
                               BoxShadow(
                                 color: Colors.black,
-                                offset: Offset(2, 2),
+                                offset: const Offset(1.5, 1.5),
                               ),
                             ],
                           ),
@@ -700,7 +708,7 @@ class _MomentCardState extends State<MomentCard>
                                   shadows: [
                                     Shadow(
                                       color: Colors.black,
-                                      offset: Offset(2, 2),
+                                      offset: const Offset(1.5, 1.5),
                                     ),
                                   ],
                                   fontWeight: FontWeight.w600,
@@ -907,12 +915,12 @@ class _MomentCardState extends State<MomentCard>
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.black,
-                                  width: 3,
+                                  width: 1.5,
                                 ),
                                 boxShadow: const [
                                   BoxShadow(
                                     color: Colors.black,
-                                    offset: Offset(3, 3),
+                                    offset: const Offset(1.5, 1.5),
                                   ),
                                 ],
                               ),
@@ -939,11 +947,11 @@ class _MomentCardState extends State<MomentCard>
                           decoration: BoxDecoration(
                             color: const Color(0xFF00E5FF), // Cyan
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.black, width: 3),
+                            border: Border.all(color: Colors.black, width: 1.5),
                             boxShadow: const [
                               BoxShadow(
                                 color: Colors.black,
-                                offset: Offset(3, 3),
+                                offset: const Offset(1.5, 1.5),
                               ),
                             ],
                           ),
@@ -971,7 +979,7 @@ class _MomentCardState extends State<MomentCard>
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const CameraCaptureScreen(),
+                            builder: (context) => const WebRTCCameraScreen(),
                           ),
                         );
                         if (result != null && result is Map) {
@@ -989,11 +997,11 @@ class _MomentCardState extends State<MomentCard>
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF6E40), // Deep Orange
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black, width: 3),
+                          border: Border.all(color: Colors.black, width: 1.5),
                           boxShadow: const [
                             BoxShadow(
                               color: Colors.black,
-                              offset: Offset(4, 4),
+                              offset: const Offset(1.5, 1.5),
                             ),
                           ],
                         ),
@@ -1018,11 +1026,11 @@ class _MomentCardState extends State<MomentCard>
                           decoration: BoxDecoration(
                             color: const Color(0xFFF4F4F4), // Light gray
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.black, width: 3),
+                            border: Border.all(color: Colors.black, width: 1.5),
                             boxShadow: const [
                               BoxShadow(
                                 color: Colors.black,
-                                offset: Offset(4, 4),
+                                offset: const Offset(1.5, 1.5),
                               ),
                             ],
                           ),

@@ -14,6 +14,11 @@ import '../../../core/providers/mentor_provider.dart';
 import '../../../core/models/livestream_model.dart';
 import '../../../core/widgets/network_image.dart';
 import 'live_swipe_feed_screen.dart';
+import '../matching/match_list_screen.dart';
+import '../chat/chat_screen.dart';
+import '../../../core/models/user_model.dart';
+import '../../../core/providers/match_provider.dart';
+import '../../../core/theme/theme_helper.dart';
 
 const Color _kLiveRed = Color(0xFFFF2D55);
 const Color _kAccent = Color(0xFFFF6E40);
@@ -22,7 +27,14 @@ const Color _kLightBg = Color(0xFFF4F4F0);
 const Color _kDarkCard = Color(0xFF2A2A32);
 const Color _kLightCard = Colors.white;
 
-const List<String> _kGames = ['Tất cả', 'Valorant', 'LMHT', 'PUBG', 'CS:GO', 'TFT'];
+const List<String> _kGames = [
+  'Tất cả',
+  'Valorant',
+  'LMHT',
+  'PUBG',
+  'CS:GO',
+  'TFT',
+];
 
 class LiveDiscoverScreen extends StatefulWidget {
   final bool embedMode;
@@ -41,6 +53,10 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
   bool _showSearch = false;
   final TextEditingController _searchController = TextEditingController();
 
+  bool _isChatPopupOpen = false;
+  UserModel? _selectedChatUser;
+  String? _selectedMatchId;
+
   @override
   void initState() {
     super.initState();
@@ -54,9 +70,11 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
   }
 
   void _loadData() {
-    final game = _selectedGame == 'Tất cả' ? null : _selectedGame;
-    context.read<LivestreamProvider>().listenToLiveStreams(gameFilter: game);
-    context.read<MentorProvider>().loadApprovedMentors(gameFilter: game);
+    context.read<LivestreamProvider>().listenToLiveStreams();
+    final mentorProvider = context.read<MentorProvider>();
+    if (mentorProvider.approvedMentors.isEmpty) {
+      mentorProvider.loadApprovedMentors();
+    }
   }
 
   @override
@@ -91,7 +109,9 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                   decoration: BoxDecoration(
                     color: cardColor,
                     border: Border.all(color: borderColor, width: 3),
-                    boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                    boxShadow: [
+                      BoxShadow(color: shadowColor, offset: const Offset(3, 3)),
+                    ],
                   ),
                   child: Icon(Icons.close_rounded, color: textColor, size: 22),
                 ),
@@ -121,18 +141,22 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                   decoration: BoxDecoration(
                     color: _showSearch ? textColor : _kLiveRed,
                     border: Border.all(color: borderColor, width: 3),
-                    boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                    boxShadow: [
+                      BoxShadow(color: shadowColor, offset: const Offset(3, 3)),
+                    ],
                   ),
                   child: Icon(
                     CupertinoIcons.search,
-                    color: _showSearch ? (isDark ? Colors.black : Colors.white) : Colors.white,
+                    color: _showSearch
+                        ? (isDark ? Colors.black : Colors.white)
+                        : Colors.white,
                     size: 22,
                   ),
                 ),
               ),
             ],
           ),
-          if (_showSearch) ...[  
+          if (_showSearch) ...[
             const SizedBox(height: 16),
             Row(
               children: [
@@ -141,7 +165,9 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                     decoration: BoxDecoration(
                       color: cardColor,
                       border: Border.all(color: borderColor, width: 3),
-                      boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(4, 4))],
+                      boxShadow: const [
+                        BoxShadow(color: _kAccent, offset: Offset(4, 4)),
+                      ],
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -153,12 +179,23 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                       ),
                       decoration: InputDecoration(
                         hintText: 'Tìm kiếm stream, mentor...',
-                        hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontWeight: FontWeight.w600),
-                        prefixIcon: const Icon(CupertinoIcons.search, color: _kAccent, size: 20),
+                        hintStyle: TextStyle(
+                          color: textColor.withValues(alpha: 0.4),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        prefixIcon: const Icon(
+                          CupertinoIcons.search,
+                          color: _kAccent,
+                          size: 20,
+                        ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
                       ),
-                      onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                      onChanged: (val) =>
+                          setState(() => _searchQuery = val.toLowerCase()),
                     ),
                   ),
                 ),
@@ -177,9 +214,18 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                       decoration: BoxDecoration(
                         color: cardColor,
                         border: Border.all(color: borderColor, width: 3),
-                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: shadowColor,
+                            offset: const Offset(3, 3),
+                          ),
+                        ],
                       ),
-                      child: Icon(Icons.close_rounded, color: textColor, size: 20),
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: textColor,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -199,7 +245,7 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
     final borderColor = isDark ? Colors.white : Colors.black;
     final shadowColor = isDark ? Colors.white : Colors.black;
     final inactiveTextColor = isDark ? Colors.white : Colors.black;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -212,7 +258,14 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                 decoration: BoxDecoration(
                   color: isLiveActive ? _kLiveRed : cardColor,
                   border: Border.all(color: borderColor, width: 3),
-                  boxShadow: isLiveActive ? [BoxShadow(color: shadowColor, offset: const Offset(4, 4))] : null,
+                  boxShadow: isLiveActive
+                      ? [
+                          BoxShadow(
+                            color: shadowColor,
+                            offset: const Offset(4, 4),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -244,7 +297,14 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                 decoration: BoxDecoration(
                   color: !isLiveActive ? _kAccent : cardColor,
                   border: Border.all(color: borderColor, width: 3),
-                  boxShadow: !isLiveActive ? [BoxShadow(color: shadowColor, offset: const Offset(4, 4))] : null,
+                  boxShadow: !isLiveActive
+                      ? [
+                          BoxShadow(
+                            color: shadowColor,
+                            offset: const Offset(4, 4),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -297,7 +357,19 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
               decoration: BoxDecoration(
                 color: selected ? _kAccent : cardColor,
                 border: Border.all(color: borderColor, width: selected ? 3 : 2),
-                boxShadow: selected ? [BoxShadow(color: shadowColor, offset: const Offset(3, 3))] : [BoxShadow(color: shadowColor, offset: const Offset(2, 2))],
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: shadowColor,
+                          offset: const Offset(3, 3),
+                        ),
+                      ]
+                    : [
+                        BoxShadow(
+                          color: shadowColor,
+                          offset: const Offset(2, 2),
+                        ),
+                      ],
               ),
               child: Text(
                 game.toUpperCase(),
@@ -320,15 +392,21 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
     return Consumer<LivestreamProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator(color: _kAccent));
+          return const Center(
+            child: CircularProgressIndicator(color: _kAccent),
+          );
         }
-        
-        final filteredStreams = _searchQuery.isEmpty
-            ? provider.liveStreams
-            : provider.liveStreams.where((s) =>
-                s.title.toLowerCase().contains(_searchQuery) ||
-                s.mentorUsername.toLowerCase().contains(_searchQuery) ||
-                s.game.toLowerCase().contains(_searchQuery)).toList();
+
+        final filteredStreams = provider.liveStreams.where((s) {
+          final matchesSearch =
+              _searchQuery.isEmpty ||
+              s.title.toLowerCase().contains(_searchQuery) ||
+              s.mentorUsername.toLowerCase().contains(_searchQuery) ||
+              s.game.toLowerCase().contains(_searchQuery);
+          final matchesGame =
+              _selectedGame == 'Tất cả' || s.game == _selectedGame;
+          return matchesSearch && matchesGame;
+        }).toList();
 
         return CustomScrollView(
           slivers: [
@@ -352,13 +430,20 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.live_tv_rounded, color: isDark ? Colors.white24 : Colors.black26, size: 60),
+                      Icon(
+                        Icons.live_tv_rounded,
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        size: 60,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         _searchQuery.isEmpty
                             ? 'Không có stream nào đang live'
                             : 'Không tìm thấy stream nào',
-                        style: TextStyle(color: isDark ? Colors.grey : Colors.black54, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: isDark ? Colors.grey : Colors.black54,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -369,7 +454,9 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width > 800 ? 4 : 2,
+                    crossAxisCount: MediaQuery.of(context).size.width > 800
+                        ? 4
+                        : 2,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                     childAspectRatio: 0.8,
@@ -404,12 +491,13 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
             initialIndex: index < 0 ? 0 : index,
           ),
           transitionsBuilder: (_, animation, __, child) => SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-            ),
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
             child: child,
           ),
           transitionDuration: const Duration(milliseconds: 380),
@@ -431,7 +519,9 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                      border: Border(bottom: BorderSide(color: borderColor, width: 3)),
+                      border: Border(
+                        bottom: BorderSide(color: borderColor, width: 3),
+                      ),
                       color: Colors.black,
                     ),
                     child: stream.mentorAvatarUrl.isNotEmpty
@@ -439,40 +529,68 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                             imageUrl: stream.mentorAvatarUrl,
                             fit: BoxFit.cover,
                             errorWidget: (_, __, ___) => const Center(
-                              child: Icon(Icons.videocam_rounded, color: Colors.white24, size: 40),
+                              child: Icon(
+                                Icons.videocam_rounded,
+                                color: Colors.white24,
+                                size: 40,
+                              ),
                             ),
                           )
                         : const Center(
-                            child: Icon(Icons.videocam_rounded, color: Colors.white24, size: 40),
+                            child: Icon(
+                              Icons.videocam_rounded,
+                              color: Colors.white24,
+                              size: 40,
+                            ),
                           ),
                   ),
                   Positioned(
-                    top: 8, left: 8,
+                    top: 8,
+                    left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: _kLiveRed,
                         border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                        ],
                       ),
                       child: const Text(
                         'LIVE',
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
                   Positioned(
-                    top: 8, right: 8,
+                    top: 8,
+                    right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black,
                         border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                        ],
                       ),
                       child: Text(
                         '👁 ${stream.viewerCount}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
@@ -508,11 +626,16 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border.all(color: Colors.black, width: 2),
-                      boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(2, 2))],
+                      boxShadow: const [
+                        BoxShadow(color: _kAccent, offset: Offset(2, 2)),
+                      ],
                     ),
                     child: Text(
                       stream.game.toUpperCase(),
@@ -538,9 +661,11 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
     return Consumer<MentorProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator(color: _kAccent));
+          return const Center(
+            child: CircularProgressIndicator(color: _kAccent),
+          );
         }
-        
+
         final liveStreams = context.watch<LivestreamProvider>().liveStreams;
         final liveMentorIds = liveStreams.map((s) => s.mentorId).toSet();
         final sorted = [...provider.approvedMentors];
@@ -553,20 +678,24 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
             final aRating = (a['rating'] as num? ?? 0.0).toDouble();
             final bRating = (b['rating'] as num? ?? 0.0).toDouble();
             if (bRating != aRating) return bRating.compareTo(aRating);
-            
+
             final aF = a['followerCount'] as int? ?? 0;
             final bF = b['followerCount'] as int? ?? 0;
             if (bF != aF) return bF.compareTo(aF);
 
-            final aTs = a['approvedAt'] as Timestamp? ?? a['appliedAt'] as Timestamp?;
-            final bTs = b['approvedAt'] as Timestamp? ?? b['appliedAt'] as Timestamp?;
+            final aTs =
+                a['approvedAt'] as Timestamp? ?? a['appliedAt'] as Timestamp?;
+            final bTs =
+                b['approvedAt'] as Timestamp? ?? b['appliedAt'] as Timestamp?;
             if (aTs == null && bTs == null) return 0;
             if (aTs == null) return 1;
             if (bTs == null) return -1;
             return bTs.compareTo(aTs);
           } else {
-            final aTs = a['approvedAt'] as Timestamp? ?? a['appliedAt'] as Timestamp?;
-            final bTs = b['approvedAt'] as Timestamp? ?? b['appliedAt'] as Timestamp?;
+            final aTs =
+                a['approvedAt'] as Timestamp? ?? a['appliedAt'] as Timestamp?;
+            final bTs =
+                b['approvedAt'] as Timestamp? ?? b['appliedAt'] as Timestamp?;
             if (aTs == null && bTs == null) return 0;
             if (aTs == null) return 1;
             if (bTs == null) return -1;
@@ -574,16 +703,25 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
           }
         });
 
-        final filteredMentors = _searchQuery.isEmpty
-            ? sorted
-            : sorted.where((m) {
-                final name = (m['displayName'] as String? ?? '').toLowerCase();
-                final username = (m['username'] as String? ?? '').toLowerCase();
-                final games = ((m['games'] as List?)?.join(' ') ?? '').toLowerCase();
-                return name.contains(_searchQuery) ||
-                    username.contains(_searchQuery) ||
-                    games.contains(_searchQuery);
-              }).toList();
+        final filteredMentors = sorted.where((m) {
+          final name = (m['displayName'] as String? ?? '').toLowerCase();
+          final username = (m['username'] as String? ?? '').toLowerCase();
+          final gamesList =
+              (m['games'] as List?)?.map((e) => e.toString()).toList() ?? [];
+          final gamesString = gamesList.join(' ').toLowerCase();
+
+          final matchesSearch =
+              _searchQuery.isEmpty ||
+              name.contains(_searchQuery) ||
+              username.contains(_searchQuery) ||
+              gamesString.contains(_searchQuery);
+
+          final matchesGame =
+              _selectedGame == 'Tất cả' ||
+              gamesList.any((g) => g == _selectedGame);
+
+          return matchesSearch && matchesGame;
+        }).toList();
 
         return CustomScrollView(
           slivers: [
@@ -596,7 +734,12 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                        border: Border(bottom: BorderSide(color: isDark ? Colors.white : Colors.black, width: 4))
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isDark ? Colors.white : Colors.black,
+                            width: 4,
+                          ),
+                        ),
                       ),
                       padding: const EdgeInsets.only(bottom: 4),
                       child: const Text(
@@ -612,7 +755,10 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                     DropdownButton<int>(
                       value: _selectedSortIndex,
                       dropdownColor: isDark ? _kDarkBg : _kLightBg,
-                      icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white54 : Colors.black54),
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
                       underline: const SizedBox(),
                       style: TextStyle(
                         color: isDark ? Colors.white54 : Colors.black54,
@@ -624,9 +770,10 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                         DropdownMenuItem(value: 1, child: Text('MỚI NHẤT')),
                       ],
                       onChanged: (val) {
-                        if (val != null) setState(() => _selectedSortIndex = val);
+                        if (val != null)
+                          setState(() => _selectedSortIndex = val);
                       },
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -637,7 +784,10 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
                 delegate: SliverChildBuilderDelegate(
                   (context, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 20),
-                    child: _DiscoverMentorCard(mentor: filteredMentors[i], rank: i + 1),
+                    child: _DiscoverMentorCard(
+                      mentor: filteredMentors[i],
+                      rank: i + 1,
+                    ),
                   ),
                   childCount: filteredMentors.length,
                 ),
@@ -652,41 +802,324 @@ class _LiveDiscoverScreenState extends State<LiveDiscoverScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = screenWidth > 900
+        ? (screenWidth - 900) / 2
+        : 20.0;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: isDark ? _kDarkBg : _kLightBg,
-      floatingActionButton: Consumer<MentorProvider>(
-        builder: (context, mentorProvider, _) {
-          if (mentorProvider.isMentor) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: FloatingActionButton(
-                onPressed: () => Navigator.pushNamed(context, '/go-live'),
-                backgroundColor: _kLiveRed,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  side: BorderSide(color: isDark ? Colors.white : Colors.black, width: 3),
-                ),
-                child: const Icon(CupertinoIcons.plus, color: Colors.white, size: 28),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  _buildHeader(),
+                  _buildMainTabSwitch(),
+                  const SizedBox(height: 24),
+                  _buildGameFilter(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [_buildLiveTab(), _buildMentorTab()],
+                    ),
+                  ),
+                ],
               ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
-      ),
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildMainTabSwitch(),
-          const SizedBox(height: 24),
-          _buildGameFilter(),
-          const SizedBox(height: 16),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildLiveTab(), _buildMentorTab()],
-            ),
+
+              // Floating Action Button (Go Live)
+              Positioned(
+                bottom:
+                    MediaQuery.of(context).padding.bottom +
+                    80, // Above the message FAB
+                right: 20,
+                child: Consumer<MentorProvider>(
+                  builder: (context, mentorProvider, _) {
+                    if (mentorProvider.isMentor) {
+                      return FloatingActionButton(
+                        heroTag: 'live_fab',
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/go-live'),
+                        backgroundColor: _kLiveRed,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          side: BorderSide(
+                            color: isDark ? Colors.white : Colors.black,
+                            width: 3,
+                          ),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.plus,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+
+              // Message FAB
+              Positioned(
+                bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                    ? MediaQuery.of(context).padding.bottom +
+                          MediaQuery.of(context).viewInsets.bottom +
+                          10
+                    : MediaQuery.of(context).padding.bottom + 20,
+                right: 20,
+                child: _buildMessageFab(),
+              ),
+
+              // Chat Popup Overlay
+              if (_isChatPopupOpen)
+                Positioned(
+                  bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                      ? MediaQuery.of(context).padding.bottom +
+                            MediaQuery.of(context).viewInsets.bottom +
+                            60
+                      : MediaQuery.of(context).padding.bottom + 80,
+                  right: 20,
+                  width: screenWidth > 600 ? 380 : screenWidth - 40,
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: context.textColor, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.textColor,
+                          offset: const Offset(1.5, 1.5),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(13),
+                      child: Column(
+                        children: [
+                          // Popup Header
+                          Container(
+                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: context.textColor,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Tin nhắn',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                    color: context.textColor,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    size: 20,
+                                    color: context.textColor,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isChatPopupOpen = false;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Popup Content
+                          Expanded(
+                            child:
+                                _selectedChatUser != null &&
+                                    _selectedMatchId != null
+                                ? ChatScreen(
+                                    matchId: _selectedMatchId!,
+                                    peerUser: _selectedChatUser!,
+                                    showBackButton: true,
+                                    isPopup: true,
+                                    onBack: () {
+                                      setState(() {
+                                        _selectedChatUser = null;
+                                        _selectedMatchId = null;
+                                      });
+                                    },
+                                  )
+                                : MatchListScreen(
+                                    hideAppBar: true,
+                                    isSidebarMode: true,
+                                    onChatSelected: (user, matchId) {
+                                      setState(() {
+                                        _selectedChatUser = user;
+                                        _selectedMatchId = matchId;
+                                      });
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageFab() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isChatPopupOpen = !_isChatPopupOpen;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: context.textColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
+          ],
+        ),
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: Provider.of<MatchProvider>(
+            context,
+            listen: false,
+          ).matchedUsersStream(FirebaseAuth.instance.currentUser?.uid ?? ''),
+          builder: (context, snapshot) {
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+            int unreadCount = 0;
+            List<String?> avatarUrls = [];
+
+            if (snapshot.hasData && snapshot.data != null) {
+              final matches = snapshot.data!;
+              final unreadMatches = matches
+                  .where(
+                    (m) =>
+                        m['lastMessageRead'] == false &&
+                        m['lastMessageSenderId'] != currentUserId &&
+                        m['lastMessageSenderId'] != '',
+                  )
+                  .toList();
+              unreadCount = unreadMatches.length;
+
+              if (unreadCount > 0) {
+                for (int i = 0; i < unreadMatches.length && i < 3; i++) {
+                  final unread = unreadMatches[i];
+                  if (unread['user'] != null && unread['user'] is UserModel) {
+                    avatarUrls.add((unread['user'] as UserModel).avatarUrl);
+                  }
+                }
+              }
+            }
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isChatPopupOpen)
+                  Icon(Icons.close_rounded, color: context.textColor, size: 24)
+                else if (unreadCount > 0)
+                  SizedBox(
+                    width:
+                        24.0 +
+                        (avatarUrls.length > 1
+                            ? (avatarUrls.length - 1) * 14.0
+                            : 0),
+                    height: 24,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        for (int i = avatarUrls.length - 1; i >= 0; i--)
+                          Positioned(
+                            left: i * 14.0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 11,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).scaffoldBackgroundColor,
+                                backgroundImage: avatarUrls[i] != null
+                                    ? NetworkImage(avatarUrls[i]!)
+                                    : null,
+                                child: avatarUrls[i] == null
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 14,
+                                        color: context.textColor,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6E40),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: context.textColor,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              unreadCount > 9 ? '9+' : unreadCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Icon(Icons.send_rounded, color: context.textColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  _isChatPopupOpen ? 'Đóng' : 'Tin nhắn',
+                  style: TextStyle(
+                    color: context.textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -729,7 +1162,10 @@ class _BlinkingDotState extends State<_BlinkingDot>
         child: Container(
           width: widget.size,
           height: widget.size,
-          decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: widget.color,
+            shape: BoxShape.circle,
+          ),
         ),
       ),
     );
@@ -762,9 +1198,9 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
       return;
     }
     final isFollowing = await context.read<MentorProvider>().checkIsFollowing(
-          widget.mentor['userId'] ?? '',
-          currentUserId,
-        );
+      widget.mentor['userId'] ?? '',
+      currentUserId,
+    );
     if (mounted) {
       setState(() {
         _isFollowing = isFollowing;
@@ -806,14 +1242,16 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
         decoration: BoxDecoration(
           color: cardColor,
           border: Border.all(color: borderColor, width: 3),
-          boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(4, 4), blurRadius: 0)],
+          boxShadow: const [
+            BoxShadow(color: _kAccent, offset: Offset(4, 4), blurRadius: 0),
+          ],
         ),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             // #1 Badge
             Positioned(
-              top: -28, 
+              top: -28,
               left: -28,
               child: Container(
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -821,16 +1259,22 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                 decoration: BoxDecoration(
                   color: _kAccent,
                   border: Border.all(color: Colors.black, width: 3),
-                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '#$rank',
-                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14),
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
-            
+
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -838,16 +1282,21 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                 GestureDetector(
                   onTap: isLive && liveStreamId != null
                       ? () {
-                          final allStreams = context.read<LivestreamProvider>().liveStreams;
-                          final index = allStreams.indexWhere((s) => s.id == liveStreamId);
+                          final allStreams = context
+                              .read<LivestreamProvider>()
+                              .liveStreams;
+                          final index = allStreams.indexWhere(
+                            (s) => s.id == liveStreamId,
+                          );
                           if (index >= 0) {
                             Navigator.push(
                               context,
                               PageRouteBuilder(
-                                pageBuilder: (_, __, ___) => LiveSwipeFeedScreen(
-                                  streams: allStreams.toList(),
-                                  initialIndex: index,
-                                ),
+                                pageBuilder: (_, __, ___) =>
+                                    LiveSwipeFeedScreen(
+                                      streams: allStreams.toList(),
+                                      initialIndex: index,
+                                    ),
                               ),
                             );
                           }
@@ -862,30 +1311,53 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                         decoration: BoxDecoration(
                           color: isDark ? Colors.grey[800] : Colors.grey[200],
                           border: Border.all(color: borderColor, width: 3),
-                          boxShadow: [BoxShadow(color: isDark ? Colors.white : Colors.black, offset: const Offset(4, 4))],
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark ? Colors.white : Colors.black,
+                              offset: const Offset(4, 4),
+                            ),
+                          ],
                         ),
                         clipBehavior: Clip.hardEdge,
-                        child: (mentor['avatarUrl'] as String?)?.isNotEmpty == true
+                        child:
+                            (mentor['avatarUrl'] as String?)?.isNotEmpty == true
                             ? GamenectNetworkImage(
                                 imageUrl: mentor['avatarUrl']!,
                                 fit: BoxFit.cover,
                               )
-                            : Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black54, size: 32),
+                            : Icon(
+                                Icons.person,
+                                color: isDark ? Colors.white54 : Colors.black54,
+                                size: 32,
+                              ),
                       ),
                       if (isLive)
                         Positioned(
                           bottom: -8,
                           right: -8,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: _kLiveRed,
                               border: Border.all(color: Colors.black, width: 2),
-                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
                             ),
                             child: const Text(
                               'LIVE',
-                              style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
                             ),
                           ),
                         ),
@@ -893,7 +1365,7 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Content
                 Expanded(
                   child: Column(
@@ -903,26 +1375,47 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                         children: [
                           Expanded(
                             child: Text(
-                              (mentor['username'] ?? 'Mentor').toString().toUpperCase(),
-                              style: TextStyle(color: textColor, fontWeight: FontWeight.w900, fontSize: 16, height: 1.1),
+                              (mentor['username'] ?? 'Mentor')
+                                  .toString()
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                height: 1.1,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.verified, color: Colors.blue, size: 16),
+                          const Icon(
+                            Icons.verified,
+                            color: Colors.blue,
+                            size: 16,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
                       Text(
                         '★ ${rating.toStringAsFixed(1)} • $followerCount FAN',
-                        style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : Colors.black87,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       if (bio.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Text(
                           '"$bio"',
-                          style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 10, fontStyle: FontStyle.italic, fontWeight: FontWeight.w900),
+                          style: TextStyle(
+                            color: isDark ? Colors.white54 : Colors.black54,
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w900,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -930,7 +1423,7 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                     ],
                   ),
                 ),
-                
+
                 // Action Button (Follow)
                 if (!isSelf)
                   GestureDetector(
@@ -946,9 +1439,15 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                       final mentorProvider = context.read<MentorProvider>();
                       setState(() => _isFollowing = !_isFollowing);
                       if (_isFollowing) {
-                        await mentorProvider.followMentor(mentor['userId'], currentUserId);
+                        await mentorProvider.followMentor(
+                          mentor['userId'],
+                          currentUserId,
+                        );
                       } else {
-                        await mentorProvider.unfollowMentor(mentor['userId'], currentUserId);
+                        await mentorProvider.unfollowMentor(
+                          mentor['userId'],
+                          currentUserId,
+                        );
                       }
                     },
                     child: Container(
@@ -956,12 +1455,24 @@ class _DiscoverMentorCardState extends State<_DiscoverMentorCard> {
                       height: 48,
                       decoration: BoxDecoration(
                         color: _isFollowing ? cardColor : textColor,
-                        border: Border.all(color: _isFollowing ? borderColor : _kAccent, width: 3),
-                        boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(3, 3))],
+                        border: Border.all(
+                          color: _isFollowing ? borderColor : _kAccent,
+                          width: 3,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(color: _kAccent, offset: Offset(3, 3)),
+                        ],
                       ),
                       alignment: Alignment.center,
                       child: _isChecking
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: _kAccent,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : Icon(
                               _isFollowing ? Icons.check : Icons.person_add,
                               color: _isFollowing ? textColor : cardColor,

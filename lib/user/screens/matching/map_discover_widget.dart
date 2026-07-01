@@ -79,9 +79,9 @@ class _MapDiscoverWidgetState extends State<MapDiscoverWidget> {
             decoration: BoxDecoration(
               color: const Color(0xFFF4F4F4),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black, width: 4),
+              border: Border.all(color: Colors.black, width: 1.5),
               boxShadow: const [
-                BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+                BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
               ],
             ),
             padding: const EdgeInsets.all(24),
@@ -115,7 +115,7 @@ class _MapDiscoverWidgetState extends State<MapDiscoverWidget> {
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: Colors.black, width: 2),
+                      side: const BorderSide(color: Colors.black, width: 1.5),
                     ),
                     elevation: 0,
                   ),
@@ -135,9 +135,9 @@ class _MapDiscoverWidgetState extends State<MapDiscoverWidget> {
             decoration: BoxDecoration(
               color: const Color(0xFFF4F4F4),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black, width: 2),
+              border: Border.all(color: Colors.black, width: 1.5),
               boxShadow: const [
-                BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
               ],
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -298,11 +298,11 @@ class _MapDiscoverWidgetState extends State<MapDiscoverWidget> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: bgColor,
-          border: Border.all(color: borderColor, width: 2.5),
+          border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: borderColor,
-              offset: const Offset(3, 3),
+              offset: const Offset(1.5, 1.5),
             ),
           ],
         ),

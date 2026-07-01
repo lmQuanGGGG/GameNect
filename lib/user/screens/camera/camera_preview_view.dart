@@ -1,14 +1,15 @@
-// lib/user/screens/camera_preview_view.dart
+// lib/user/screens/camera/camera_preview_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:video_player/video_player.dart';
 
 const _kNeoAccent = Color(0xFFFF6E40);
 const _kNeoYellow = Color(0xFFFFD54F);
 
-class CameraPreviewView extends StatelessWidget {
+class CameraPreviewView extends StatefulWidget {
   final bool isVideo;
   final String? localThumbnailPath;
   final bool isGeneratingThumbnail;
@@ -21,6 +22,8 @@ class CameraPreviewView extends StatelessWidget {
   final VoidCallback onPost;
   final VoidCallback onClose;
   final VoidCallback onToggleMirror;
+  final bool isFilterEnabled;
+  final VoidCallback onToggleFilter;
 
   const CameraPreviewView({
     super.key,
@@ -34,17 +37,54 @@ class CameraPreviewView extends StatelessWidget {
     required this.onClose,
     required this.isMirrored,
     required this.onToggleMirror,
+    required this.isFilterEnabled,
+    required this.onToggleFilter,
     this.webImageBytes,
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (capturedMedia == null) return const SizedBox.shrink();
+  State<CameraPreviewView> createState() => _CameraPreviewViewState();
+}
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final letterboxColor = isDark ? Colors.black : const Color(0xFFF4F4F0);
-    final borderColor = isDark ? Colors.white : Colors.black;
-    final shadowColor = isDark ? Colors.white : Colors.black;
+class _CameraPreviewViewState extends State<CameraPreviewView> {
+  VideoPlayerController? _videoController;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isVideo && widget.capturedMedia != null) {
+      if (kIsWeb) {
+        _videoController = VideoPlayerController.networkUrl(
+          Uri.parse(widget.capturedMedia!.path),
+        );
+      } else {
+        _videoController = VideoPlayerController.file(
+          File(widget.capturedMedia!.path),
+        );
+      }
+      _videoController!.initialize().then((_) {
+        if (mounted) {
+          setState(() {});
+          _videoController!.setLooping(true);
+          _videoController!.play();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.capturedMedia == null) return const SizedBox.shrink();
+
+    final letterboxColor = Colors.white;
+    final borderColor = Colors.black;
+    final shadowColor = Colors.black;
 
     return Scaffold(
       backgroundColor: letterboxColor,
@@ -79,7 +119,7 @@ class CameraPreviewView extends StatelessWidget {
                           // Hình ảnh / Video Cover
                           ClipRRect(
                             borderRadius: BorderRadius.circular(28),
-                            child: isVideo
+                            child: widget.isVideo
                                 ? _buildVideoPreview()
                                 : _buildImagePreview(),
                           ),
@@ -91,21 +131,35 @@ class CameraPreviewView extends StatelessWidget {
                             child: _NeoBtn(
                               icon: Icons.close_rounded,
                               bgColor: Colors.white,
-                              onTap: onClose,
+                              onTap: widget.onClose,
                             ),
                           ),
 
-                          // Nút Lật ảnh (chỉ hiển thị nếu không phải video)
-                          if (!isVideo)
+                          // Nút Lật ảnh & Bật/tắt Filter (chỉ hiển thị nếu không phải video)
+                          if (!widget.isVideo)
                             Positioned(
                               top: 16,
                               right: 16,
-                              child: _NeoBtn(
-                                icon: Icons.flip_rounded,
-                                bgColor: isMirrored
-                                    ? _kNeoYellow
-                                    : Colors.white,
-                                onTap: onToggleMirror,
+                              child: Column(
+                                children: [
+                                  _NeoBtn(
+                                    icon: Icons.flip_rounded,
+                                    bgColor: widget.isMirrored
+                                        ? _kNeoYellow
+                                        : Colors.white,
+                                    onTap: widget.onToggleMirror,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _NeoBtn(
+                                    icon: widget.isFilterEnabled
+                                        ? Icons.auto_awesome_rounded
+                                        : Icons.auto_awesome_outlined,
+                                    bgColor: widget.isFilterEnabled
+                                        ? _kNeoYellow
+                                        : Colors.white,
+                                    onTap: widget.onToggleFilter,
+                                  ),
+                                ],
                               ),
                             ),
                         ],
@@ -130,7 +184,7 @@ class CameraPreviewView extends StatelessWidget {
                       // Nút CHỤP LẠI
                       Expanded(
                         child: GestureDetector(
-                          onTap: onRetake,
+                          onTap: widget.onRetake,
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             decoration: BoxDecoration(
@@ -171,7 +225,7 @@ class CameraPreviewView extends StatelessWidget {
                       // Nút ĐĂNG NGAY
                       Expanded(
                         child: GestureDetector(
-                          onTap: onPost,
+                          onTap: widget.onPost,
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             decoration: BoxDecoration(
@@ -223,34 +277,36 @@ class CameraPreviewView extends StatelessWidget {
   Widget _buildImagePreview() {
     final Widget imageWidget;
     if (kIsWeb) {
-      imageWidget = Image.network(capturedMedia!.path, fit: BoxFit.cover);
+      imageWidget = Image.network(
+        widget.capturedMedia!.path,
+        fit: BoxFit.cover,
+      );
     } else {
-      imageWidget = Image.file(File(capturedMedia!.path), fit: BoxFit.cover);
+      imageWidget = Image.file(
+        File(widget.capturedMedia!.path),
+        fit: BoxFit.cover,
+      );
     }
 
     Widget processedImage = imageWidget;
 
-    if (isFrontCamera) {
+    // Bộ lọc chuẩn Locket: Tăng tương phản mạnh (hết bệt), bù sáng và giữ tone lạnh (hết vàng)
+    // Áp dụng bộ lọc Locket nếu bật
+    if (widget.isFilterEnabled) {
       processedImage = ColorFiltered(
         colorFilter: const ColorFilter.matrix([
-          1.00,
-          0.0,
-          0.0,
-          0.0,
-          18.0, // R: Giữ nguyên tỷ lệ 1.0 để không phóng đại noise, chỉ cộng sáng
-          0.0, 1.00, 0.0, 0.0, 18.0, // G: Giữ nguyên tỷ lệ 1.0 để ảnh mịn màng
-          0.0,
-          0.0,
-          1.10,
-          0.0,
-          40.0, // B: Hạ scale từ 1.25 xuống 1.10 để chặn hạt, bù offset lên 40.0 để giữ độ trong
-          0.0, 0.0, 0.0, 1.0, 0.0, // A
+          1.12, 0.0, 0.0, 0.0, 5.0, // Kéo dãn dải Đỏ, cộng thêm 5 điểm sáng
+          0.0, 1.12, 0.0, 0.0, 5.0, // Kéo dãn dải Xanh lá, cộng thêm 5 điểm sáng
+          0.0, 0.0, 1.18, 0.0, 15.0, // Bơm mạnh Xanh dương và cộng thêm 15 điểm sáng để da trắng sáng
+          0.0, 0.0, 0.0, 1.0, 0.0,
         ]),
         child: processedImage,
       );
     }
 
-    if (isMirrored) {
+    // Trên Mobile, Image.file đã tự động áp dụng thông số lật gương từ EXIF của ảnh
+    // Chỉ lật lại thủ công bằng Transform nếu là Web (do Web không có EXIF)
+    if (widget.isMirrored) {
       processedImage = Transform(
         alignment: Alignment.center,
         transform: Matrix4.rotationY(3.141592653589793), // pi
@@ -263,33 +319,25 @@ class CameraPreviewView extends StatelessWidget {
 
   // Preview dành cho Video
   Widget _buildVideoPreview() {
-    if (localThumbnailPath != null) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(File(localThumbnailPath!), fit: BoxFit.cover),
-          // Nút Play Video Neo-Brutalism
-          Center(
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: _kNeoYellow,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black, width: 4),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
-                ],
-              ),
-              child: const Icon(
-                CupertinoIcons.play_fill,
-                color: Colors.black,
-                size: 36,
-              ),
-            ),
-          ),
-        ],
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      Widget videoWidget = FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: _videoController!.value.size.width,
+          height: _videoController!.value.size.height,
+          child: VideoPlayer(_videoController!),
+        ),
       );
+
+      if (widget.isMirrored) {
+        videoWidget = Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.rotationY(3.141592653589793), // pi
+          child: videoWidget,
+        );
+      }
+
+      return Stack(fit: StackFit.expand, children: [videoWidget]);
     }
 
     // Trạng thái đang load hoặc xử lý video
@@ -299,7 +347,7 @@ class CameraPreviewView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isGeneratingThumbnail)
+            if (widget.isGeneratingThumbnail)
               const CircularProgressIndicator(
                 color: _kNeoAccent,
                 strokeWidth: 4,
@@ -322,7 +370,9 @@ class CameraPreviewView extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                isGeneratingThumbnail ? 'ĐANG XỬ LÝ...' : 'VIDEO ĐÃ QUAY',
+                widget.isGeneratingThumbnail
+                    ? 'ĐANG XỬ LÝ...'
+                    : 'VIDEO ĐÃ QUAY',
                 style: const TextStyle(
                   color: Colors.black,
                   fontSize: 14,

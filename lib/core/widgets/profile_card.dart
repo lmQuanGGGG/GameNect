@@ -393,11 +393,17 @@ class _ProfileCardState extends State<ProfileCard> {
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned.fill(
-          top: 4,
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth > 900;
+    
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isDesktop ? 500 : 650),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              top: 4,
           left: 4,
           bottom: -4,
           right: -4,
@@ -579,7 +585,9 @@ class _ProfileCardState extends State<ProfileCard> {
             ),
           ),
         ],
-      );
+      ),
+      ),
+    );
   }
 }
 

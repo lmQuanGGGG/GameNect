@@ -179,6 +179,30 @@ Future<void> sendMediaWithNotify(
 
   }
 
+  // Hàm chia sẻ Mentor Post
+  Future<void> sendMentorPostMessage(
+    String matchId,
+    String postId,
+    String previewUrl,
+    bool isVideo,
+    String mentorName, {
+    UserModel? peerUser,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    await FirestoreService().sendMentorPostMessage(
+      matchId: matchId,
+      postId: postId,
+      previewUrl: previewUrl,
+      isVideo: isVideo,
+      mentorName: mentorName,
+      peerUser: peerUser,
+    );
+    await fetchMessages(matchId);
+    _isLoading = false;
+    notifyListeners();
+  }
+
   // Hàm thu hồi tin nhắn
   Future<void> recallMessage(String matchId, String messageId) async {
     await FirestoreService().recallMessage(matchId, messageId);

@@ -259,19 +259,14 @@ exports.botDailyMentorApply = onSchedule(
       return;
     }
 
-    const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(
-      now.toMillis() - BOT_ACTIVE_DAYS * 24 * 60 * 60 * 1000
-    );
-
-    // Lấy bot chưa là mentor, còn trong 7 ngày đầu
+    // Lấy bot v5_perfect
     const eligibleSnap = await db.collection("users")
       .where("botVersion", "==", "v5_perfect")
-      .where("createdAt", ">=", sevenDaysAgo)
       .get();
 
     const eligible = eligibleSnap.docs.filter(d => {
       const data = d.data();
-      return !data.isMentor && data.mentorStatus !== "approved";
+      return data.isTestAccount === true && !data.isMentor && data.mentorStatus !== "approved";
     });
 
     if (eligible.length === 0) {
@@ -352,7 +347,7 @@ exports.botDailyMentorApply = onSchedule(
         await db.collection("users").doc(botId).update({
           isMentor: true,
           mentorStatus: "approved",
-          isTest: false,
+          isTestAccount: false,
         });
 
         // 3. Đăng 1 ảnh từ bot_photos_pool (ảnh đúng của người đó, từ JSONL đã import)

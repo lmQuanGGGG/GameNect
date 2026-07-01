@@ -15,12 +15,15 @@ class MentorProvider extends ChangeNotifier {
 
   // ─── State ────────────────────────────────────────────────────────────────
   bool _isLoading = false;
-  List<Map<String, dynamic>> _approvedMentors = [];
+  final List<Map<String, dynamic>> _approvedMentors = [];
   MentorModel? _myMentorProfile;
   String? _error;
   String? _selectedGameFilter;
   String? _loadedMyMentorUserId;
   Future<void>? _myMentorLoadFuture;
+  StreamSubscription? _approvedMentorsSub;
+  Future<void>? _approvedMentorsListenFuture;
+  String? _approvedMentorsListenGameFilter;
 
   // Listener cho mentor live notifications
   StreamSubscription? _mentorLiveSub;
@@ -48,22 +51,157 @@ class MentorProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Load danh sách approved mentors, có thể lọc theo game.
-  Future<void> loadApprovedMentors({String? gameFilter}) async {
+  /// Start listening to approved mentors. Initial snapshot reads the current
+  /// approved list once; later Firestore sends only changed documents.
+  Future<void> loadApprovedMentors({String? gameFilter}) {
+    if (_approvedMentorsSub != null &&
+        _approvedMentorsListenGameFilter == gameFilter) {
+      return _approvedMentorsListenFuture ?? Future.value();
+    }
+
+    _approvedMentorsListenFuture = _listenApprovedMentors(gameFilter);
+    return _approvedMentorsListenFuture!;
+  }
+
+  Future<void> _listenApprovedMentors(String? gameFilter) async {
+    await _approvedMentorsSub?.cancel();
+    _approvedMentorsSub = null;
+    _approvedMentorsListenGameFilter = gameFilter;
+
+    final firstSnapshot = Completer<void>();
     _isLoading = true;
     _error = null;
     _selectedGameFilter = gameFilter;
     notifyListeners();
 
-    try {
-      _approvedMentors = await _service.getApprovedMentors(
-        gameFilter: gameFilter,
+    Query query = _service.db
+        .collection('mentor_profiles')
+        .where('status', isEqualTo: 'approved');
+
+    if (gameFilter != null && gameFilter.isNotEmpty) {
+      query = query.where('games', arrayContains: gameFilter);
+    }
+
+    _approvedMentorsSub = query.snapshots().listen(
+      (snapshot) async {
+        var changed = false;
+        try {
+          final upsertDocs = snapshot.docChanges
+              .where((change) => change.type != DocumentChangeType.removed)
+              .map((change) => change.doc)
+              .toList();
+          final userDocsMap = await _loadUserDocsForMentors(
+            upsertDocs.map((doc) => doc.id).toList(),
+          );
+
+          for (final change in snapshot.docChanges) {
+            final docId = change.doc.id;
+
+            if (change.type == DocumentChangeType.removed) {
+              final before = _approvedMentors.length;
+              _approvedMentors.removeWhere(
+                (mentor) => mentor['userId'] == docId,
+              );
+              changed = changed || before != _approvedMentors.length;
+              continue;
+            }
+
+            final mentorData = change.doc.data() as Map<String, dynamic>;
+            final userData = userDocsMap[docId] ?? {};
+            final merged = {
+              ...mentorData,
+              'userId': docId,
+              'username': userData['username'] ?? '',
+              'avatarUrl': userData['avatarUrl'] ?? '',
+            };
+            final index = _approvedMentors.indexWhere(
+              (mentor) => mentor['userId'] == docId,
+            );
+            if (index == -1) {
+              _approvedMentors.add(merged);
+            } else {
+              _approvedMentors[index] = merged;
+            }
+            changed = true;
+          }
+
+          if (changed) {
+            _sortApprovedMentors();
+          }
+        } catch (e) {
+          _error = e.toString();
+          developer.log(
+            'listenApprovedMentors snapshot error: $e',
+            name: 'MentorProvider',
+          );
+        } finally {
+          final wasLoading = _isLoading;
+          if (_isLoading) {
+            _isLoading = false;
+          }
+          if (changed || _error != null || wasLoading) {
+            notifyListeners();
+          }
+          if (!firstSnapshot.isCompleted) {
+            firstSnapshot.complete();
+          }
+        }
+      },
+      onError: (e) {
+        _error = e.toString();
+        _isLoading = false;
+        notifyListeners();
+        developer.log(
+          'listenApprovedMentors error: $e',
+          name: 'MentorProvider',
+        );
+        if (!firstSnapshot.isCompleted) {
+          firstSnapshot.complete();
+        }
+      },
+    );
+
+    return firstSnapshot.future;
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _loadUserDocsForMentors(
+    List<String> mentorIds,
+  ) async {
+    final result = <String, Map<String, dynamic>>{};
+    if (mentorIds.isEmpty) return result;
+
+    for (var i = 0; i < mentorIds.length; i += 30) {
+      final chunk = mentorIds.sublist(
+        i,
+        i + 30 > mentorIds.length ? mentorIds.length : i + 30,
       );
-    } catch (e) {
-      _error = e.toString();
-      developer.log('loadApprovedMentors error: $e', name: 'MentorProvider');
-    } finally {
-      _isLoading = false;
+      final usersSnap = await _service.db
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final userDoc in usersSnap.docs) {
+        result[userDoc.id] = userDoc.data();
+      }
+    }
+
+    return result;
+  }
+
+  void _sortApprovedMentors() {
+    _approvedMentors.sort((a, b) {
+      final aTs = a['approvedAt'] as Timestamp? ?? a['appliedAt'] as Timestamp?;
+      final bTs = b['approvedAt'] as Timestamp? ?? b['appliedAt'] as Timestamp?;
+      if (aTs == null && bTs == null) return 0;
+      if (aTs == null) return 1;
+      if (bTs == null) return -1;
+      return bTs.compareTo(aTs);
+    });
+  }
+
+  void removeApprovedMentorFromCache(String userId) {
+    final before = _approvedMentors.length;
+    _approvedMentors.removeWhere((mentor) => mentor['userId'] == userId);
+    if (_approvedMentors.length != before) {
       notifyListeners();
     }
   }
@@ -362,6 +500,7 @@ class MentorProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _approvedMentorsSub?.cancel();
     stopMentorLiveListener();
     super.dispose();
   }

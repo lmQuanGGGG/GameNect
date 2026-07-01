@@ -44,7 +44,7 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
           backgroundColor: _kLiveRed,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            side: const BorderSide(color: Colors.white, width: 2),
+            side: const BorderSide(color: Colors.white, width: 1.5),
             borderRadius: BorderRadius.circular(0),
           ),
         ),
@@ -101,8 +101,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
     return Container(
       decoration: BoxDecoration(
         color: cColor,
-        border: Border.all(color: bColor, width: 3),
-        boxShadow: [BoxShadow(color: sColor, offset: const Offset(4, 4))],
+        border: Border.all(color: bColor, width: 1.5),
+        boxShadow: [BoxShadow(color: sColor, offset: const Offset(1.5, 1.5))],
       ),
       child: child,
     );
@@ -119,10 +119,13 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ──────────────────────────────────────────────────────────
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──────────────────────────────────────────────────────────
           SafeArea(
             bottom: false,
             child: Padding(
@@ -136,8 +139,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                       height: 44,
                       decoration: BoxDecoration(
                         color: cardColor,
-                        border: Border.all(color: borderColor, width: 3),
-                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
+                        border: Border.all(color: borderColor, width: 1.5),
+                        boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(1.5, 1.5))],
                       ),
                       child: Icon(Icons.close_rounded, color: textColor, size: 22),
                     ),
@@ -152,30 +155,6 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.2,
                       ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _kLiveRed,
-                      border: Border.all(color: borderColor, width: 2),
-                      boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(3, 3))],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _BlinkingDot(),
-                        SizedBox(width: 6),
-                        Text(
-                          'LIVE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -281,8 +260,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                             margin: const EdgeInsets.only(top: 4),
                             decoration: BoxDecoration(
                               color: cardColor,
-                              border: Border.all(color: borderColor, width: 3),
-                              boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(4, 4))],
+                              border: Border.all(color: borderColor, width: 1.5),
+                              boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(1.5, 1.5))],
                             ),
                             child: ListView.separated(
                               padding: EdgeInsets.zero,
@@ -320,8 +299,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: cardColor,
-                      border: Border.all(color: borderColor, width: 3),
-                      boxShadow: const [BoxShadow(color: _kAccent, offset: Offset(4, 4))],
+                      border: Border.all(color: borderColor, width: 1.5),
+                      boxShadow: const [BoxShadow(color: _kAccent, offset: const Offset(1.5, 1.5))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,8 +338,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
                       height: 60,
                       decoration: BoxDecoration(
                         color: _isStarting ? (isDark ? Colors.grey.shade800 : Colors.grey.shade300) : _kLiveRed,
-                        border: Border.all(color: borderColor, width: 3),
-                        boxShadow: _isStarting ? null : [BoxShadow(color: shadowColor, offset: const Offset(5, 5))],
+                        border: Border.all(color: borderColor, width: 1.5),
+                        boxShadow: _isStarting ? null : [BoxShadow(color: shadowColor, offset: const Offset(1.5, 1.5))],
                       ),
                       child: Center(
                         child: _isStarting
@@ -389,6 +368,8 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

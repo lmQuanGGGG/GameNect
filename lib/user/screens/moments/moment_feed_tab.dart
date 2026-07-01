@@ -11,8 +11,12 @@ import 'moment_card.dart';
 import 'moment_grid_item.dart';
 import 'trending_games_page.dart';
 import 'discover_hub_page.dart';
+import 'suggested_mentors_sidebar.dart';
 import 'mentor_post_preview_card.dart';
+import 'trending_games_preview_card.dart';
 import '../camera/camera_capture_screen.dart';
+import '../camera/web_rtc_camera_screen.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/theme/theme_helper.dart';
 import '../mentor/all_mentor_media_screen.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -264,7 +268,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
             ),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
+              MaterialPageRoute(builder: (_) => const WebRTCCameraScreen()),
             ),
           ),
         ],
@@ -276,7 +280,9 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final topPadding = MediaQuery.of(context).padding.top + 92;
+    // TabBarView content starts below the header now, so we just need a small padding.
+    // 64 gives enough room to place the grid toggle button above the cards.
+    final topPadding = 0.0;
 
     return VisibilityDetector(
       key: const Key('moment-feed-tab'),
@@ -310,80 +316,43 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
               }
 
               final hasMoments = provider.moments.isNotEmpty;
+              final screenWidth = MediaQuery.sizeOf(context).width;
 
               Widget content;
               if (isGridMode) {
-                final screenWidth = MediaQuery.sizeOf(context).width;
-                final mentorMediaSize = (screenWidth * 0.24).clamp(
-                  360.0,
-                  620.0,
-                );
+                final crossAxisCount = screenWidth >= 900 ? 3 : 2;
+                final firstGridCount = crossAxisCount * 2;
+                final firstMoments = provider.moments.take(firstGridCount).toList();
+                final remainingMoments = provider.moments.skip(firstGridCount).toList();
+
                 content = CustomScrollView(
                   cacheExtent: 2500,
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(8, topPadding + 12, 8, 8),
-                        child: Column(
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(right: 68),
-                              child: TrendingGamesButton(),
-                            ),
-                            const SizedBox(height: 12),
-                            // Optional: we can add a button for mentor posts in grid mode, but the page handles itself nicely
-                            // Actually let's make it a button as well
-                            MentorPostPreviewCard(
-                              height: screenWidth >= 900
-                                  ? mentorMediaSize + 58
-                                  : 265,
-                              mediaAspectRatio: 1,
-                              splitEvenly: true,
-                              autoplayVideo: _isTabVisible && isGridMode,
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const AllMentorMediaScreen(),
-                                  ),
-                                );
-                              },
-                              fallback: GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const AllMentorMediaScreen(),
-                                  ),
-                                ),
-                                child: _buildMentorButtonContent(
-                                  context,
-                                  isWeb: false,
-                                ),
-                              ),
-                            ),
-                          ],
+                        padding: EdgeInsets.only(top: topPadding),
+                        child: const DiscoverHubPage(
+                          isSplitMode: true,
+                          bottomPadding: 16.0,
                         ),
                       ),
                     ),
                     if (hasMoments)
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 120),
+                        padding: EdgeInsets.fromLTRB(8, 0, 8, remainingMoments.isEmpty ? 120 : 12),
                         sliver: SliverGrid(
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 250,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 0.65,
-                              ),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.65,
+                          ),
                           delegate: SliverChildBuilderDelegate(
                             (context, index) => MomentGridItem(
-                              moment: provider.moments[index],
+                              moment: firstMoments[index],
                               currentUserId: userId,
                             ),
-                            childCount: provider.moments.length,
+                            childCount: firstMoments.length,
                           ),
                         ),
                       )
@@ -392,28 +361,98 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                         hasScrollBody: false,
                         child: _buildEmptyState(context, userId),
                       ),
+                    if (hasMoments && screenWidth < 1100)
+                      const SliverToBoxAdapter(
+                        child: SuggestedMentorsSidebar(
+                          isHorizontal: true,
+                          showFooter: false,
+                        ),
+                      ),
+                    if (hasMoments && remainingMoments.isNotEmpty)
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(8, 12, 8, 120),
+                        sliver: SliverGrid(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.65,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => MomentGridItem(
+                              moment: remainingMoments[index],
+                              currentUserId: userId,
+                            ),
+                            childCount: remainingMoments.length,
+                          ),
+                        ),
+                      ),
                   ],
                 );
               } else {
+                final shouldShowInlineMentors = screenWidth < 1100;
+                final mentorInsertIndex = (hasMoments && provider.moments.length >= 2 && shouldShowInlineMentors) ? 3 : (hasMoments && shouldShowInlineMentors ? 2 : -1);
+                final itemCount = hasMoments ? provider.moments.length + (shouldShowInlineMentors ? 2 : 1) : 2;
+
                 content = Padding(
                   padding: EdgeInsets.only(top: topPadding),
                   child: PageView.builder(
                     controller: _pageController,
                     scrollDirection: Axis.vertical,
-                    itemCount: hasMoments ? provider.moments.length + 1 : 2,
+                    pageSnapping: screenWidth < 900,
+                    physics: screenWidth >= 900 ? const BouncingScrollPhysics() : null,
+                    itemCount: itemCount,
                     onPageChanged: (pageIndex) {
                       if (hasMoments && pageIndex > 0) {
-                        _preloadNextMoments(pageIndex - 1, provider);
+                        int momentIndex = pageIndex - 1;
+                        if (mentorInsertIndex != -1 && pageIndex > mentorInsertIndex) {
+                          momentIndex -= 1;
+                        }
+                        if (momentIndex >= 0 && momentIndex < provider.moments.length) {
+                          _preloadNextMoments(momentIndex, provider);
+                        }
                       }
                     },
                     itemBuilder: (context, index) {
-                      if (index == 0) return const DiscoverHubPage();
+                      if (index == 0) return const DiscoverHubPage(isSplitMode: false);
                       if (!hasMoments && index == 1) {
                         return _buildEmptyState(context, userId);
                       }
+                      
+                      if (index == mentorInsertIndex) {
+                        return Container(
+                          color: context.scaffoldBackgroundColor,
+                          child: SafeArea(
+                            child: Center(
+                              child: SingleChildScrollView(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 500),
+                                    child: const SuggestedMentorsSidebar(
+                                      isHorizontal: false,
+                                      showFooter: false,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      int momentIndex = index - 1;
+                      if (mentorInsertIndex != -1 && index > mentorInsertIndex) {
+                        momentIndex -= 1;
+                      }
+                      
+                      if (momentIndex < 0 || momentIndex >= provider.moments.length) {
+                        return const SizedBox.shrink();
+                      }
+
                       return MomentCard(
-                        key: ValueKey(provider.moments[index - 1].id),
-                        moment: provider.moments[index - 1],
+                        key: ValueKey(provider.moments[momentIndex].id),
+                        moment: provider.moments[momentIndex],
                         currentUserId: userId,
                       );
                     },
@@ -438,8 +477,8 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
 
           // Grid/Page mode toggle button
           Positioned(
-            top: topPadding + 55,
-            right: 16,
+            top: 12,
+            left: 16,
             child: GestureDetector(
               onTap: () => setState(() => isGridMode = !isGridMode),
               child: Container(
@@ -447,9 +486,9 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
                 decoration: BoxDecoration(
                   color: Colors.white, // White
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black, width: 3),
+                  border: Border.all(color: Colors.black, width: 1.5),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                    BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                   ],
                 ),
                 child: Icon(
@@ -476,8 +515,8 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
       decoration: BoxDecoration(
         color: Colors.white, // White
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black, width: 3),
-        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+        border: Border.all(color: Colors.black, width: 1.5),
+        boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
       ),
       child: Row(
         children: [
@@ -486,7 +525,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black, width: 2),
+              border: Border.all(color: Colors.black, width: 1.5),
             ),
             child: const Icon(
               Icons.auto_awesome_mosaic_rounded,
@@ -525,7 +564,7 @@ class _MomentFeedTabState extends State<MomentFeedTab> {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black, width: 2),
+              border: Border.all(color: Colors.black, width: 1.5),
             ),
             child: const Icon(
               Icons.arrow_forward_ios_rounded,

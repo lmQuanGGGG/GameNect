@@ -68,19 +68,19 @@ class BasicInfoSection extends StatelessWidget {
     
     final enabledBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.black, width: 2.5),
+      borderSide: const BorderSide(color: Colors.black, width: 1.5),
     );
     final focusedBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.deepOrange, width: 3),
+      borderSide: const BorderSide(color: Colors.deepOrange, width: 1.5),
     );
     final errorBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 2.5),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
     );
     final focusedErrorBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.redAccent, width: 3),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
     );
 
     return Column(
@@ -247,8 +247,8 @@ class BasicInfoSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: fieldFillColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black, width: 2.5),
-            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+            border: Border.all(color: Colors.black, width: 1.5),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
           ),
           buttonIcon: const Icon(
             Icons.interests,
@@ -276,8 +276,8 @@ class BasicInfoSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black, width: 2.5),
-                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3))],
+                  border: Border.all(color: Colors.black, width: 1.5),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5))],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

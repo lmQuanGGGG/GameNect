@@ -46,15 +46,23 @@ class MessageBubbleWidget extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0, top: 2),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundImage: avatarUrl.isNotEmpty
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              backgroundColor: Colors.black.withValues(alpha: 0.18),
-              child: avatarUrl.isEmpty
-                  ? const Icon(Icons.person, color: Colors.white, size: 18)
-                  : null,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.18),
+              ),
+              child: ClipOval(
+                child: avatarUrl.isNotEmpty
+                    ? GamenectNetworkImage(
+                        imageUrl: avatarUrl,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                      )
+                    : const Icon(Icons.person, color: Colors.white, size: 18),
+              ),
             ),
           ),
           Flexible(child: _buildMessageBubbleContent(context)),
@@ -163,9 +171,13 @@ class MessageBubbleWidget extends StatelessWidget {
     final isCall = msg['type'] == 'call';
     final isVoice = msg['type'] == 'voice';
     final isGame = msg['type'] == 'game';
+    final isMentorPost = msg['type'] == 'mentor_post';
 
     if (isGame) {
       return _buildGameMessageBubble(context);
+    }
+    if (isMentorPost) {
+      return _buildMentorPostMessageBubble(context);
     }
 
     final repliedToText = msg['repliedToText'];
@@ -718,6 +730,167 @@ class MessageBubbleWidget extends StatelessWidget {
                       child: const Icon(Icons.videogame_asset_rounded, color: Colors.white, size: 16),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+          if (reactions.isNotEmpty) _buildReactionsRow(reactions),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMentorPostMessageBubble(BuildContext context) {
+    final mentorName = msg['mentorName'] ?? 'Mentor';
+    final previewUrl = msg['previewUrl'] ?? '';
+    final isVideo = msg['isVideo'] == true;
+    final postId = msg['postId'];
+    final reactions = (msg['reactions'] as List?) ?? [];
+
+    return GestureDetector(
+      onTap: () {
+        if (postId != null) {
+          if (previewUrl.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => FullScreenMediaViewer(
+                  mediaUrl: previewUrl,
+                  isVideo: isVideo,
+                ),
+              ),
+            );
+          }
+        }
+      },
+      onLongPress: () {
+        _showOptionsDialog(context);
+      },
+      onDoubleTap: !isMe
+          ? () {
+              Provider.of<ChatProvider>(
+                context,
+                listen: false,
+              ).reactToMessage(matchId, msg['id'], '❤️');
+            }
+          : null,
+      child: Column(
+        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: EdgeInsets.only(
+              bottom: 6,
+              left: isMe ? 40 : 0,
+              right: isMe ? 8 : 40,
+            ),
+            width: 200,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.black, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  // Post Preview Image
+                  SizedBox(
+                    height: 250,
+                    width: double.infinity,
+                    child: previewUrl.isNotEmpty
+                        ? GamenectNetworkImage(
+                            imageUrl: previewUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(color: context.cardBgColor),
+                            errorWidget: (context, url, error) => Container(color: context.cardBgColor),
+                          )
+                        : Container(color: context.cardBgColor),
+                  ),
+                  
+                  // Gradient Overlay
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.8),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Content
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    right: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.auto_awesome_mosaic_rounded, size: 12, color: Colors.white),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'MENTOR POST',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          mentorName.toUpperCase(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  if (isVideo)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                      ),
+                    ),
                 ],
               ),
             ),

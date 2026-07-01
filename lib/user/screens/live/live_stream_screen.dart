@@ -1275,22 +1275,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
                                   fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: provider.stopScreenShare,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                icon: const Icon(
-                                  Icons.stop_screen_share_rounded,
-                                  size: 18,
-                                ),
-                                label: const Text('Dừng chia sẻ'),
-                              ),
+
                             ],
                           ),
                         ),

@@ -33,9 +33,9 @@ class TrendingGamesPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFF4F4F4), // Light background for high contrast
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black, width: 4),
+          border: Border.all(color: Colors.black, width: 1.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+            BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: Column(
@@ -49,9 +49,9 @@ class TrendingGamesPage extends StatelessWidget {
                 color: Colors.white, // White
                 shape: BoxShape.rectangle,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.black, width: 3),
+                border: Border.all(color: Colors.black, width: 1.5),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                  BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                 ],
               ),
               child: const Icon(
@@ -80,7 +80,7 @@ class TrendingGamesPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: Colors.black, width: 2),
+                border: Border.all(color: Colors.black, width: 1.5),
               ),
               child: const Text(
                 'KHÁM PHÁ NHỮNG TRÒ CHƠI HOT NHẤT\nVÀ TÌM BẠN CHƠI CÙNG NGAY',
@@ -110,9 +110,9 @@ class TrendingGamesPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF00E676), // Bright green
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black, width: 3),
+                  border: Border.all(color: Colors.black, width: 1.5),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                    BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                   ],
                 ),
                 child: const Row(
@@ -145,7 +145,7 @@ class TrendingGamesPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color.fromARGB(255, 242, 227, 230), // Pinkish
-                border: Border.all(color: Colors.black, width: 2),
+                border: Border.all(color: Colors.black, width: 1.5),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Row(
@@ -205,9 +205,9 @@ class TrendingGamesButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black, width: 3),
+          border: Border.all(color: Colors.black, width: 1.5),
           boxShadow: const [
-            BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+            BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: Row(
@@ -217,7 +217,7 @@ class TrendingGamesButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black, width: 2),
+                border: Border.all(color: Colors.black, width: 1.5),
               ),
               child: Icon(
                 Icons.sports_esports_rounded,
@@ -266,11 +266,11 @@ class TrendingGamesButton extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.black, width: 2),
+                            border: Border.all(color: Colors.black, width: 1.5),
                             boxShadow: const [
                               BoxShadow(
                                 color: Colors.black,
-                                offset: Offset(2, 2),
+                                offset: const Offset(1.5, 1.5),
                               ),
                             ],
                           ),
@@ -285,7 +285,7 @@ class TrendingGamesButton extends StatelessWidget {
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 1.5),
                               Icon(
                                 Icons.arrow_forward_rounded,
                                 color: Colors.black,
@@ -328,7 +328,7 @@ class TrendingGamesButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black, width: 2),
+                  border: Border.all(color: Colors.black, width: 1.5),
                 ),
                 child: const Icon(
                   Icons.arrow_forward_ios_rounded,

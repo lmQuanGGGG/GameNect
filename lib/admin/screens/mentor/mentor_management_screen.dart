@@ -1,6 +1,8 @@
 // lib/admin/screens/mentor/mentor_management_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/models/mentor_model.dart';
+import '../../../core/providers/mentor_provider.dart';
 import '../../../core/services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../user/screens/mentor/mentor_profile_screen.dart';
@@ -48,18 +50,32 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
             color: Colors.white,
             border: Border.all(color: Colors.black, width: 2.5),
             borderRadius: BorderRadius.circular(10),
-            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+            boxShadow: const [
+              BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+            ],
           ),
           child: TextField(
             controller: _searchCtrl,
-            style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
             decoration: InputDecoration(
               hintText: 'Tìm kiếm theo tên mentor...',
               hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: Colors.black54, size: 20),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: Colors.black54,
+                size: 20,
+              ),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.black54, size: 18),
+                      icon: const Icon(
+                        Icons.clear,
+                        color: Colors.black54,
+                        size: 18,
+                      ),
                       onPressed: () {
                         _searchCtrl.clear();
                         setState(() => _searchQuery = '');
@@ -80,8 +96,14 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
                 controller: _tabCtrl,
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.black54,
-                labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
                 indicator: const BoxDecoration(color: Colors.black),
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabs: const [
@@ -119,7 +141,10 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Lỗi tải dữ liệu: ${snapshot.error}',
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -127,7 +152,9 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.black));
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.black),
+          );
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -140,19 +167,25 @@ class _MentorManagementScreenState extends State<MentorManagementScreen>
                 color: Colors.white,
                 border: Border.all(color: Colors.black, width: 2.5),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4))],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.school_rounded, size: 48, color: Colors.black26),
+                  const Icon(
+                    Icons.school_rounded,
+                    size: 48,
+                    color: Colors.black26,
+                  ),
                   const SizedBox(height: 10),
                   Text(
                     status == 'pending'
                         ? 'Không có đơn chờ duyệt'
                         : status == 'approved'
-                            ? 'Chưa có mentor nào được duyệt'
-                            : 'Chưa có đơn nào bị từ chối',
+                        ? 'Chưa có mentor nào được duyệt'
+                        : 'Chưa có đơn nào bị từ chối',
                     style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w900,
@@ -278,7 +311,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
         ),
         title: Text(
           'Từ chối đơn của $_username?',
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -286,7 +322,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
           children: [
             const Text(
               'Nhập lý do từ chối:',
-              style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.black54,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -294,12 +333,17 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                 color: Colors.white,
                 border: Border.all(color: Colors.black, width: 2),
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                ],
               ),
               child: TextField(
                 controller: reasonCtrl,
                 maxLines: 3,
-                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'VD: Thiếu thông tin thành tích...',
                   hintStyle: TextStyle(color: Colors.black38),
@@ -320,7 +364,9 @@ class _ApplicationCardState extends State<_ApplicationCard> {
               color: const Color(0xFFEF5350),
               border: Border.all(color: Colors.black, width: 2),
               borderRadius: BorderRadius.circular(8),
-              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2))],
+              boxShadow: const [
+                BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+              ],
             ),
             child: TextButton(
               onPressed: () async {
@@ -329,7 +375,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                 Navigator.pop(dialogCtx);
                 setState(() => _isActing = true);
                 try {
-                  await widget.service.rejectMentor(widget.mentor.userId, reason);
+                  await widget.service.rejectMentor(
+                    widget.mentor.userId,
+                    reason,
+                  );
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -341,7 +390,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text('Lỗi: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 } finally {
@@ -350,7 +402,89 @@ class _ApplicationCardState extends State<_ApplicationCard> {
               },
               child: const Text(
                 'Từ chối',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemoveMentorDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.black, width: 2.5),
+        ),
+        title: const Text(
+          'Xóa quyền Mentor?',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+        ),
+        content: const Text(
+          'Thao tác này sẽ xóa hồ sơ Mentor và tất cả bài đăng Moment của user này. Bạn có chắc chắn không?',
+          style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Hủy', style: TextStyle(color: Colors.black54)),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF5350),
+              border: Border.all(color: Colors.black, width: 2),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: const [
+                BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+              ],
+            ),
+            child: TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogCtx);
+                setState(() => _isActing = true);
+                try {
+                  await widget.service.removeMentorCompletely(
+                    widget.mentor.userId,
+                  );
+                  if (mounted) {
+                    context
+                        .read<MentorProvider>()
+                        .removeApprovedMentorFromCache(widget.mentor.userId);
+                  }
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('🗑️ Đã tước quyền Mentor'),
+                        backgroundColor: Colors.black,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) setState(() => _isActing = false);
+                }
+              },
+              child: const Text(
+                'Xóa',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ),
@@ -396,7 +530,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.black, width: 2.5),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(2, 2),
+                            ),
                           ],
                           image: _avatarUrl.isNotEmpty
                               ? DecorationImage(
@@ -406,7 +543,11 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                               : null,
                         ),
                         child: _avatarUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.black38, size: 28)
+                            ? const Icon(
+                                Icons.person,
+                                color: Colors.black38,
+                                size: 28,
+                              )
                             : null,
                       ),
                       const SizedBox(width: 12),
@@ -440,10 +581,16 @@ class _ApplicationCardState extends State<_ApplicationCard> {
 
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF64B5F6).withValues(alpha: 0.15),
-                    border: Border.all(color: const Color(0xFF64B5F6), width: 1.5),
+                    border: Border.all(
+                      color: const Color(0xFF64B5F6),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
@@ -478,13 +625,18 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                       .map(
                         (g) => Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             border: Border.all(color: Colors.black, width: 2),
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: const [
-                              BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                              BoxShadow(
+                                color: Colors.black,
+                                offset: Offset(2, 2),
+                              ),
                             ],
                           ),
                           child: Text(
@@ -522,9 +674,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                   child: Text(
                     widget.mentor.bio,
                     style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
+                      color: Colors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
 
@@ -550,9 +703,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                   child: Text(
                     widget.mentor.achievements,
                     style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
+                      color: Colors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
 
@@ -563,7 +717,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFEBEE),
-                      border: Border.all(color: const Color(0xFFEF5350), width: 2),
+                      border: Border.all(
+                        color: const Color(0xFFEF5350),
+                        width: 2,
+                      ),
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: const [
                         BoxShadow(color: Colors.black, offset: Offset(2, 2)),
@@ -650,8 +807,8 @@ class _ApplicationCardState extends State<_ApplicationCard> {
               color: status == 'pending'
                   ? const Color(0xFFFFB300)
                   : status == 'approved'
-                      ? const Color(0xFF66BB6A)
-                      : Colors.black,
+                  ? const Color(0xFF66BB6A)
+                  : Colors.black,
               width: 2.5,
             ),
             borderRadius: BorderRadius.circular(14),
@@ -671,8 +828,9 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) =>
-                                MentorProfileScreen(mentorId: widget.mentor.userId),
+                            builder: (context) => MentorProfileScreen(
+                              mentorId: widget.mentor.userId,
+                            ),
                           ),
                         );
                       },
@@ -683,7 +841,10 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.black, width: 2),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(1.5, 1.5),
+                            ),
                           ],
                           image: _avatarUrl.isNotEmpty
                               ? DecorationImage(
@@ -693,7 +854,11 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                               : null,
                         ),
                         child: _avatarUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.black38, size: 24)
+                            ? const Icon(
+                                Icons.person,
+                                color: Colors.black38,
+                                size: 24,
+                              )
                             : null,
                       ),
                     ),
@@ -735,10 +900,15 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                         .map(
                           (g) => Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              border: Border.all(color: Colors.black, width: 1.5),
+                              border: Border.all(
+                                color: Colors.black,
+                                width: 1.5,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -808,13 +978,19 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFEBEE),
-                      border: Border.all(color: const Color(0xFFEF5350), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFFEF5350),
+                        width: 1.5,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline,
-                            color: Color(0xFFEF5350), size: 14),
+                        const Icon(
+                          Icons.info_outline,
+                          color: Color(0xFFEF5350),
+                          size: 14,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -850,18 +1026,25 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEF5350),
-                                  border: Border.all(color: Colors.black, width: 2),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 2,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: const [
                                     BoxShadow(
-                                        color: Colors.black,
-                                        offset: Offset(2, 2)),
+                                      color: Colors.black,
+                                      offset: Offset(2, 2),
+                                    ),
                                   ],
                                 ),
                                 child: TextButton.icon(
                                   onPressed: _showRejectDialog,
-                                  icon: const Icon(Icons.close,
-                                      color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   label: const Text(
                                     'Từ chối',
                                     style: TextStyle(
@@ -878,18 +1061,25 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF66BB6A),
-                                  border: Border.all(color: Colors.black, width: 2),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 2,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: const [
                                     BoxShadow(
-                                        color: Colors.black,
-                                        offset: Offset(2, 2)),
+                                      color: Colors.black,
+                                      offset: Offset(2, 2),
+                                    ),
                                   ],
                                 ),
                                 child: TextButton.icon(
                                   onPressed: _approve,
-                                  icon: const Icon(Icons.check,
-                                      color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   label: const Text(
                                     'Duyệt',
                                     style: TextStyle(
@@ -901,6 +1091,48 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                               ),
                             ),
                           ],
+                        ),
+                ] else if (status == 'approved') ...[
+                  const SizedBox(height: 12),
+                  Container(height: 1.5, color: Colors.black),
+                  const SizedBox(height: 12),
+                  _isActing
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : SizedBox(
+                          width: double.infinity,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF5350),
+                              border: Border.all(color: Colors.black, width: 2),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
+                            ),
+                            child: TextButton.icon(
+                              onPressed: _showRemoveMentorDialog,
+                              icon: const Icon(
+                                Icons.delete_forever,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              label: const Text(
+                                'Xóa quyền Mentor',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                 ],
               ],

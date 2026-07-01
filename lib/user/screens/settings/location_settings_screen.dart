@@ -170,7 +170,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
           ),
           body: locationProvider.isLoading
               ? Center(child: CircularProgressIndicator(color: context.textColor))
-              : Stack(
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: Stack(
                   children: [
                     SafeArea(
                       child: SingleChildScrollView(
@@ -473,6 +476,8 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
         );
       },
     );

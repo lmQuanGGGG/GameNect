@@ -43,8 +43,8 @@ class _SubscriptionScreenContent extends StatelessWidget {
             decoration: BoxDecoration(
               color: context.dialogBgColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: context.textColor, width: 2.5),
-              boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(3, 3))],
+              border: Border.all(color: context.textColor, width: 1.5),
+              boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
             ),
             child: Icon(Icons.close, color: context.textColor, size: 20),
           ),
@@ -58,7 +58,10 @@ class _SubscriptionScreenContent extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,8 +75,8 @@ class _SubscriptionScreenContent extends StatelessWidget {
               decoration: BoxDecoration(
                 color: context.textColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: context.textColor, width: 2.5),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(7, 7))],
+                border: Border.all(color: context.textColor, width: 1.5),
+                boxShadow: [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(1.5, 1.5))],
               ),
               child: Column(
                 children: [
@@ -82,7 +85,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF6E40),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: context.scaffoldBackgroundColor, width: 2),
+                      border: Border.all(color: context.scaffoldBackgroundColor, width: 1.5),
                     ),
                     child: const Icon(Icons.workspace_premium_rounded, size: 48, color: Colors.white),
                   ),
@@ -137,6 +140,18 @@ class _SubscriptionScreenContent extends StatelessWidget {
               icon: Icons.star_rounded,
               title: 'Super Like mỗi ngày',
               subtitle: 'Tăng cơ hội match x3',
+            ),
+            const SizedBox(height: 10),
+            _buildFeature(context,
+              icon: Icons.post_add_rounded,
+              title: 'Đăng Mentor Post không giới hạn',
+              subtitle: 'Không bị giới hạn số lượng bài',
+            ),
+            const SizedBox(height: 10),
+            _buildFeature(context,
+              icon: Icons.map_rounded,
+              title: 'Xem ở chế độ Map không giới hạn',
+              subtitle: 'Mở rộng phạm vi khám phá',
             ),
 
             const SizedBox(height: 28),
@@ -279,10 +294,10 @@ class _SubscriptionScreenContent extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: provider.selectedPlan == null ? context.dialogBgColor : context.textColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.textColor, width: 2.5),
+                  border: Border.all(color: context.textColor, width: 1.5),
                   boxShadow: provider.selectedPlan == null
                       ? []
-                      : [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(6, 6))],
+                      : [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(1.5, 1.5))],
                 ),
                 child: Center(
                   child: provider.isLoading
@@ -319,6 +334,8 @@ class _SubscriptionScreenContent extends StatelessWidget {
           ],
         ),
       ),
+        ),
+      ),
     );
   }
 
@@ -346,8 +363,8 @@ class _SubscriptionScreenContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.dialogBgColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: context.textColor, width: 2.5),
-        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+        border: Border.all(color: context.textColor, width: 1.5),
+        boxShadow: [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
       ),
       child: Row(
         children: [
@@ -356,7 +373,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFFFF6E40),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: context.textColor, width: 2),
+              border: Border.all(color: context.textColor, width: 1.5),
             ),
             child: Icon(icon, color: Colors.white, size: 22),
           ),
@@ -395,10 +412,10 @@ class _SubscriptionScreenContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? context.textColor : context.dialogBgColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.textColor, width: 2.5),
+          border: Border.all(color: context.textColor, width: 1.5),
           boxShadow: isSelected
-              ? [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(6, 6))]
-              : [BoxShadow(color: context.textColor, offset: const Offset(4, 4))],
+              ? [BoxShadow(color: const Color(0xFFFF6E40), offset: const Offset(1.5, 1.5))]
+              : [BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))],
         ),
         child: Row(
           children: [
@@ -410,7 +427,7 @@ class _SubscriptionScreenContent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: isSelected ? const Color(0xFFFF6E40) : context.textSecondaryColor,
-                  width: 2,
+                  width: 1.5,
                 ),
               ),
               child: isSelected

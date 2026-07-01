@@ -17,11 +17,11 @@ class DiscoverMentorPostsPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFFF4F4F4), // Light background for high contrast
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.black, width: 4),
+              border: Border.all(color: Colors.black, width: 1.5),
               boxShadow: const [
                 BoxShadow(
                   color: Colors.black,
-                  offset: Offset(8, 8),
+                  offset: const Offset(1.5, 1.5),
                 ),
               ],
             ),
@@ -36,11 +36,11 @@ class DiscoverMentorPostsPage extends StatelessWidget {
                     color: Colors.white, // White
                     shape: BoxShape.rectangle,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.black, width: 3),
+                    border: Border.all(color: Colors.black, width: 1.5),
                     boxShadow: const [
                       BoxShadow(
                         color: Colors.black,
-                        offset: Offset(4, 4),
+                        offset: const Offset(1.5, 1.5),
                       ),
                     ],
                   ),
@@ -66,7 +66,7 @@ class DiscoverMentorPostsPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: Colors.black, width: 2),
+                    border: Border.all(color: Colors.black, width: 1.5),
                   ),
                   child: const Text(
                     'Khám phá hình ảnh và video độc quyền từ các Mentor xịn xò!',
@@ -92,9 +92,9 @@ class DiscoverMentorPostsPage extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFF00E676), // Bright green
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black, width: 3),
+                      border: Border.all(color: Colors.black, width: 1.5),
                       boxShadow: const [
-                        BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                        BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                       ],
                     ),
                     child: const Row(
@@ -122,7 +122,7 @@ class DiscoverMentorPostsPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color.fromARGB(255, 242, 227, 230), // Yellow
-                    border: Border.all(color: Colors.black, width: 2),
+                    border: Border.all(color: Colors.black, width: 1.5),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(

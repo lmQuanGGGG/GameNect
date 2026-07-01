@@ -112,7 +112,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.65),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
                 child: const Icon(
                   Icons.volume_off_rounded,

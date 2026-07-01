@@ -22,6 +22,7 @@ const autoLike = require('./auto_like');
 const botDailySwipe = require('./bot_daily_swipe');
 const botMentorApply = require('./bot_mentor_apply');
 const botMentorPost = require('./bot_mentor_post');
+const botMentorPostLike = require('./bot_mentor_post_like');
 
 // Khởi tạo Firebase Admin SDK
 admin.initializeApp();
@@ -51,6 +52,9 @@ exports.botDailyMentorApply = botMentorApply.botDailyMentorApply;
 
 // Export bot daily mentor post (mỗi ngày 15h)
 exports.botDailyMentorPost = botMentorPost.botDailyMentorPost;
+
+// Export bot auto like mentor post (mỗi giờ)
+exports.botAutoLikeMentorPost = botMentorPostLike.botAutoLikeMentorPost;
 
 
 /**

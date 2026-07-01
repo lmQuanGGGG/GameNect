@@ -80,9 +80,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       decoration: BoxDecoration(
         color: context.isDarkMode ? const Color(0xFF111111) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.textColor, width: 2.5),
+        border: Border.all(color: context.textColor, width: 1.5),
         boxShadow: [
-          BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
+          BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
         ],
       ),
       child: Column(
@@ -163,9 +163,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           color: const Color(0xFF9B51E0), // Solid bold purple
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.textColor, width: 2.5),
+          border: Border.all(color: context.textColor, width: 1.5),
           boxShadow: [
-            BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
+            BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: Stack(
@@ -254,11 +254,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                           ? Colors.black
                           : Colors.white,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: context.textColor, width: 2),
+                      border: Border.all(color: context.textColor, width: 1.5),
                       boxShadow: [
                         BoxShadow(
                           color: context.textColor,
-                          offset: const Offset(3, 3),
+                          offset: const Offset(1.5, 1.5),
                         ),
                       ],
                     ),
@@ -307,7 +307,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             BoxShadow(
               color: const Color(0xFF662200).withValues(alpha: 0.4),
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: const Offset(1.5, 1.5),
               spreadRadius: 0,
             ),
           ],
@@ -396,11 +396,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                     decoration: BoxDecoration(
                       color: context.dialogBgColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: context.textColor, width: 2.5),
+                      border: Border.all(color: context.textColor, width: 1.5),
                       boxShadow: [
                         BoxShadow(
                           color: context.textColor,
-                          offset: const Offset(6, 6),
+                          offset: const Offset(1.5, 1.5),
                         ),
                       ],
                     ),
@@ -438,9 +438,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             decoration: BoxDecoration(
               color: context.dialogBgColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.textColor, width: 2.5),
+              border: Border.all(color: context.textColor, width: 1.5),
               boxShadow: [
-                BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
+                BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
               ],
             ),
             padding: const EdgeInsets.all(16),
@@ -481,12 +481,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: context.textColor,
-                            width: 2,
+                            width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
                               color: context.textColor,
-                              offset: const Offset(2, 2),
+                              offset: const Offset(1.5, 1.5),
                             ),
                           ],
                         ),
@@ -586,9 +586,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
             decoration: BoxDecoration(
               color: context.dialogBgColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.textColor, width: 2.5),
+              border: Border.all(color: context.textColor, width: 1.5),
               boxShadow: [
-                BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
+                BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
               ],
             ),
             padding: const EdgeInsets.all(14),
@@ -632,9 +632,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           decoration: BoxDecoration(
             color: context.dialogBgColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: context.textColor, width: 2.5),
+            border: Border.all(color: context.textColor, width: 1.5),
             boxShadow: [
-              BoxShadow(color: context.textColor, offset: const Offset(6, 6)),
+              BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
             ],
           ),
           padding: const EdgeInsets.all(14),
@@ -680,11 +680,11 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF6E40),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: context.textColor, width: 2),
+                    border: Border.all(color: context.textColor, width: 1.5),
                     boxShadow: [
                       BoxShadow(
                         color: context.textColor,
-                        offset: const Offset(3, 3),
+                        offset: const Offset(1.5, 1.5),
                       ),
                     ],
                   ),
@@ -760,9 +760,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: context.textColor, width: 2.5),
+          border: Border.all(color: context.textColor, width: 1.5),
           boxShadow: [
-            BoxShadow(color: context.textColor, offset: const Offset(3, 3)),
+            BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5)),
           ],
         ),
         child: Row(
@@ -932,7 +932,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
       builder: (context, provider, child) {
         final isPremium = provider.userData?.isPremium ?? false;
 
-        return Scaffold(
+        return Container(
+          color: context.scaffoldBackgroundColor,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Scaffold(
           extendBodyBehindAppBar: true,
           backgroundColor: context.scaffoldBackgroundColor,
           appBar: AppBar(
@@ -946,7 +951,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                 border: Border(
                   bottom: BorderSide(
                     color: context.isDarkMode ? Colors.white24 : Colors.black12,
-                    width: 1,
+                    width: 1.5,
                   ),
                 ),
               ),
@@ -997,12 +1002,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: context.textColor,
-                              width: 3,
+                              width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: context.textColor,
-                                offset: const Offset(4, 4),
+                                offset: const Offset(1.5, 1.5),
                               ),
                             ],
                           ),
@@ -1126,12 +1131,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                                 shape: BoxShape.circle,
                                                 border: Border.all(
                                                   color: context.textColor,
-                                                  width: 3,
+                                                  width: 1.5,
                                                 ),
                                                 boxShadow: [
                                                   BoxShadow(
                                                     color: context.textColor,
-                                                    offset: const Offset(6, 6),
+                                                    offset: const Offset(1.5, 1.5),
                                                   ),
                                                 ],
                                                 color: context.cardBgColor,
@@ -1216,7 +1221,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                                         context.textColor,
                                                     side: BorderSide(
                                                       color: context.textColor,
-                                                      width: 2,
+                                                      width: 1.5,
                                                     ),
                                                     shape: RoundedRectangleBorder(
                                                       borderRadius:
@@ -1266,15 +1271,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                                       BorderRadius.circular(12),
                                                   border: Border.all(
                                                     color: context.textColor,
-                                                    width: 2.5,
+                                                    width: 1.5,
                                                   ),
                                                   boxShadow: [
                                                     BoxShadow(
                                                       color: context.textColor,
-                                                      offset: const Offset(
-                                                        6,
-                                                        6,
-                                                      ),
+                                                      offset: const Offset(1.5, 1.5),
                                                     ),
                                                   ],
                                                 ),
@@ -1519,16 +1521,13 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                                         ),
                                                     border: Border.all(
                                                       color: context.textColor,
-                                                      width: 2.5,
+                                                      width: 1.5,
                                                     ),
                                                     boxShadow: [
                                                       BoxShadow(
                                                         color:
                                                             context.textColor,
-                                                        offset: const Offset(
-                                                          6,
-                                                          6,
-                                                        ),
+                                                        offset: const Offset(1.5, 1.5),
                                                       ),
                                                     ],
                                                   ),
@@ -1660,15 +1659,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                                       BorderRadius.circular(12),
                                                   border: Border.all(
                                                     color: context.textColor,
-                                                    width: 2.5,
+                                                    width: 1.5,
                                                   ),
                                                   boxShadow: [
                                                     BoxShadow(
                                                       color: context.textColor,
-                                                      offset: const Offset(
-                                                        6,
-                                                        6,
-                                                      ),
+                                                      offset: const Offset(1.5, 1.5),
                                                     ),
                                                   ],
                                                 ),
@@ -1840,12 +1836,12 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                                             ),
                                             border: Border.all(
                                               color: context.textColor,
-                                              width: 2.5,
+                                              width: 1.5,
                                             ),
                                             boxShadow: [
                                               BoxShadow(
                                                 color: context.textColor,
-                                                offset: const Offset(5, 5),
+                                                offset: const Offset(1.5, 1.5),
                                               ),
                                             ],
                                           ),
@@ -1896,6 +1892,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
                       ), // đóng NotificationListener
               ),
             ],
+          ),
+          ),
+            ),
           ),
         );
       },

@@ -2,7 +2,7 @@ name: gamenect_new
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.2+12
+version: 1.0.2+13
 
 environment:
   sdk: ^3.8.1
@@ -107,6 +107,7 @@ flutter:
     - assets/images/google_logo.png
     - assets/images/yacht_bg.jpg
     - assets/images/avt.png
+    - assets/sound/
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true

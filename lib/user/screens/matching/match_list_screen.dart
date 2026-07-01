@@ -18,7 +18,16 @@ import '../shared/peer_profile_screen.dart';
 // Màn hình danh sách match và tin nhắn
 // Hiển thị dãy avatar ngang của các match và danh sách chat dọc
 class MatchListScreen extends StatefulWidget {
-  const MatchListScreen({super.key});
+  final bool hideAppBar;
+  final bool isSidebarMode;
+  final Function(UserModel user, String matchId)? onChatSelected;
+
+  const MatchListScreen({
+    super.key,
+    this.hideAppBar = false,
+    this.isSidebarMode = false,
+    this.onChatSelected,
+  });
 
   @override
   State<MatchListScreen> createState() => _MatchListScreenState();
@@ -35,6 +44,8 @@ class _MatchListScreenState extends State<MatchListScreen> {
   Timer? _debounce;
   List<UserModel> _globalSearchResults = [];
   bool _isSearchingGlobal = false;
+
+  final GlobalKey _leftPaneKey = GlobalKey();
 
   void _onSearchChanged(String value) {
     setState(() {
@@ -69,6 +80,10 @@ class _MatchListScreenState extends State<MatchListScreen> {
   }
 
   void _handleChatTap(BuildContext context, String matchId, UserModel peerUser, bool isLargeScreen) {
+    if (widget.onChatSelected != null) {
+      widget.onChatSelected!(peerUser, matchId);
+      return;
+    }
     if (isLargeScreen) {
       setState(() {
         _activeMatchId = matchId;
@@ -136,9 +151,9 @@ class _MatchListScreenState extends State<MatchListScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFF4F4F4),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black, width: 4),
+                border: Border.all(color: Colors.black, width: 1.5),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+                  BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                 ],
               ),
               padding: const EdgeInsets.all(32),
@@ -181,7 +196,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.black, width: 3),
+                        side: const BorderSide(color: Colors.black, width: 1.5),
                       ),
                       elevation: 0,
                     ).copyWith(
@@ -207,11 +222,12 @@ class _MatchListScreenState extends State<MatchListScreen> {
     }
 
     return Scaffold(
+      key: _leftPaneKey,
       extendBodyBehindAppBar: true,
       backgroundColor: context.isDarkMode
           ? Colors.black
           : const Color(0xFFF4F4F4),
-      appBar: AppBar(
+      appBar: widget.hideAppBar ? null : AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         toolbarHeight: 60,
@@ -222,7 +238,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
             border: Border(
               bottom: BorderSide(
                 color: context.isDarkMode ? Colors.white24 : Colors.black12,
-                width: 1,
+                width: 1.5,
               ),
             ),
           ),
@@ -271,11 +287,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
                       decoration: BoxDecoration(
                         color: context.textColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.textColor, width: 3),
+                        border: Border.all(color: context.textColor, width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: context.textColor,
-                            offset: const Offset(4, 4),
+                            offset: const Offset(1.5, 1.5),
                           ),
                         ],
                       ),
@@ -289,7 +305,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Premium',
+                            'Pre',
                             style: TextStyle(
                               color: context.scaffoldBackgroundColor,
                               fontWeight: FontWeight.w900,
@@ -337,6 +353,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
           SafeArea(
             child: Column(
               children: [
+                if (widget.hideAppBar && !widget.isSidebarMode) SizedBox(height: MediaQuery.of(context).padding.top + 70),
                 // Thanh tìm kiếm luôn hiển thị
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -349,14 +366,14 @@ class _MatchListScreenState extends State<MatchListScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: context.isDarkMode ? Colors.white : Colors.black,
-                        width: 2,
+                        width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: context.isDarkMode
                               ? const Color.fromARGB(255, 255, 255, 255)
                               : Colors.black,
-                          offset: const Offset(4, 4),
+                          offset: const Offset(1.5, 1.5),
                         ),
                       ],
                     ),
@@ -530,14 +547,14 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                                   color: context.isDarkMode
                                                       ? Colors.white
                                                       : Colors.black,
-                                                  width: 3,
+                                                  width: 1.5,
                                                 ),
                                                 boxShadow: [
                                                   BoxShadow(
                                                     color: context.isDarkMode
                                                         ? Colors.white
                                                         : Colors.black,
-                                                    offset: const Offset(8, 8),
+                                                    offset: const Offset(1.5, 1.5),
                                                   ),
                                                 ],
                                               ),
@@ -666,7 +683,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                                 color: context.isDarkMode
                                                     ? Colors.white
                                                     : Colors.black,
-                                                width: 2,
+                                                width: 1.5,
                                               ),
                                             ),
                                             padding: const EdgeInsets.all(2.5),
@@ -682,6 +699,8 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                                     ? GamenectNetworkImage(
                                                         imageUrl:
                                                             user.avatarUrl!,
+                                                        width: 56,
+                                                        height: 56,
                                                         fit: BoxFit.cover,
                                                         placeholder:
                                                             (
@@ -846,105 +865,82 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                         ),
                                       );
                                     },
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 4,
-                                          ),
-                                      leading: Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: context.cardBorderColor,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: ClipOval(
-                                          child: SizedBox(
-                                            width: 56,
-                                            height: 56,
-                                            child:
-                                                user.avatarUrl != null &&
-                                                    user.avatarUrl!.isNotEmpty
-                                                ? GamenectNetworkImage(
-                                                    imageUrl: user.avatarUrl!,
-                                                    fit: BoxFit.cover,
-                                                    placeholder:
-                                                        (
-                                                          context,
-                                                          url,
-                                                        ) => Container(
-                                                          color:
-                                                              context.isDarkMode
-                                                              ? Colors.white
-                                                                    .withOpacity(
-                                                                      0.1,
-                                                                    )
-                                                              : Colors.black
-                                                                    .withOpacity(
-                                                                      0.05,
-                                                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: context.cardBorderColor,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: ClipOval(
+                                              child: SizedBox(
+                                                width: 56,
+                                                height: 56,
+                                                child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                                    ? GamenectNetworkImage(
+                                                        imageUrl: user.avatarUrl!,
+                                                        fit: BoxFit.cover,
+                                                        width: 56,
+                                                        height: 56,
+                                                        placeholder: (context, url) => Container(
+                                                          color: context.isDarkMode
+                                                              ? Colors.white.withValues(alpha: 0.1)
+                                                              : Colors.black.withValues(alpha: 0.05),
                                                         ),
-                                                    errorWidget:
-                                                        (
-                                                          context,
-                                                          url,
-                                                          error,
-                                                        ) => Container(
-                                                          color:
-                                                              context.isDarkMode
-                                                              ? Colors.white
-                                                                    .withOpacity(
-                                                                      0.1,
-                                                                    )
-                                                              : Colors.black
-                                                                    .withOpacity(
-                                                                      0.05,
-                                                                    ),
-                                                          child: Icon(
-                                                            Icons.person,
-                                                            size: 28,
-                                                            color: context
-                                                                .textColor,
-                                                          ),
+                                                        errorWidget: (context, url, error) => Container(
+                                                          color: context.isDarkMode
+                                                              ? Colors.white.withValues(alpha: 0.1)
+                                                              : Colors.black.withValues(alpha: 0.05),
+                                                          child: Icon(Icons.person, size: 28, color: context.textColor),
                                                         ),
-                                                  )
-                                                : Container(
-                                                    color: context.isDarkMode
-                                                        ? Colors.white
-                                                              .withOpacity(0.1)
-                                                        : Colors.black
-                                                              .withOpacity(
-                                                                0.05,
-                                                              ),
-                                                    child: Icon(
-                                                      Icons.person,
-                                                      size: 28,
-                                                      color: context.textColor,
-                                                    ),
+                                                      )
+                                                    : Container(
+                                                        color: context.isDarkMode
+                                                            ? Colors.white.withValues(alpha: 0.1)
+                                                            : Colors.black.withValues(alpha: 0.05),
+                                                        child: Icon(Icons.person, size: 28, color: context.textColor),
+                                                      ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  user.username,
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: context.textColor,
                                                   ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${user.age} tuổi • ${user.location}',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: context.textSecondaryColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                      title: Text(
-                                        user.username,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: context.textColor,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '${user.age} tuổi • ${user.location}',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: context.textSecondaryColor,
-                                        ),
-                                      ),
-                                      trailing: Icon(
-                                        Icons.chevron_right,
-                                        color: context.textSecondaryColor,
+                                          Icon(
+                                            Icons.chevron_right,
+                                            color: context.textSecondaryColor,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -1008,14 +1004,14 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                             color: context.isDarkMode
                                                 ? Colors.white
                                                 : Colors.black,
-                                            width: 3,
+                                            width: 1.5,
                                           ),
                                           boxShadow: [
                                             BoxShadow(
                                               color: context.isDarkMode
                                                   ? Colors.white
                                                   : Colors.black,
-                                              offset: const Offset(8, 8),
+                                              offset: const Offset(1.5, 1.5),
                                             ),
                                           ],
                                         ),
@@ -1131,136 +1127,102 @@ class _MatchListScreenState extends State<MatchListScreen> {
                                     );
                                   }
                                 },
-                                child: Container(
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 4,
-                                    ),
-                                    leading: Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: context.cardBorderColor,
-                                          width: 1,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: context.cardBorderColor,
+                                            width: 1.5,
+                                          ),
                                         ),
-                                      ),
-                                      child: ClipOval(
-                                        child: SizedBox(
-                                          width: 56,
-                                          height: 56,
-                                          child:
-                                              user.avatarUrl != null &&
-                                                  user.avatarUrl!.isNotEmpty
-                                              ? GamenectNetworkImage(
-                                                  imageUrl: user.avatarUrl!,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (context, url) =>
-                                                      Container(
-                                                        color:
-                                                            context.isDarkMode
-                                                            ? Colors.white
-                                                                  .withValues(
-                                                                    alpha: 0.1,
-                                                                  )
-                                                            : Colors.black
-                                                                  .withValues(
-                                                                    alpha: 0.05,
-                                                                  ),
-                                                      ),
-                                                  errorWidget:
-                                                      (
-                                                        context,
-                                                        url,
-                                                        error,
-                                                      ) => Container(
-                                                        color:
-                                                            context.isDarkMode
-                                                            ? Colors.white
-                                                                  .withValues(
-                                                                    alpha: 0.1,
-                                                                  )
-                                                            : Colors.black
-                                                                  .withValues(
-                                                                    alpha: 0.05,
-                                                                  ),
-                                                        child: Icon(
-                                                          Icons.person,
-                                                          size: 28,
-                                                          color:
-                                                              context.textColor,
-                                                        ),
-                                                      ),
-                                                )
-                                              : Container(
-                                                  color: context.isDarkMode
-                                                      ? Colors.white.withValues(
-                                                          alpha: 0.1,
-                                                        )
-                                                      : Colors.black.withValues(
-                                                          alpha: 0.05,
-                                                        ),
-                                                  child: Icon(
-                                                    Icons.person,
-                                                    size: 28,
-                                                    color: context.textColor,
+                                        child: ClipOval(
+                                          child: SizedBox(
+                                            width: 56,
+                                            height: 56,
+                                            child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                                                ? GamenectNetworkImage(
+                                                    imageUrl: user.avatarUrl!,
+                                                    width: 56,
+                                                    height: 56,
+                                                    fit: BoxFit.cover,
+                                                    placeholder: (context, url) => Container(
+                                                      color: context.isDarkMode
+                                                          ? Colors.white.withValues(alpha: 0.1)
+                                                          : Colors.black.withValues(alpha: 0.05),
+                                                    ),
+                                                    errorWidget: (context, url, error) => Container(
+                                                      color: context.isDarkMode
+                                                          ? Colors.white.withValues(alpha: 0.1)
+                                                          : Colors.black.withValues(alpha: 0.05),
+                                                      child: Icon(Icons.person, size: 28, color: context.textColor),
+                                                    ),
+                                                  )
+                                                : Container(
+                                                    color: context.isDarkMode
+                                                        ? Colors.white.withValues(alpha: 0.1)
+                                                        : Colors.black.withValues(alpha: 0.05),
+                                                    child: Icon(Icons.person, size: 28, color: context.textColor),
                                                   ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              user.username,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
+                                                color: context.textColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${user.age} tuổi • ${user.location}',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: context.textSecondaryColor,
+                                              ),
+                                            ),
+                                            if (lastMessage != null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                lastMessage,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: isUnread ? context.textColor : context.textTertiaryColor,
+                                                  fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
                                                 ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                    title: Text(
-                                      user.username,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: isUnread
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        color: context.textColor,
-                                      ),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
+                                      if (lastMessageTime != null) ...[
+                                        const SizedBox(width: 8),
                                         Text(
-                                          '${user.age} tuổi • ${user.location}',
+                                          _formatTime(lastMessageTime),
                                           style: TextStyle(
-                                            fontSize: 13,
-                                            color: context.textSecondaryColor,
+                                            fontSize: 12,
+                                            color: isUnread ? const Color(0xFFFF6E40) : context.textTertiaryColor,
+                                            fontWeight: isUnread ? FontWeight.bold : FontWeight.w500,
                                           ),
                                         ),
-                                        if (lastMessage != null)
-                                          Text(
-                                            lastMessage,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: isUnread
-                                                  ? context.textColor
-                                                  : context.textTertiaryColor,
-                                              fontWeight: isUnread
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
                                       ],
-                                    ),
-                                    trailing: lastMessageTime != null
-                                        ? Text(
-                                            _formatTime(lastMessageTime),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: isUnread
-                                                  ? const Color(0xFFFF6E40)
-                                                  : context.textTertiaryColor,
-                                              fontWeight: isUnread
-                                                  ? FontWeight.bold
-                                                  : FontWeight.w500,
-                                            ),
-                                          )
-                                        : null,
+                                    ],
                                   ),
                                 ),
                               );
@@ -1337,11 +1299,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
               decoration: BoxDecoration(
                 color: context.cardBgColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: context.textColor, width: 3),
+                border: Border.all(color: context.textColor, width: 1.5),
                 boxShadow: [
                   BoxShadow(
                     color: context.textColor,
-                    offset: const Offset(4, 4),
+                    offset: const Offset(1.5, 1.5),
                   ),
                 ],
               ),

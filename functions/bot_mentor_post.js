@@ -93,13 +93,6 @@ exports.botDailyMentorPost = onSchedule(
         // Đủ điều kiện đăng bài: bốc 1 ảnh chưa đăng
         const photoUrl = availablePhotos[Math.floor(Math.random() * availablePhotos.length)];
         
-        // Tạo lượng tim ảo ngẫu nhiên (8-29)
-        const likeCount = Math.floor(Math.random() * (MAX_LIKES - MIN_LIKES + 1)) + MIN_LIKES;
-        const fakeLikes = [];
-        for (let i = 0; i < likeCount; i++) {
-          fakeLikes.push(`fake_user_${Math.random().toString(36).substring(2, 10)}`);
-        }
-
         const postDate = new Date(now.toMillis() - Math.floor(Math.random() * 2 * 60 * 60 * 1000)); // Lùi lại 1-2 tiếng cho tự nhiên
 
         await db.collection("mentor_media").add({
@@ -111,7 +104,7 @@ exports.botDailyMentorPost = onSchedule(
           duration: null,
           month: `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}`,
           createdAt: admin.firestore.Timestamp.fromDate(postDate),
-          likes: fakeLikes,
+          likes: [],
         });
 
         // Xóa ảnh đã dùng khỏi pool để không bị lặp

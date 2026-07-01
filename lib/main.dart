@@ -99,8 +99,8 @@ void main() async {
 
     try {
       FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled:
-            false, // Tắt trên Web để tránh bị khóa IndexedDB gây treo
+        persistenceEnabled: true,
+        webPersistentTabManager: WebPersistentMultipleTabManager(),
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
     } catch (e) {

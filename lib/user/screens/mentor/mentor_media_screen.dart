@@ -9,13 +9,19 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../../core/providers/match_provider.dart';
+import '../../../core/providers/chat_provider.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/widgets/network_image.dart';
 import '../../../core/utils/thumbnail_helper.dart'
     if (dart.library.html) '../../../core/utils/thumbnail_helper_web.dart';
 import '../premium/subscription_screen.dart';
 import 'mentor_media_feed_screen.dart';
+import '../matching/home_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 const _kAccent = Color(0xFFFF6E40);
 const _kLiveRed = Color(0xFFFF2D55);
@@ -46,11 +52,424 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
   bool _isUploading = false;
   double _uploadProgress = 0;
   late final Stream<QuerySnapshot> _mediaStream;
+  String _mentorName = 'Mentor';
+  String _mentorAvatarUrl = '';
 
   @override
   void initState() {
     super.initState();
     _mediaStream = FirestoreService().getMentorMedia(widget.mentorId);
+    _loadMentorData();
+  }
+
+  Future<void> _loadMentorData() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.mentorId).get();
+      if (doc.exists && mounted) {
+        final data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          _mentorName = data['username'] ?? 'Mentor';
+          _mentorAvatarUrl = data['avatarUrl'] ?? '';
+        });
+      }
+    } catch (_) {}
+  }
+  
+  void _showShareBottomSheet(
+    BuildContext context,
+    String postId,
+    String previewUrl,
+    bool isVideo,
+    String mentorName,
+    String mentorId,
+  ) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext bottomSheetContext) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: Provider.of<MatchProvider>(
+                context,
+                listen: false,
+              ).fetchMatchedUsersWithMatchId(currentUserId),
+              builder: (context, snapshot) {
+                return Container(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                    border: const Border(
+                      top: BorderSide(color: Colors.black, width: 1.5),
+                      left: BorderSide(color: Colors.black, width: 1.5),
+                      right: BorderSide(color: Colors.black, width: 1.5),
+                    ),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, offset: Offset(0, -4)),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12, bottom: 20),
+                        width: 40,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      const Text(
+                        'CHIA SẺ BÀI VIẾT',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'GỬI POST CỦA "${mentorName.toUpperCase()}"',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(
+                                  text: 'https://gamenect.vn/mentor/$mentorId/post/$postId'));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'ĐÃ SAO CHÉP LIÊN KẾT',
+                                    style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
+                                  ),
+                                  backgroundColor: Colors.white,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: const BorderSide(color: Colors.black, width: 1.5),
+                                  ),
+                                ),
+                              );
+                              Navigator.pop(bottomSheetContext);
+                            },
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.black, width: 1.5),
+                                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+                                  ),
+                                  child: const Icon(Icons.link, color: Colors.black, size: 24),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text('Copy Link', style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Share.share('Xem bài viết cực hay trên Gamenect ngay: https://gamenect.vn/mentor/$mentorId/post/$postId');
+                              Navigator.pop(bottomSheetContext);
+                            },
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.black, width: 1.5),
+                                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5))],
+                                  ),
+                                  child: const Icon(Icons.share_outlined, color: Colors.black, size: 24),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text('Ứng dụng khác', style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: TextField(
+                          onChanged: (value) {
+                            setState(() {
+                              searchQuery = value.toLowerCase();
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Tìm kiếm bạn bè...',
+                            hintStyle: const TextStyle(color: Colors.black54),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Colors.black54,
+                            ),
+                            filled: true,
+                            fillColor: Colors.black.withValues(alpha: 0.05),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width: 1.5,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width: 1.5,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width: 1.5,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 0,
+                            ),
+                          ),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(
+                        color: Colors.black,
+                        height: 4,
+                        thickness: 4,
+                      ),
+                      Expanded(
+                        child:
+                            snapshot.connectionState == ConnectionState.waiting
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFFFF6E40),
+                                ),
+                              )
+                            : snapshot.hasError ||
+                                  !snapshot.hasData ||
+                                  snapshot.data!.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'BẠN CHƯA CÓ MATCH NÀO',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              )
+                            : Builder(
+                                builder: (context) {
+                                  final allMatches = snapshot.data!;
+                                  final filteredMatches = searchQuery.isEmpty
+                                      ? allMatches
+                                      : allMatches.where((m) {
+                                          final username =
+                                              (m['user'].username ?? '')
+                                                  .toLowerCase();
+                                          return username.contains(searchQuery);
+                                        }).toList();
+
+                                  if (filteredMatches.isEmpty) {
+                                    return const Center(
+                                      child: Text(
+                                        'KHÔNG TÌM THẤY BẠN BÈ',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  return ListView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    itemCount: filteredMatches.length,
+                                    itemBuilder: (context, index) {
+                                      final matchData = filteredMatches[index];
+                                      final user = matchData['user'];
+                                      final matchId = matchData['matchId'];
+
+                                      return ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 24,
+                                              vertical: 8,
+                                            ),
+                                        leading: ClipOval(
+                                          child: SizedBox(
+                                            width: 48,
+                                            height: 48,
+                                            child:
+                                                user.avatarUrl != null &&
+                                                    user.avatarUrl!.isNotEmpty
+                                                ? GamenectNetworkImage(
+                                                    imageUrl: user.avatarUrl!,
+                                                    fit: BoxFit.cover,
+                                                    placeholder:
+                                                        (context, url) =>
+                                                            Container(
+                                                              color: Colors
+                                                                  .black
+                                                                  .withValues(
+                                                                    alpha: 0.1,
+                                                                  ),
+                                                            ),
+                                                    errorWidget:
+                                                        (context, url, error) =>
+                                                            Container(
+                                                              color: Colors
+                                                                  .black
+                                                                  .withValues(
+                                                                    alpha: 0.1,
+                                                                  ),
+                                                              child: const Icon(
+                                                                Icons.person,
+                                                                color: Colors
+                                                                    .black54,
+                                                              ),
+                                                            ),
+                                                  )
+                                                : Container(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.1),
+                                                    child: const Icon(
+                                                      Icons.person,
+                                                      color: Colors.black54,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                        title: Text(
+                                          user.username ?? 'User',
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        trailing: GestureDetector(
+                                          onTap: () {
+                                            Navigator.pop(bottomSheetContext);
+
+                                            Provider.of<ChatProvider>(
+                                              context,
+                                              listen: false,
+                                            ).sendMentorPostMessage(
+                                              matchId,
+                                              postId,
+                                              previewUrl,
+                                              isVideo,
+                                              mentorName,
+                                              peerUser: user,
+                                            );
+
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'ĐÃ GỬI BÀI VIẾT CHO ${user.username?.toUpperCase() ?? "BẠN BÈ"}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                                backgroundColor: Colors.white,
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  side: const BorderSide(
+                                                    color: Colors.black,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.black,
+                                                width: 1.5,
+                                              ),
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                  color: Colors.black,
+                                                  offset: Offset(1.5, 1.5),
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Text(
+                                              'GỬI',
+                                              style: TextStyle(
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   // ── Check quota ──────────────────────────────────────────────────────────
@@ -778,10 +1197,10 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
+                    crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1,
+                    childAspectRatio: 0.65,
                   ),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
@@ -789,6 +1208,10 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                     final docId = docs[i].id;
                     final isVideo = data['type'] == 'video';
                     final url = data['url'] as String? ?? '';
+                    final likes = List<String>.from(data['likes'] as List? ?? const []);
+                    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                    final isLiked = likes.contains(currentUserId);
+                    final thumbnailUrl = data['thumbnailUrl'] as String? ?? '';
 
                     return GestureDetector(
                       onTap: () => Navigator.push(
@@ -809,65 +1232,209 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                           : null,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: cardColor,
-                          border: Border.all(color: borderColor, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: shadowColor,
-                              offset: const Offset(3, 3),
-                            ),
+                          color: const Color(0xFFF4F4F4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black, width: 1.5),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
                           ],
-                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(9),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              if (url.isNotEmpty)
-                                (isVideo &&
-                                        (data['thumbnailUrl'] == null ||
-                                            data['thumbnailUrl']
-                                                .toString()
-                                                .isEmpty))
-                                    ? Container(
+                              // Background
+                              ColoredBox(
+                                color: isVideo ? Colors.black : const Color(0xFFF4F4F4),
+                                child: (url.isNotEmpty)
+                                    ? ((isVideo && thumbnailUrl.isEmpty)
+                                        ? Container(
+                                            color: Colors.black12,
+                                            child: const Icon(
+                                              CupertinoIcons.play_circle_fill,
+                                              color: Colors.white,
+                                              size: 36,
+                                            ),
+                                          )
+                                        : GamenectNetworkImage(
+                                            imageUrl: isVideo ? thumbnailUrl : url,
+                                            fit: BoxFit.cover,
+                                          ))
+                                    : Container(
                                         color: Colors.black12,
-                                        child: const Icon(
-                                          CupertinoIcons.play_circle_fill,
-                                          color: Colors.white,
-                                          size: 36,
+                                        child: const Icon(CupertinoIcons.photo, color: Colors.black26),
+                                      ),
+                              ),
+
+                              // Bottom solid bar
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  height: 50,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border(
+                                      top: BorderSide(color: Colors.black, width: 1.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Bottom bar content (Avatar + name + share button)
+                              Positioned(
+                                left: 8,
+                                right: 8,
+                                bottom: 8,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.black, width: 1.5),
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: const Color(0xFF00E676),
+                                        child: _mentorAvatarUrl.isNotEmpty
+                                            ? ClipOval(
+                                                child: GamenectNetworkImage(
+                                                  imageUrl: _mentorAvatarUrl,
+                                                  width: 28,
+                                                  height: 28,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              )
+                                            : Text(
+                                                _mentorName.isNotEmpty ? _mentorName[0].toUpperCase() : '?',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        _mentorName,
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w900,
                                         ),
-                                      )
-                                    : GamenectNetworkImage(
-                                        imageUrl: isVideo
-                                            ? data['thumbnailUrl']!
-                                            : url,
-                                        fit: BoxFit.cover,
-                                      )
-                              else
-                                Container(
-                                  color: Colors.black12,
-                                  child: const Icon(
-                                    CupertinoIcons.photo,
-                                    color: Colors.black26,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    // Share button
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showShareBottomSheet(
+                                          context,
+                                          docId,
+                                          isVideo && thumbnailUrl.isNotEmpty ? thumbnailUrl : url,
+                                          isVideo,
+                                          _mentorName,
+                                          widget.mentorId,
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        child: const Icon(
+                                          Icons.share_rounded,
+                                          color: Colors.black,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Heart/Likes badge at top right
+                              if (likes.isNotEmpty)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      if (currentUserId.isEmpty) return;
+                                      FirestoreService().toggleLikeMentorMedia(docId, currentUserId);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.black, width: 1.5),
+                                        boxShadow: const [
+                                          BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                            color: isLiked ? Colors.red : Colors.black,
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${likes.length}',
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else 
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      if (currentUserId.isEmpty) return;
+                                      FirestoreService().toggleLikeMentorMedia(docId, currentUserId);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.black, width: 1.5),
+                                        boxShadow: const [
+                                          BoxShadow(color: Colors.black, offset: Offset(1.5, 1.5)),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                        color: isLiked ? Colors.red : Colors.black,
+                                        size: 14,
+                                      ),
+                                    ),
                                   ),
                                 ),
 
-                              if (isVideo)
+                              // Video duration (if video) at top left
+                              if (isVideo && data['duration'] != null)
                                 Positioned(
-                                  bottom: 4,
-                                  right: 4,
+                                  top: 8,
+                                  left: 8,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 2,
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: _kLiveRed,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 1.5,
-                                      ),
+                                      border: Border.all(color: Colors.white, width: 1.5),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Row(
@@ -878,15 +1445,15 @@ class _MentorMediaScreenState extends State<MentorMediaScreen> {
                                           color: Colors.white,
                                           size: 10,
                                         ),
-                                        if (data['duration'] != null)
-                                          Text(
-                                            '${data['duration']}s',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w900,
-                                            ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '${data['duration']}s',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
                                           ),
+                                        ),
                                       ],
                                     ),
                                   ),

@@ -33,12 +33,16 @@ class ChatScreen extends StatefulWidget {
   final String matchId; // ID của match (dùng làm room chat)
   final UserModel peerUser; // Thông tin user đối phương
   final bool showBackButton; // Có hiển thị nút back không
+  final VoidCallback? onBack;
+  final bool isPopup;
 
   const ChatScreen({
     super.key,
     required this.matchId,
     required this.peerUser,
     this.showBackButton = true,
+    this.onBack,
+    this.isPopup = false,
   });
 
   @override
@@ -71,7 +75,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _applyWebKeyboardFallback() {
-    if (!_isMobileWeb || !_focusNode.hasFocus) return;
+    if (!_isMobileWeb || !_focusNode.hasFocus || widget.isPopup) return;
 
     Future.delayed(const Duration(milliseconds: 350), () {
       if (!_isMobileWeb ||
@@ -132,7 +136,7 @@ class _ChatScreenState extends State<ChatScreen> {
     ChatProvider.currentActiveMatchId = widget.matchId;
     _focusNode.addListener(() {
       if (_isMobileWeb && _focusNode.hasFocus) {
-        if ((_webKeyboardInset - _latestWebKeyboardInset).abs() >= 1) {
+        if ((_webKeyboardInset - _latestWebKeyboardInset).abs() >= 1 && !widget.isPopup) {
           setState(() => _webKeyboardInset = _latestWebKeyboardInset);
         }
         _applyWebKeyboardFallback();
@@ -152,9 +156,9 @@ class _ChatScreenState extends State<ChatScreen> {
           return;
         }
         _latestWebKeyboardInset = inset;
-        final nextInset = _focusNode.hasFocus && inset >= 80
+        final nextInset = widget.isPopup ? 0.0 : (_focusNode.hasFocus && inset >= 80
             ? inset
-            : (_focusNode.hasFocus ? _webKeyboardInset : 0.0);
+            : (_focusNode.hasFocus ? _webKeyboardInset : 0.0));
         if ((_webKeyboardInset - nextInset).abs() < 1) return;
 
         setState(() => _webKeyboardInset = nextInset);
@@ -560,15 +564,15 @@ class _ChatScreenState extends State<ChatScreen> {
     final myAvatarUrl = chatProvider.currentUser?.avatarUrl ?? '';
     final peerAvatarUrl = widget.peerUser.avatarUrl ?? '';
 
-    final isLargeScreen = MediaQuery.of(context).size.width > 800;
+    final isLargeScreen = !widget.isPopup && MediaQuery.of(context).size.width > 800;
 
     final chatScaffold = Scaffold(
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
-      resizeToAvoidBottomInset: !kIsWeb,
+      resizeToAvoidBottomInset: widget.isPopup ? false : !kIsWeb,
 
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
+        preferredSize: Size.fromHeight(widget.isPopup ? 70 : 100),
         child: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
@@ -589,6 +593,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               child: SafeArea(
+                top: !widget.isPopup,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -616,7 +621,13 @@ class _ChatScreenState extends State<ChatScreen> {
                                   color: Colors.black,
                                   size: 28,
                                 ),
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: () {
+                                  if (widget.onBack != null) {
+                                    widget.onBack!();
+                                  } else {
+                                    Navigator.pop(context);
+                                  }
+                                },
                               ),
                             ),
                           ),

@@ -31,7 +31,7 @@ class GamenectNetworkImage extends StatelessWidget {
     int? cacheWidth = memCacheWidth;
     int? cacheHeight = memCacheHeight;
 
-    if (!kIsWeb && cacheWidth == null && cacheHeight == null) {
+    if (cacheWidth == null && cacheHeight == null) {
       final pixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 3.0;
       const maxCacheDimen = 1080;
 
@@ -40,20 +40,32 @@ class GamenectNetworkImage extends StatelessWidget {
           width != double.infinity &&
           height != double.infinity) {
         final maxDimen = width! > height! ? width! : height!;
-        final calculatedWidth = (maxDimen * pixelRatio).round();
-        cacheWidth = calculatedWidth > maxCacheDimen
-            ? maxCacheDimen
-            : calculatedWidth;
+        if (maxDimen <= 100) {
+          cacheWidth = 200;
+        } else {
+          final calculatedWidth = (maxDimen * pixelRatio).round();
+          cacheWidth = calculatedWidth > maxCacheDimen
+              ? maxCacheDimen
+              : calculatedWidth;
+        }
       } else if (width != null && width != double.infinity) {
-        final calculatedWidth = (width! * pixelRatio).round();
-        cacheWidth = calculatedWidth > maxCacheDimen
-            ? maxCacheDimen
-            : calculatedWidth;
+        if (width! <= 100) {
+          cacheWidth = 200;
+        } else {
+          final calculatedWidth = (width! * pixelRatio).round();
+          cacheWidth = calculatedWidth > maxCacheDimen
+              ? maxCacheDimen
+              : calculatedWidth;
+        }
       } else if (height != null && height != double.infinity) {
-        final calculatedHeight = (height! * pixelRatio).round();
-        cacheHeight = calculatedHeight > maxCacheDimen
-            ? maxCacheDimen
-            : calculatedHeight;
+        if (height! <= 100) {
+          cacheHeight = 200;
+        } else {
+          final calculatedHeight = (height! * pixelRatio).round();
+          cacheHeight = calculatedHeight > maxCacheDimen
+              ? maxCacheDimen
+              : calculatedHeight;
+        }
       } else {
         cacheWidth = maxCacheDimen;
       }

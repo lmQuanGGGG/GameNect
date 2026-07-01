@@ -60,7 +60,10 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
           children: [
             // Custom Header
             Padding(
@@ -164,6 +167,8 @@ class _GameTrendingScreenState extends State<GameTrendingScreen>
             ),
           ],
         ),
+       ),
+      ),
       ),
     );
   }

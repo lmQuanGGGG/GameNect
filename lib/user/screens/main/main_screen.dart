@@ -12,6 +12,9 @@ import '../matching/liked_me_screen.dart';
 import '../matching/match_list_screen.dart';
 import '../moments/moment_screen.dart';
 import '../camera/camera_capture_screen.dart';
+import '../camera/web_rtc_camera_screen.dart';
+import 'package:flutter/foundation.dart';
+import '../../../core/services/camera_preload_service.dart';
 
 // Tách TabBar ra file riêng để code gọn gàng hơn
 import '../../widgets/liquid_glass_tab_bar.dart';
@@ -195,9 +198,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                           if (FirebaseAuth.instance.currentUser == null) {
                             Navigator.pushReplacementNamed(context, '/login');
                           } else {
+                            // Không gọi preload để tránh kẹt chấm xanh
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
+                              MaterialPageRoute(builder: (_) => const WebRTCCameraScreen()),
                             );
                           }
                         },
@@ -206,9 +210,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                           height: 56,
                           decoration: BoxDecoration(
                             color: const Color(0xFFFF6E40), // Cam Neo-Brutalism
-                            border: Border.all(color: context.textColor, width: 3),
+                            border: Border.all(color: context.textColor, width: 1.5),
                             boxShadow: [
-                              BoxShadow(color: context.textColor, offset: const Offset(3, 3))
+                              BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))
                             ],
                             shape: BoxShape.circle,
                           ),
@@ -229,26 +233,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                           height: 56,
                           decoration: BoxDecoration(
                             color: const Color(0xFFFF2D55),
-                            border: Border.all(color: context.textColor, width: 3),
+                            border: Border.all(color: context.textColor, width: 1.5),
                             boxShadow: [
-                              BoxShadow(color: context.textColor, offset: const Offset(3, 3))
+                              BoxShadow(color: context.textColor, offset: const Offset(1.5, 1.5))
                             ],
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                CupertinoIcons.radiowaves_right,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              Text(
-                                'LIVE',
-                                style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
-                              ),
-                            ],
+                          child: const Icon(
+                            CupertinoIcons.radiowaves_right,
+                            color: Colors.white,
+                            size: 26,
                           ),
                         ),
                       ),

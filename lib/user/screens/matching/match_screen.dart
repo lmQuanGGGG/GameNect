@@ -168,9 +168,9 @@ class _MatchScreenState extends State<MatchScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF4F4F4),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black, width: 4),
+            border: Border.all(color: Colors.black, width: 1.5),
             boxShadow: const [
-              BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+              BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
             ],
           ),
           padding: const EdgeInsets.all(24),
@@ -216,7 +216,7 @@ class _MatchScreenState extends State<MatchScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: Colors.black, width: 2),
+                      side: const BorderSide(color: Colors.black, width: 1.5),
                     ),
                     elevation: 0,
                   ),
@@ -254,9 +254,9 @@ class _MatchScreenState extends State<MatchScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFF4F4F4), // Light background
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black, width: 4),
+            border: Border.all(color: Colors.black, width: 1.5),
             boxShadow: const [
-              BoxShadow(color: Colors.black, offset: Offset(8, 8)),
+              BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
             ],
           ),
           padding: const EdgeInsets.all(24),
@@ -268,9 +268,9 @@ class _MatchScreenState extends State<MatchScreen> {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black, width: 3),
+                  border: Border.all(color: Colors.black, width: 1.5),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black, offset: Offset(2, 2)),
+                    BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                   ],
                 ),
                 child: CircleAvatar(
@@ -326,9 +326,9 @@ class _MatchScreenState extends State<MatchScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF6E40),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black, width: 3),
+                    border: Border.all(color: Colors.black, width: 1.5),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black, offset: Offset(4, 4)),
+                      BoxShadow(color: Colors.black, offset: const Offset(1.5, 1.5)),
                     ],
                   ),
                   child: const Center(
@@ -370,7 +370,7 @@ class _MatchScreenState extends State<MatchScreen> {
             border: Border(
               bottom: BorderSide(
                 color: context.isDarkMode ? Colors.white24 : Colors.black12,
-                width: 1,
+                width: 1.5,
               ),
             ),
           ),
@@ -413,11 +413,11 @@ class _MatchScreenState extends State<MatchScreen> {
                       decoration: BoxDecoration(
                         color: context.textColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.textColor, width: 3),
+                        border: Border.all(color: context.textColor, width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: context.textColor,
-                            offset: const Offset(4, 4),
+                            offset: const Offset(1.5, 1.5),
                           ),
                         ],
                       ),
@@ -431,7 +431,7 @@ class _MatchScreenState extends State<MatchScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Premium',
+                            'Pre',
                             style: TextStyle(
                               color: context.scaffoldBackgroundColor,
                               fontWeight: FontWeight.w900,
@@ -484,7 +484,7 @@ class _MatchScreenState extends State<MatchScreen> {
                 boxShadow: [
                   BoxShadow(
                     color: context.textColor,
-                    offset: const Offset(2, 2),
+                    offset: const Offset(1.5, 1.5),
                   ),
                 ],
               ),
@@ -532,7 +532,7 @@ class _MatchScreenState extends State<MatchScreen> {
                 boxShadow: [
                   BoxShadow(
                     color: context.textColor,
-                    offset: const Offset(2, 2),
+                    offset: const Offset(1.5, 1.5),
                   ),
                 ],
               ),
@@ -574,7 +574,10 @@ class _MatchScreenState extends State<MatchScreen> {
           ),
         ],
       ),
-      body: Stack(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: _isMapView ? double.infinity : 800),
+          child: Stack(
         children: [
           // Nội dung chính an toàn dưới Topbar
           SafeArea(
@@ -762,47 +765,50 @@ class _MatchScreenState extends State<MatchScreen> {
                                     }
 
                                     if (currentUserId != null) {
-                                      if (direction ==
-                                          CardSwiperDirection.right) {
-                                        await firestoreService.saveSwipeHistory(
-                                          userId: currentUserId,
-                                          targetUserId: swipedUser.id,
-                                          action: 'like',
-                                        );
-                                        final isMutual = await firestoreService
-                                            .checkMutualLike(
-                                              userId: currentUserId,
-                                              targetUserId: swipedUser.id,
+                                      // Chạy ngầm (fire-and-forget) để không làm thẻ bị khựng lại chờ mạng
+                                      () async {
+                                        if (direction ==
+                                            CardSwiperDirection.right) {
+                                          await firestoreService.saveSwipeHistory(
+                                            userId: currentUserId,
+                                            targetUserId: swipedUser.id,
+                                            action: 'like',
+                                          );
+                                          final isMutual = await firestoreService
+                                              .checkMutualLike(
+                                                userId: currentUserId,
+                                                targetUserId: swipedUser.id,
+                                              );
+                                          if (isMutual) {
+                                            await firestoreService.createNewMatch(
+                                              userIds: [
+                                                currentUserId,
+                                                swipedUser.id,
+                                              ],
+                                              game: 'Tên game',
+                                              expiresAt: DateTime.now().add(
+                                                const Duration(hours: 24),
+                                              ),
                                             );
-                                        if (isMutual) {
-                                          await firestoreService.createNewMatch(
-                                            userIds: [
-                                              currentUserId,
-                                              swipedUser.id,
-                                            ],
-                                            game: 'Tên game',
-                                            expiresAt: DateTime.now().add(
-                                              const Duration(hours: 24),
-                                            ),
-                                          );
-                                          await Future.delayed(
-                                            const Duration(milliseconds: 500),
-                                          );
-                                          if (!context.mounted) return true;
-                                          _showMatchDialog(
-                                            context,
-                                            swipedUser.username,
-                                            swipedUser.avatarUrl ?? '',
+                                            await Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                            );
+                                            if (!context.mounted) return;
+                                            _showMatchDialog(
+                                              context,
+                                              swipedUser.username,
+                                              swipedUser.avatarUrl ?? '',
+                                            );
+                                          }
+                                        } else if (direction ==
+                                            CardSwiperDirection.left) {
+                                          await firestoreService.saveSwipeHistory(
+                                            userId: currentUserId,
+                                            targetUserId: swipedUser.id,
+                                            action: 'dislike',
                                           );
                                         }
-                                      } else if (direction ==
-                                          CardSwiperDirection.left) {
-                                        await firestoreService.saveSwipeHistory(
-                                          userId: currentUserId,
-                                          targetUserId: swipedUser.id,
-                                          action: 'dislike',
-                                        );
-                                      }
+                                      }();
                                     } else {
                                       // Guest mode swipe interception
                                       Navigator.pushReplacement(
@@ -844,12 +850,12 @@ class _MatchScreenState extends State<MatchScreen> {
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: context.textColor,
-                                          width: 3,
+                                          width: 1.5,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
                                             color: context.textColor,
-                                            offset: const Offset(4, 4),
+                                            offset: const Offset(1.5, 1.5),
                                           ),
                                         ],
                                       ),
@@ -876,12 +882,12 @@ class _MatchScreenState extends State<MatchScreen> {
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: context.textColor,
-                                          width: 3,
+                                          width: 1.5,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
                                             color: context.textColor,
-                                            offset: const Offset(4, 4),
+                                            offset: const Offset(1.5, 1.5),
                                           ),
                                         ],
                                       ),
@@ -933,16 +939,25 @@ class _MatchScreenState extends State<MatchScreen> {
                                   ),
                                   // Cột phải: Info panel user đang xem
                                   Expanded(
-                                    child: user == null
-                                        ? Center(
-                                            child: Text(
-                                              'Vuốt card để xem thông tin',
-                                              style: TextStyle(
-                                                color:
-                                                    context.textTertiaryColor,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: const Color(0xFFFF6E40).withValues(alpha: 0.2),
+                                            width: 1.0,
+                                          ),
+                                        ),
+                                      ),
+                                      child: user == null
+                                          ? Center(
+                                              child: Text(
+                                                'Vuốt card để xem thông tin',
+                                                style: TextStyle(
+                                                  color:
+                                                      context.textTertiaryColor,
+                                                ),
                                               ),
-                                            ),
-                                          )
+                                            )
                                         : SingleChildScrollView(
                                             padding: const EdgeInsets.all(32),
                                             child: Column(
@@ -958,17 +973,13 @@ class _MatchScreenState extends State<MatchScreen> {
                                                         border: Border.all(
                                                           color:
                                                               context.textColor,
-                                                          width: 3,
+                                                          width: 1.5,
                                                         ),
                                                         boxShadow: [
                                                           BoxShadow(
                                                             color: context
                                                                 .textColor,
-                                                            offset:
-                                                                const Offset(
-                                                                  4,
-                                                                  4,
-                                                                ),
+                                                            offset: const Offset(1.5, 1.5),
                                                           ),
                                                         ],
                                                       ),
@@ -1113,17 +1124,13 @@ class _MatchScreenState extends State<MatchScreen> {
                                                             border: Border.all(
                                                               color: context
                                                                   .textColor,
-                                                              width: 2,
+                                                              width: 1.5,
                                                             ),
                                                             boxShadow: [
                                                               BoxShadow(
                                                                 color: context
                                                                     .textColor,
-                                                                offset:
-                                                                    const Offset(
-                                                                      2,
-                                                                      2,
-                                                                    ),
+                                                                offset: const Offset(1.5, 1.5),
                                                               ),
                                                             ],
                                                           ),
@@ -1157,17 +1164,13 @@ class _MatchScreenState extends State<MatchScreen> {
                                                           border: Border.all(
                                                             color: context
                                                                 .textColor,
-                                                            width: 3,
+                                                            width: 1.5,
                                                           ),
                                                           boxShadow: [
                                                             BoxShadow(
                                                               color: context
                                                                   .textColor,
-                                                              offset:
-                                                                  const Offset(
-                                                                    4,
-                                                                    4,
-                                                                  ),
+                                                              offset: const Offset(1.5, 1.5),
                                                             ),
                                                           ],
                                                         ),
@@ -1228,17 +1231,13 @@ class _MatchScreenState extends State<MatchScreen> {
                                                           border: Border.all(
                                                             color: context
                                                                 .textColor,
-                                                            width: 3,
+                                                            width: 1.5,
                                                           ),
                                                           boxShadow: [
                                                             BoxShadow(
                                                               color: context
                                                                   .textColor,
-                                                              offset:
-                                                                  const Offset(
-                                                                    4,
-                                                                    4,
-                                                                  ),
+                                                              offset: const Offset(1.5, 1.5),
                                                             ),
                                                           ],
                                                         ),
@@ -1292,6 +1291,7 @@ class _MatchScreenState extends State<MatchScreen> {
                                               ],
                                             ),
                                           ),
+                                    ),
                                   ),
                                 ],
                               );
@@ -1309,6 +1309,8 @@ class _MatchScreenState extends State<MatchScreen> {
             ),
           ), // đóng RefreshIndicator
         ],
+      ),
+        ),
       ),
     );
   }
